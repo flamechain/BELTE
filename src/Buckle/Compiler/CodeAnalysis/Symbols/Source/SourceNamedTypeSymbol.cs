@@ -43,6 +43,12 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
         }
     }
 
+    // TODO This should be something
+    public override ImmutableArray<BoundExpression> templateConstraints => [];
+
+    public override ImmutableArray<TypeOrConstant> templateArguments
+        => GetTemplateParametersAsTemplateArguments();
+
     internal override NamedTypeSymbol baseType {
         get {
             if (ReferenceEquals(_lazyBaseType, ErrorTypeSymbol.UnknownResultType)) {
@@ -91,6 +97,16 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
     internal TypeParameterConstraintKinds GetTypeParameterConstraintKinds(int ordinal) {
         var constraintKinds = GetTypeParameterConstraintKinds();
         return (constraintKinds.Length > 0) ? constraintKinds[ordinal] : TypeParameterConstraintKinds.None;
+    }
+
+    private protected override void CheckBase(BelteDiagnosticQueue diagnostics) {
+        var localBase = baseType;
+
+        if (localBase is null)
+            return;
+
+        var location = _declaration.identifier.location;
+        localBase.CheckAllConstraints(declaringCompilation, location, diagnostics);
     }
 
     private static bool TypeDependsOn(NamedTypeSymbol depends, NamedTypeSymbol on) {

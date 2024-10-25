@@ -39,6 +39,17 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, IS
 
     internal ImmutableArray<MethodSymbol> constructors => GetConstructors();
 
+    internal bool isTemplateType {
+        get {
+            for (var current = this; !ReferenceEquals(current, null); current = current.containingType) {
+                if (current.templateArguments.Length != 0)
+                    return true;
+            }
+
+            return false;
+        }
+    }
+
     internal virtual bool isUnboundTemplateType => false;
 
     internal new virtual NamedTypeSymbol originalDefinition => this;

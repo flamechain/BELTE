@@ -79,6 +79,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     internal sealed override Accessibility declaredAccessibility => ModifierHelpers.EffectiveAccessibility(_modifiers);
 
+    internal sealed override NamedTypeSymbol constructedFrom => this;
+
     internal bool isLowLevel => HasFlag(DeclarationModifiers.LowLevel);
 
     internal override int arity { get; }
@@ -90,6 +92,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     internal override SpecialType specialType { get; }
 
     internal override SyntaxReference syntaxReference => new SyntaxReference(_declaration);
+
+    internal override IEnumerable<string> memberNames => GetMembers().Select(m => m.name);
 
     internal sealed override ImmutableArray<Symbol> GetMembers() {
         if (!_lazyMembersFlattened.IsDefault)
