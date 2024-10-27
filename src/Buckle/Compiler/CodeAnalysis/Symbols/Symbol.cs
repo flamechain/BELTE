@@ -112,7 +112,7 @@ internal abstract class Symbol : ISymbol {
 
     internal virtual void AddDeclarationDiagnostics(BelteDiagnosticQueue diagnostics) {
         if (diagnostics.Count > 0)
-            declaringCompilation.diagnostics.Move(diagnostics);
+            declaringCompilation.declarationDiagnostics.Move(diagnostics);
     }
 
     internal virtual void ForceComplete(TextLocation location) { }

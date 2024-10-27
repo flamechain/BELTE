@@ -26,7 +26,6 @@ internal sealed class Interpreter {
     internal static EvaluationResult Interpret(
         SyntaxTree syntaxTree,
         CompilationOptions options,
-        Dictionary<IDataContainerSymbol, EvaluatorObject> variables,
         ValueWrapper<bool> abort) {
         // This pseudo interpreter parses all of the source files at once, so there is a short delay before running the
         // code. This is not perfect, as the goal is to be a "true" interpreter, but without doing this at once the
@@ -51,7 +50,7 @@ internal sealed class Interpreter {
                 )
             );
 
-            previous = Compilation.CreateScript(options, previous, newSyntaxTree);
+            previous = Compilation.CreateScript("interpreter", options, newSyntaxTree, previous);
             result = previous.Evaluate(variables, abort);
 
             // ? If any diagnostics are found, we quit early. Is this what we want though?

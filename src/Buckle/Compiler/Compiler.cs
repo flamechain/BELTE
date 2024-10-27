@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Threading;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Evaluating;
-using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -25,14 +24,20 @@ public sealed class Compiler {
     private const int InterpreterMaxTextLength = 4096;
     private const int EvaluatorMaxTextLength = 4096 * 4;
 
-    private CompilationOptions _options
-        => new CompilationOptions(state.buildMode, state.projectType, state.arguments, false, !state.noOut);
+    private CompilationOptions _options => new CompilationOptions(
+        state.buildMode,
+        state.projectType,
+        state.arguments,
+        false,
+        !state.noOut,
+        state.references
+    );
 
     /// <summary>
     /// Creates a new <see cref="Compiler" />, state needs to be set separately.
     /// </summary>
-    public Compiler() {
-        diagnostics = new BelteDiagnosticQueue();
+    public Compiler(CompilerState state) {
+        this.state = state;
     }
 
     /// <summary>
@@ -47,24 +52,28 @@ public sealed class Compiler {
     public string me { get; set; }
 
     /// <summary>
-    /// Where the diagnostics are stored for the compiler before being displayed or logged.
+    /// The diagnostics from the most recent compiler operation.
     /// </summary>
-    public BelteDiagnosticQueue diagnostics { get; set; }
+    public BelteDiagnosticQueue diagnostics { get; private set; } = new BelteDiagnosticQueue();
 
     /// <summary>
     /// Handles compiling, assembling, and linking of a set of files.
     /// </summary>
     /// <returns>Error code, 0 = success.</returns>
     public int Compile() {
-        if (state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute)
-            InternalInterpreter();
-        else
-            InternalCompiler();
+        lock (state) lock (me) {
+                diagnostics.Clear();
 
-        return CheckErrors();
+                if (state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute)
+                    diagnostics = InternalInterpreter();
+                else
+                    diagnostics = InternalCompiler();
+
+                return CalculateExitCode(diagnostics);
+            }
     }
 
-    private int CheckErrors() {
+    private int CalculateExitCode(BelteDiagnosticQueue diagnostics) {
         var worst = SuccessExitCode;
 
         foreach (Diagnostic diagnostic in diagnostics) {
@@ -75,7 +84,8 @@ public sealed class Compiler {
         return worst;
     }
 
-    private void InternalInterpreter() {
+    private BelteDiagnosticQueue InternalInterpreter() {
+        var diagnostics = new BelteDiagnosticQueue();
         var timer = state.verboseMode ? Stopwatch.StartNew() : null;
         var textLength = 0;
         var textsCount = 0;
@@ -109,21 +119,15 @@ public sealed class Compiler {
                 }
             }
 
-            var compilation = Compilation.CreateWithPrevious(
+            var compilation = Compilation.Create(
+                state.moduleName,
                 _options,
                 CompilerHelpers.LoadLibraries(_options),
                 syntaxTrees.ToArray()
             );
 
-            diagnostics.Move(compilation.diagnostics);
-
-            if (diagnostics.AnyErrors())
-                return;
-
             if (state.noOut)
-                return;
-
-            EvaluationResult result = null;
+                return compilation.GetParseDiagnostics();
 
             if (state.verboseMode) {
                 timer.Stop();
@@ -136,19 +140,14 @@ public sealed class Compiler {
 
             void Wrapper(object parameter) {
                 if (buildMode == BuildMode.Evaluate) {
-                    result = compilation.Evaluate(
-                        new Dictionary<IDataContainerSymbol, EvaluatorObject>(),
-                        (ValueWrapper<bool>)parameter,
-                        state.verboseMode
-                    );
+                    var result = compilation.Evaluate((ValueWrapper<bool>)parameter, state.verboseMode);
+                    diagnostics.PushRange(result.diagnostics);
                 } else {
-                    compilation.Execute();
+                    diagnostics.PushRange(compilation.Execute());
                 }
             }
 
             InternalInterpreterStart(Wrapper);
-
-            diagnostics.Move(result?.diagnostics);
         } else {
             Debug.Assert(state.tasks.Length == 1, "multiple tasks while in script mode");
 
@@ -159,7 +158,7 @@ public sealed class Compiler {
 
             var options = _options;
             options.isScript = true;
-            var compilation = Compilation.Create(options, syntaxTree);
+            var compilation = Compilation.Create(state.moduleName, options, syntaxTree);
             EvaluationResult result = null;
 
             if (state.verboseMode && !state.noOut) {
@@ -172,10 +171,7 @@ public sealed class Compiler {
             }
 
             void Wrapper(object parameter) {
-                result = compilation.Interpret(
-                    new Dictionary<IDataContainerSymbol, EvaluatorObject>(),
-                    (ValueWrapper<bool>)parameter
-                );
+                result = compilation.Interpret((ValueWrapper<bool>)parameter);
             }
 
             InternalInterpreterStart(Wrapper);
@@ -190,9 +186,12 @@ public sealed class Compiler {
                 $"Total compilation time: {timer.ElapsedMilliseconds} ms"
             ));
         }
+
+        return diagnostics;
     }
 
-    private void InternalCompiler() {
+    private BelteDiagnosticQueue InternalCompiler() {
+        var diagnostics = new BelteDiagnosticQueue();
         var timer = state.verboseMode ? Stopwatch.StartNew() : null;
         var syntaxTrees = new List<SyntaxTree>();
 
@@ -206,14 +205,15 @@ public sealed class Compiler {
             }
         }
 
-        var compilation = Compilation.CreateWithPrevious(
+        var compilation = Compilation.Create(
+            state.moduleName,
             _options,
             CompilerHelpers.LoadLibraries(_options),
             syntaxTrees.ToArray()
         );
 
         if (state.noOut)
-            return;
+            return diagnostics;
 
         if (state.verboseMode) {
             timer.Stop();
@@ -225,11 +225,7 @@ public sealed class Compiler {
         }
 
         var result = compilation.Emit(
-            state.buildMode,
-            state.moduleName,
-            state.references,
             state.outputFilename,
-            state.finishStage,
             state.verboseMode
         );
 
@@ -242,6 +238,8 @@ public sealed class Compiler {
                 $"Total compilation time: {timer.ElapsedMilliseconds} ms"
             ));
         }
+
+        return diagnostics;
     }
 
     private void InternalInterpreterStart(Action<object> wrapper) {

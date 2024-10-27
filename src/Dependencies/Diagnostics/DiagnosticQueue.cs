@@ -82,6 +82,28 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     }
 
     /// <summary>
+    /// Pushes multiple <see cref="Diagnostic" />s onto the <see cref="DiagnosticQueue<T>" /> at the same time.
+    /// </summary>
+    /// <param name="diagnostics"><see cref="Diagnostic" />s to copy onto the <see cref="DiagnosticQueue<T>" />.</param>
+    public void PushRange(IEnumerable<T> diagnostics) {
+        if (!diagnostics.Any())
+            return;
+
+        _diagnostics.AddRange(diagnostics);
+    }
+
+    /// <summary>
+    /// Pushes another <see cref="DiagnosticQueue<T>" /> onto the <see cref="DiagnosticQueue<T>" />.
+    /// </summary>
+    /// <param name="diagnostics"><see cref="Diagnostic" />s to copy onto the <see cref="DiagnosticQueue<T>" />.</param>
+    public void PushRange(DiagnosticQueue<T> diagnostics) {
+        if (!diagnostics.Any())
+            return;
+
+        _diagnostics.AddRange(diagnostics._diagnostics);
+    }
+
+    /// <summary>
     /// Pops all Diagnostics off <see cref="DiagnosticQueue<T>" /> and pushes them onto this.
     /// </summary>
     /// <param name="diagnosticQueue"><see cref="DiagnosticQueue<T>" /> to pop and copy from.</param>

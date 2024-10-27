@@ -41,7 +41,6 @@ internal sealed class Evaluator {
         BoundProgram program,
         Dictionary<IDataContainerSymbol, EvaluatorObject> globals,
         string[] arguments) {
-        diagnostics = new BelteDiagnosticQueue();
         exceptions = new List<Exception>();
         _arguments = arguments;
         _program = program;
@@ -74,11 +73,6 @@ internal sealed class Evaluator {
     /// All thrown exceptions during evaluation.
     /// </summary>
     internal List<Exception> exceptions { get; set; }
-
-    /// <summary>
-    /// Diagnostics specific to the <see cref="Evaluator" />.
-    /// </summary>
-    internal BelteDiagnosticQueue diagnostics { get; set; }
 
     /// <summary>
     /// Evaluate the provided <see cref="BoundProgram" />.

@@ -38,32 +38,35 @@ public static partial class BuckleCommandLine {
     /// <returns>Error code, 0 = success.</returns>
     public static int ProcessArgs(string[] args) {
         int err;
-        var compiler = new Compiler {
-            me = Process.GetCurrentProcess().ProcessName,
-            state = DecodeOptions(args, out var diagnostics, out var dialogs, out var multipleExplains)
+
+        var processName = Process.GetCurrentProcess().ProcessName;
+        var state = DecodeOptions(args, out var diagnostics, out var dialogs, out var multipleExplains);
+
+        var compiler = new Compiler(state) {
+            me = processName
         };
 
         var hasDialog = dialogs.machine || dialogs.version || dialogs.help || dialogs.error is not null;
 
         if (multipleExplains)
-            ResolveDiagnostic(Belte.Diagnostics.Error.MultipleExplains(), compiler.me, compiler.state);
+            ResolveDiagnostic(Belte.Diagnostics.Error.MultipleExplains(), processName, state);
 
         if (hasDialog) {
             diagnostics.Clear();
             diagnostics.Move(ShowDialogs(dialogs, multipleExplains));
-            ResolveDiagnostics(diagnostics, compiler.me, compiler.state);
+            ResolveDiagnostics(diagnostics, processName, state);
 
             return SuccessExitCode;
         }
 
-        if (compiler.state.verboseMode && !compiler.state.noOut)
+        if (state.verboseMode && !state.noOut)
             ShowDialogs(new ShowDialogs() { machine = true, version = true }, false);
 
         // Only mode that does not go through one-time compilation
-        if (compiler.state.buildMode == BuildMode.Repl) {
-            ResolveDiagnostics(diagnostics, compiler.me, compiler.state);
+        if (state.buildMode == BuildMode.Repl) {
+            ResolveDiagnostics(diagnostics, processName, state);
 
-            if (!compiler.state.noOut) {
+            if (!state.noOut) {
                 var repl = new BelteRepl(compiler, ResolveDiagnostics);
                 repl.Run();
             }
@@ -71,23 +74,23 @@ public static partial class BuckleCommandLine {
             return SuccessExitCode;
         }
 
-        err = ResolveDiagnostics(diagnostics, compiler.me, compiler.state);
+        err = ResolveDiagnostics(diagnostics, processName, state);
 
         if (err > 0)
             return err;
 
-        if (!compiler.state.noOut)
+        if (!state.noOut)
             CleanOutputFiles(compiler);
 
         ReadInputFiles(compiler, out diagnostics);
 
-        err = ResolveDiagnostics(diagnostics, compiler.me, compiler.state);
+        err = ResolveDiagnostics(diagnostics, processName, state);
 
         if (err > 0)
             return err;
 
-        if (compiler.state.verboseMode && !compiler.state.noOut)
-            LogTasks(compiler.state.tasks);
+        if (state.verboseMode && !state.noOut)
+            LogTasks(state.tasks);
 
         compiler.Compile();
 
@@ -330,7 +333,10 @@ public static partial class BuckleCommandLine {
     }
 
     private static DiagnosticSeverity ResolveDiagnostic<Type>(
-        Type diagnostic, string me, CompilerState state, ConsoleColor? textColor = null)
+        Type diagnostic,
+        string me,
+        CompilerState state,
+        ConsoleColor? textColor = null)
         where Type : Diagnostic {
         var previous = Console.ForegroundColor;
 
@@ -429,7 +435,10 @@ public static partial class BuckleCommandLine {
     }
 
     private static int ResolveDiagnostics<Type>(
-        DiagnosticQueue<Type> diagnostics, string me, CompilerState state, ConsoleColor? textColor = null)
+        DiagnosticQueue<Type> diagnostics,
+        string me,
+        CompilerState state,
+        ConsoleColor? textColor = null)
         where Type : Diagnostic {
         if (diagnostics.Count == 0)
             return SuccessExitCode;
@@ -454,7 +463,9 @@ public static partial class BuckleCommandLine {
     }
 
     private static int ResolveDiagnostics(
-        Compiler compiler, string me = null, ConsoleColor textColor = ConsoleColor.White) {
+        Compiler compiler,
+        string me = null,
+        ConsoleColor textColor = ConsoleColor.White) {
         return ResolveDiagnostics(compiler.diagnostics, me ?? compiler.me, compiler.state, textColor);
     }
 
@@ -537,8 +548,10 @@ public static partial class BuckleCommandLine {
     }
 
     private static CompilerState DecodeOptions(
-        string[] args, out DiagnosticQueue<Diagnostic> diagnostics,
-        out ShowDialogs dialogs, out bool multipleExplains) {
+        string[] args,
+        out DiagnosticQueue<Diagnostic> diagnostics,
+        out ShowDialogs dialogs,
+        out bool multipleExplains) {
         var state = new CompilerState();
         var tasks = new List<FileState>();
         var references = new List<string>();
@@ -569,7 +582,7 @@ public static partial class BuckleCommandLine {
         state.noOut = false;
         state.warningLevel = 1;
         state.severity = DiagnosticSeverity.Warning;
-        state.projectType = ProjectType.Console;
+        state.projectType = OutputKind.Console;
         state.verboseMode = false;
 
         void DecodeSimpleOption(string arg) {
@@ -732,9 +745,9 @@ public static partial class BuckleCommandLine {
                 var type = arg.Substring(7).ToLower();
 
                 if (type == "console")
-                    state.projectType = ProjectType.Console;
+                    state.projectType = OutputKind.Console;
                 else if (type == "graphics")
-                    state.projectType = ProjectType.Graphics;
+                    state.projectType = OutputKind.Graphics;
                 else
                     diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedType(type));
             } else if (arg == "--") {

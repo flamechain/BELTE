@@ -25,8 +25,9 @@ namespace Repl;
 /// </summary>
 public sealed partial class BelteRepl : Repl {
     private static readonly CompilationOptions DefaultOptions =
-        new CompilationOptions(BuildMode.Repl, ProjectType.Console, [], true, false);
-    private static readonly Compilation EmptyCompilation = Compilation.CreateScript(DefaultOptions, null);
+        new CompilationOptions(BuildMode.Repl, OutputKind.Console, [], true, false);
+    // TODO Any benefit to generating numbered assembly names so they are unique?
+    private static readonly Compilation EmptyCompilation = Compilation.CreateScript("ReplSubmission", DefaultOptions);
     private static readonly ImmutableArray<(string name, string contributor, ColorTheme theme)> InUse =
         [
             ("Dark", "", new DarkTheme()),
@@ -282,11 +283,11 @@ public sealed partial class BelteRepl : Repl {
     private void LoadLibraries() {
         var compilation = CompilerHelpers.LoadLibraries(DefaultOptions);
         state.previous = compilation;
-        compilation.Evaluate(new Dictionary<IDataContainerSymbol, EvaluatorObject>(), _abortEvaluation);
+        compilation.Evaluate(_abortEvaluation);
     }
 
     private void EvaluateSubmissionInternal(SyntaxTree syntaxTree) {
-        var compilation = Compilation.CreateScript(DefaultOptions, state.previous, syntaxTree);
+        var compilation = Compilation.CreateScript("ReplSubmission", DefaultOptions, syntaxTree, state.previous);
         var displayText = new DisplayText();
 
         if (state.showTokens) {
@@ -306,23 +307,25 @@ public sealed partial class BelteRepl : Repl {
         }
 
         if (state.showCS) {
-            var code = compilation.EmitToString(BuildMode.CSharpTranspile, "ReplSubmission");
+            var code = compilation.EmitToString(out _, BuildMode.CSharpTranspile);
             writer.Write(code);
         }
 
         if (state.showIL) {
             try {
-                var code = compilation.EmitToString(BuildMode.Dotnet, "ReplSubmission");
+                var code = compilation.EmitToString(out _, BuildMode.Dotnet);
                 writer.Write(code);
             } catch (KeyNotFoundException) {
                 handle.diagnostics.Push(new BelteDiagnostic(Diagnostics.Error.FailedILGeneration()));
             }
         }
 
+        var diagnostics = compilation.GetDiagnostics();
+
         if (state.showWarnings)
-            handle.diagnostics.Move(compilation.diagnostics);
+            handle.diagnostics.Move(diagnostics);
         else
-            handle.diagnostics.Move(compilation.diagnostics.Errors());
+            handle.diagnostics.Move(diagnostics.Errors());
 
         EvaluationResult result = null;
         Console.ForegroundColor = state.colorTheme.result;

@@ -31,6 +31,10 @@ internal enum CompletionParts : ushort {
 
     NamedTypeSymbolAll = NamedTypeSymbolWithLocationAll | MembersCompletedChecksStarted | MembersCompleted,
 
+    // For namespaces
+    NameToMembersMap = 1 << 6,
+    NamespaceSymbolAll = NameToMembersMap | MembersCompleted,
+
     // For fields
     ConstantValue = 1 << 6,
     FieldSymbolAll = Type | ConstantValue,

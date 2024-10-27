@@ -16,7 +16,6 @@ internal enum SpecialType : byte {
     Decimal,
     Type,
     Nullable,
-    Func,
     Void,
     List,
     Dictionary,

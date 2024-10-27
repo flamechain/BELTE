@@ -111,4 +111,89 @@ internal static class ImmutableArrayExtensions {
         where TDerived : class, TBase {
         return ImmutableArray<TBase>.CastUp(items);
     }
+
+    internal static void CreateNameToMembersMap<TKey, TNamespaceOrTypeSymbol, TNamedTypeSymbol, TNamespaceSymbol>
+        (Dictionary<TKey, object> dictionary, Dictionary<TKey, ImmutableArray<TNamespaceOrTypeSymbol>> result)
+        where TKey : notnull
+        where TNamespaceOrTypeSymbol : class
+        where TNamedTypeSymbol : class, TNamespaceOrTypeSymbol
+        where TNamespaceSymbol : class, TNamespaceOrTypeSymbol {
+        foreach (var entry in dictionary)
+            result.Add(entry.Key, CreateMembers(entry.Value));
+
+        return;
+
+        static ImmutableArray<TNamespaceOrTypeSymbol> CreateMembers(object value) {
+            if (value is ArrayBuilder<TNamespaceOrTypeSymbol> builder) {
+                foreach (var item in builder) {
+                    if (item is TNamespaceSymbol)
+                        return builder.ToImmutableAndFree();
+                }
+
+                return ImmutableArray<TNamespaceOrTypeSymbol>.CastUp(
+                    builder.ToDowncastedImmutableAndFree<TNamespaceOrTypeSymbol, TNamedTypeSymbol>()
+                );
+            } else {
+                var symbol = (TNamespaceOrTypeSymbol)value;
+                return symbol is TNamespaceSymbol
+                    ? ImmutableArray.Create(symbol)
+                    : ImmutableArray<TNamespaceOrTypeSymbol>.CastUp(ImmutableArray.Create((TNamedTypeSymbol)symbol));
+            }
+        }
+    }
+
+    internal static Dictionary<TKey, ImmutableArray<TNamedTypeSymbol>> GetTypesFromMemberMap
+        <TKey, TNamespaceOrTypeSymbol, TNamedTypeSymbol>
+        (Dictionary<TKey, ImmutableArray<TNamespaceOrTypeSymbol>> map, IEqualityComparer<TKey> comparer)
+        where TKey : notnull
+        where TNamespaceOrTypeSymbol : class
+        where TNamedTypeSymbol : class, TNamespaceOrTypeSymbol {
+        var capacity = map.Count > 3 ? map.Count : 0;
+
+        var dictionary = new Dictionary<TKey, ImmutableArray<TNamedTypeSymbol>>(capacity, comparer);
+
+        foreach (var entry in map) {
+            var namedTypes = GetOrCreateNamedTypes(entry.Value);
+
+            if (namedTypes.Length > 0)
+                dictionary.Add(entry.Key, namedTypes);
+        }
+
+        return dictionary;
+
+        static ImmutableArray<TNamedTypeSymbol> GetOrCreateNamedTypes(ImmutableArray<TNamespaceOrTypeSymbol> members) {
+            var membersAsNamedTypes = members.As<TNamedTypeSymbol>();
+
+            if (!membersAsNamedTypes.IsDefault)
+                return membersAsNamedTypes;
+
+            var count = members.Count(static s => s is TNamedTypeSymbol);
+
+            if (count == 0)
+                return [];
+
+            var builder = ArrayBuilder<TNamedTypeSymbol>.GetInstance(count);
+
+            foreach (var member in members) {
+                if (member is TNamedTypeSymbol namedType)
+                    builder.Add(namedType);
+            }
+
+            return builder.ToImmutableAndFree();
+        }
+    }
+
+    internal static int Count<T>(this ImmutableArray<T> items, Func<T, bool> predicate) {
+        if (items.IsEmpty)
+            return 0;
+
+        var count = 0;
+
+        for (var i = 0; i < items.Length; ++i) {
+            if (predicate(items[i]))
+                ++count;
+        }
+
+        return count;
+    }
 }

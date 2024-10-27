@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis;
@@ -16,5 +17,11 @@ internal static class ArrayBuilderExtensions {
 
     internal static T Peek<T>(this ArrayBuilder<T> builder) {
         return builder[^1];
+    }
+
+    internal static ImmutableArray<U> ToDowncastedImmutableAndFree<T, U>(this ArrayBuilder<T> builder) where U : T {
+        var result = builder.ToDowncastedImmutable<U>();
+        builder.Free();
+        return result;
     }
 }

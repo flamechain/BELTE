@@ -45,5 +45,5 @@ internal abstract class WrappedMethodSymbol : MethodSymbol {
 
     internal override bool returnsVoid => underlyingMethod.returnsVoid;
 
-    internal override bool isConst => underlyingMethod.isConst;
+    internal override bool isDeclaredConst => underlyingMethod.isDeclaredConst;
 }

@@ -1,15 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Emitting;
+using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.FlowAnalysis;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
+using Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
+using Shared;
 
 namespace Buckle.CodeAnalysis;
 
@@ -21,18 +27,29 @@ public sealed class Compilation {
     private readonly ImmutableDictionary<SyntaxTree, int> _ordinalMap;
     private NamespaceSymbol _lazyGlobalNamespace;
     private WeakReference<BinderFactory>[] _binderFactories;
+    private BelteDiagnosticQueue _lazyDeclarationDiagnostics;
 
     private Compilation(
+        string assemblyName,
         CompilationOptions options,
         Compilation previous,
         SyntaxManager syntax) {
+        this.assemblyName = assemblyName;
         this.options = options;
         this.previous = previous;
         _syntax = syntax;
-        diagnostics = new BelteDiagnosticQueue();
     }
 
-    internal BelteDiagnosticQueue diagnostics { get; }
+    public string assemblyName { get; }
+
+    internal BelteDiagnosticQueue declarationDiagnostics {
+        get {
+            if (_lazyDeclarationDiagnostics is null)
+                Interlocked.CompareExchange(ref _lazyDeclarationDiagnostics, new BelteDiagnosticQueue(), null);
+
+            return _lazyDeclarationDiagnostics;
+        }
+    }
 
     internal CompilationOptions options { get; }
 
@@ -40,12 +57,14 @@ public sealed class Compilation {
 
     internal ImmutableArray<SyntaxTree> syntaxTrees => _syntax.state.syntaxTrees;
 
-    internal bool keepLookingForCorTypes { get; set; } = true;
+    internal bool keepLookingForCorTypes => CorLibrary.StillLookingForSpecialTypes();
 
     internal NamespaceSymbol globalNamespace {
         get {
             if (_lazyGlobalNamespace is null) {
-                var result = new GlobalNamespaceSymbol(new NamespaceExtent(this));
+                var extent = new NamespaceExtent(this);
+                var mergedDeclarations = MergeDeclarations();
+                var result = new GlobalNamespaceSymbol(extent, mergedDeclarations);
                 Interlocked.CompareExchange(ref _lazyGlobalNamespace, result, null);
             }
 
@@ -53,23 +72,164 @@ public sealed class Compilation {
         }
     }
 
-    public static Compilation Create(CompilationOptions options, params SyntaxTree[] syntaxTrees) {
-        return Create(options, null, syntaxTrees);
+    public static Compilation Create(string assemblyName, CompilationOptions options, params SyntaxTree[] syntaxTrees) {
+        return Create(assemblyName, options, null, syntaxTrees);
     }
 
     public static Compilation Create(
+        string assemblyName,
         CompilationOptions options,
         Compilation previous,
         params SyntaxTree[] syntaxTrees) {
-        return Create(options, previous, (IEnumerable<SyntaxTree>)syntaxTrees);
+        return Create(assemblyName, options, previous, (IEnumerable<SyntaxTree>)syntaxTrees);
     }
 
     public static Compilation CreateScript(
+        string assemblyName,
         CompilationOptions options,
-        Compilation previous,
-        params SyntaxTree[] syntaxTrees) {
+        SyntaxTree syntaxTree = null,
+        Compilation previous = null) {
         options.isScript = true;
-        return Create(options, previous, syntaxTrees);
+        var syntaxTress = syntaxTree is null ? null : (IEnumerable<SyntaxTree>)[syntaxTree];
+        return Create(assemblyName, options, previous, syntaxTress);
+    }
+
+    public EvaluationResult Evaluate(ValueWrapper<bool> abort, bool logTime = false) {
+        var timer = logTime ? Stopwatch.StartNew() : null;
+        var builder = GetDiagnostics();
+
+#if DEBUG
+        if (options.enableOutput) {
+            CreateCfg(program);
+            CreateBoundProgram(program);
+        }
+#endif
+
+        if (logTime) {
+            timer.Stop();
+            builder.Push(new BelteDiagnostic(
+                DiagnosticSeverity.Debug,
+                $"Bound the program in {timer.ElapsedMilliseconds} ms"
+            ));
+            timer.Restart();
+        }
+
+        if (builder.AnyErrors())
+            return EvaluationResult.Failed(builder);
+
+        var eval = new Evaluator(program, options.arguments);
+        var evalResult = eval.Evaluate(abort, out var hasValue);
+
+        if (logTime) {
+            timer.Stop();
+            builder.Push(new BelteDiagnostic(
+                DiagnosticSeverity.Debug,
+                $"Evaluated the program in {timer.ElapsedMilliseconds} ms"
+            ));
+        }
+
+        var result = new EvaluationResult(
+            evalResult,
+            hasValue,
+            builder,
+            eval.exceptions,
+            eval.lastOutputWasPrint,
+            eval.containsIO
+        );
+
+        return result;
+    }
+
+    public BelteDiagnosticQueue Emit(string outputPath, bool logTime = false) {
+        var timer = logTime ? Stopwatch.StartNew() : null;
+        var builder = GetDiagnostics();
+
+        if (logTime) {
+            timer.Stop();
+            builder.Push(new BelteDiagnostic(
+                DiagnosticSeverity.Debug,
+                $"Compiled in {timer.ElapsedMilliseconds} ms"
+            ));
+            timer.Restart();
+        }
+
+        if (builder.AnyErrors())
+            return builder;
+
+        if (options.buildMode == BuildMode.Dotnet)
+            // return ILEmitter.Emit(program, moduleName, references, outputPath);
+            builder.Push(Fatal.Unsupported.DotnetCompilation());
+        else if (options.buildMode == BuildMode.CSharpTranspile)
+            return CSharpEmitter.Emit(program, outputPath);
+        else if (options.buildMode == BuildMode.Independent)
+            builder.Push(Fatal.Unsupported.IndependentCompilation());
+
+        if (logTime && options.buildMode is BuildMode.Dotnet or BuildMode.CSharpTranspile) {
+            timer.Stop();
+            builder.Push(new BelteDiagnostic(
+                DiagnosticSeverity.Debug,
+                $"Emitted the program in {timer.ElapsedMilliseconds} ms"
+            ));
+        }
+
+        return builder;
+    }
+
+    public BelteDiagnosticQueue Execute() {
+        var builder = GetDiagnostics();
+
+        if (builder.AnyErrors())
+            return builder;
+
+#if DEBUG
+        if (options.enableOutput) {
+            CreateCfg(program);
+            CreateBoundProgram(program);
+        }
+#endif
+
+        Executor.Execute(program, options.arguments);
+        return builder;
+    }
+
+    public EvaluationResult Interpret(ValueWrapper<bool> abort) {
+        return Interpreter.Interpret(_syntax.syntaxTrees[0], options, abort);
+    }
+
+    public string EmitToString(out BelteDiagnosticQueue diagnostics, BuildMode? alternateBuildMode = null) {
+        var buildMode = alternateBuildMode ?? options.buildMode;
+        diagnostics = GetDiagnostics();
+
+        if (diagnostics.AnyErrors())
+            return null;
+
+        if (buildMode == BuildMode.CSharpTranspile) {
+            var content = CSharpEmitter.Emit(program, moduleName, out var emitterDiagnostics);
+            diagnostics.Move(emitterDiagnostics);
+            return content;
+        } else if (buildMode == BuildMode.Dotnet) {
+            var content = ILEmitter.Emit(program, moduleName, references, out var emitterDiagnostics);
+            diagnostics.Move(emitterDiagnostics);
+            return content;
+        }
+
+        return null;
+    }
+
+    public BelteDiagnosticQueue GetParseDiagnostics() {
+        return GetDiagnostics(true, false, false);
+    }
+
+    public BelteDiagnosticQueue GetDeclarationDiagnostics() {
+        return GetDiagnostics(false, true, false);
+    }
+
+    public BelteDiagnosticQueue GetMethodBodyDiagnostics() {
+        return GetDiagnostics(false, false, true);
+    }
+
+    public BelteDiagnosticQueue GetDiagnostics() {
+        return GetDiagnostics(true, true, true);
     }
 
     internal int CompareSourceLocations(SyntaxReference syntax1, SyntaxReference syntax2) {
@@ -99,6 +259,11 @@ public sealed class Compilation {
             return 0;
 
         return GetSyntaxTreeOrdinal(tree1) - GetSyntaxTreeOrdinal(tree2);
+    }
+
+    internal void RegisterDeclaredSpecialType(NamedTypeSymbol type) {
+        // TODO Maybe make the CorLibrary not static?
+        CorLibrary.RegisterDeclaredSpecialType(type);
     }
 
     internal Binder GetBinder(BelteSyntaxNode syntax) {
@@ -160,7 +325,7 @@ public sealed class Compilation {
     }
 
     private Compilation Update(SyntaxManager syntax) {
-        return new Compilation(options, previous, syntax);
+        return new Compilation(assemblyName, options, previous, syntax);
     }
 
     private BinderFactory AddNewFactory(SyntaxTree syntaxTree, ref WeakReference<BinderFactory> slot) {
@@ -181,10 +346,12 @@ public sealed class Compilation {
     }
 
     private static Compilation Create(
+        string assemblyName,
         CompilationOptions options,
         Compilation previous,
         IEnumerable<SyntaxTree> syntaxTrees) {
         var compilation = new Compilation(
+            assemblyName,
             options,
             previous,
             new SyntaxManager([], null)
@@ -194,6 +361,37 @@ public sealed class Compilation {
             compilation = compilation.AddSyntaxTrees(syntaxTrees);
 
         return compilation;
+    }
+
+    private BelteDiagnosticQueue GetDiagnostics(bool includeParse, bool includeDeclaration, bool includeMethods) {
+        var builder = new BelteDiagnosticQueue();
+
+        if (includeParse) {
+            foreach (var syntaxTree in _syntax.syntaxTrees)
+                builder.PushRange(syntaxTree.GetDiagnostics());
+        }
+
+        if (includeDeclaration) {
+            globalNamespace.ForceComplete(null);
+            builder.PushRange(declarationDiagnostics);
+        }
+
+        if (includeMethods) {
+            // TODO
+        }
+
+        return builder;
+    }
+
+    private ImmutableArray<MemberDeclarationSyntax> MergeDeclarations() {
+        var builder = ArrayBuilder<MemberDeclarationSyntax>.GetInstance();
+
+        foreach (var tree in _syntax.syntaxTrees) {
+            var compilationUnit = tree.GetCompilationUnitRoot();
+            builder.AddRange(compilationUnit.members);
+        }
+
+        return builder.ToImmutableAndFree();
     }
 
     private static void CreateCfg(BoundProgram program) {
