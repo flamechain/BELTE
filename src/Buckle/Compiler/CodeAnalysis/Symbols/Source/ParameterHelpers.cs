@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
@@ -5,6 +6,19 @@ using Buckle.Diagnostics;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal static class ParameterHelpers {
+
+    internal static ImmutableArray<SourceParameterSymbol> MakeParameters(
+        Binder withTemplateParametersBinder,
+        Symbol owner,
+        SeparatedSyntaxList<ParameterSyntax> parameterList,
+        BelteDiagnosticQueue diagnostics,
+        bool allowRef,
+        bool addRefConstModifier) {
+        var lastIndex = parameterList.Count - 1;
+        // TODO
+        return default;
+    }
+
     internal static bool ReportDefaultParameterErrors(
         Binder binder,
         Symbol owner,

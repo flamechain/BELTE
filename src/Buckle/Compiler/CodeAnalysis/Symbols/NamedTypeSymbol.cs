@@ -86,6 +86,28 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, IS
         return templateParameters.IsEmpty ? this : Construct(templateArguments, unbound: false);
     }
 
+    internal TemplateParameterSymbol FindEnclosingTemplateParameter(string name) {
+        var allTemplateParameters = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
+        GetAllTypeParameters(allTemplateParameters);
+
+        TemplateParameterSymbol result = null;
+
+        foreach (var enclosingTemplateParameter in allTemplateParameters) {
+            if (name == enclosingTemplateParameter.name) {
+                result = enclosingTemplateParameter;
+                break;
+            }
+        }
+
+        allTemplateParameters.Free();
+        return result;
+    }
+
+    internal void GetAllTypeParameters(ArrayBuilder<TemplateParameterSymbol> result) {
+        containingType?.GetAllTypeParameters(result);
+        result.AddRange(templateParameters);
+    }
+
     internal static readonly Func<TypeOrConstant, bool> TypeOrConstantIsNullFunction = type
         => type.isType && type.type.type is null;
 

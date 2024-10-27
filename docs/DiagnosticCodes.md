@@ -167,6 +167,10 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0154 | Error | cannot derive from type '{0}'; static classes must derive from Object |
 | BU0155 | Error | cannot derive from template parameter '{0}' |
 | BU0156 | Error | inconsistent accessibility: type '{0}' is less accessible than field '{1}' |
+| BU0157 | Error | inconsistent accessibility: return type '{0}' is less accessible than operator '{1}' |
+| BU0158 | Error | inconsistent accessibility: return type '{0}' is less accessible than method '{1}' |
+| BU0159 | Error | inconsistent accessibility: parameter type '{0}' is less accessible than operator '{1}' |
+| BU0160 | Error | inconsistent accessibility: parameter type '{0}' is less accessible than method '{1}' |
 
 ## Command Line Diagnostics
 

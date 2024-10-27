@@ -36,11 +36,14 @@ internal abstract class MethodSymbol : Symbol, ISymbolWithTemplates {
 
     internal abstract ImmutableArray<ParameterSymbol> parameters { get; }
 
-    internal abstract bool isConst { get; }
-
     internal abstract bool hidesBaseMethodsByName { get; }
 
     internal abstract bool hasSpecialName { get; }
+
+    internal abstract bool isDeclaredConst { get; }
+
+    // TODO This will also check if the containing type is const when const structs are added (if they are added)
+    internal virtual bool isEffectivelyConst => isDeclaredConst;
 
     internal virtual int parameterCount => parameters.Length;
 

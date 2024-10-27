@@ -1,53 +1,16 @@
+using System.Collections.Immutable;
+using System.Threading;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal abstract class SourceMemberMethodSymbol : SourceMethodSymbol {
-    private protected struct Flags {
-        private int _flags;
-
-        private const int MethodKindOffset = 0;
-        private const int MethodKindSize = 5;
-        private const int MethodKindMask = (1 << MethodKindSize) - 1;
-
-        private const int RefKindOffset = MethodKindOffset + MethodKindSize;
-        private const int RefKindSize = 3;
-        private const int RefKindMask = (1 << RefKindSize) - 1;
-
-        private const int ReturnsVoidOffset = RefKindOffset + RefKindSize;
-        private const int ReturnsVoidSize = 2;
-
-        private const int HasAnyBodyOffset = ReturnsVoidOffset + ReturnsVoidSize;
-        private const int HasAnyBodySize = 1;
-
-        private const int HasAnyBodyBit = 1 << HasAnyBodyOffset;
-        private const int ReturnsVoidBit = 1 << ReturnsVoidOffset;
-        private const int ReturnsVoidIsSetBit = 1 << ReturnsVoidOffset + 1;
-
-        internal readonly bool returnsVoid {
-            get {
-                var bits = _flags;
-                var value = (bits & ReturnsVoidBit) != 0;
-                return value;
-            }
-        }
-
-        internal readonly MethodKind methodKind => (MethodKind)((_flags >> MethodKindOffset) & MethodKindMask);
-
-        internal readonly RefKind refKind => (RefKind)((_flags >> RefKindOffset) & RefKindMask);
-
-        internal readonly bool hasAnyBody => (_flags & HasAnyBodyBit) != 0;
-
-        internal void SetReturnsVoid(bool value) {
-            ThreadSafeFlagOperations.Set(ref _flags, ReturnsVoidIsSetBit | (value ? ReturnsVoidBit : 0));
-        }
-
-
-    }
+internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol {
     private protected readonly DeclarationModifiers _modifiers;
 
+    private protected Flags _flags;
     private protected SymbolCompletionState _state;
 
     private OverriddenOrHiddenMembersResult _lazyOverriddenOrHiddenMembers;
@@ -55,22 +18,179 @@ internal abstract class SourceMemberMethodSymbol : SourceMethodSymbol {
     private protected SourceMemberMethodSymbol(
         NamedTypeSymbol containingType,
         SyntaxReference syntaxReference,
-        DeclarationModifiers modifiers)
+        (DeclarationModifiers modifiers, Flags flags) modifiersAndFlags)
         : base(syntaxReference) {
         this.containingType = containingType;
-        _modifiers = modifiers;
+        _modifiers = modifiersAndFlags.modifiers;
+        _flags = modifiersAndFlags.flags;
     }
+
+    public sealed override ImmutableArray<TypeOrConstant> templateArguments
+        => GetTemplateParametersAsTemplateArguments();
+
+    internal sealed override int arity => templateParameters.Length;
+
+    internal sealed override OverriddenOrHiddenMembersResult overriddenOrHiddenMembers {
+        get {
+            LazyMethodChecks();
+
+            if (_lazyOverriddenOrHiddenMembers is null) {
+                Interlocked.CompareExchange(
+                    ref _lazyOverriddenOrHiddenMembers,
+                    this.MakeOverriddenOrHiddenMembers(),
+                    null
+                );
+            }
+
+            return _lazyOverriddenOrHiddenMembers;
+        }
+    }
+
+    internal sealed override bool requiresCompletion => true;
 
     internal sealed override Symbol containingSymbol => containingType;
 
     internal override NamedTypeSymbol containingType { get; }
 
-    internal override bool returnsVoid { get; }
+    internal override bool returnsVoid => _flags.returnsVoid;
+
+    internal sealed override MethodKind methodKind => _flags.methodKind;
+
+    internal override Accessibility declaredAccessibility => ModifierHelpers.EffectiveAccessibility(_modifiers);
+
+    internal sealed override bool isSealed => (_modifiers & DeclarationModifiers.Sealed) != 0;
+
+    internal sealed override bool isAbstract => (_modifiers & DeclarationModifiers.Abstract) != 0;
+
+    internal sealed override bool isOverride => (_modifiers & DeclarationModifiers.Override) != 0;
+
+    internal sealed override bool isVirtual => (_modifiers & DeclarationModifiers.Virtual) != 0;
+
+    internal sealed override bool isStatic => (_modifiers & DeclarationModifiers.Static) != 0;
+
+    internal sealed override RefKind refKind => _flags.refKind;
+
+    internal override bool isDeclaredConst => (_modifiers & DeclarationModifiers.Const) != 0;
+
+    internal bool isLowLevel => (_modifiers & DeclarationModifiers.LowLevel) != 0;
+
+    internal bool isNew => (_modifiers & DeclarationModifiers.New) != 0;
+
+    internal BlockStatementSyntax body => syntaxNode switch {
+        BaseMethodDeclarationSyntax method => method.body,
+        _ => null,
+    };
 
     // This allows synthesized methods to also perform method checks without having a conflicting lock
+    // TODO This could probably be removed because there are no synthesized event methods or anything similar
     private protected virtual object _methodChecksLockObject => syntaxReference;
 
+    internal sealed override bool HasComplete(CompletionParts part) {
+        return _state.HasComplete(part);
+    }
+
+    internal override void ForceComplete(TextLocation location) {
+        while (true) {
+            var incompletePart = _state.nextIncompletePart;
+
+            switch (incompletePart) {
+                case CompletionParts.Type:
+                    _ = returnType;
+                    _state.NotePartComplete(CompletionParts.Type);
+                    break;
+                case CompletionParts.Parameters:
+                    foreach (var parameter in parameters)
+                        parameter.ForceComplete(location);
+
+                    _state.NotePartComplete(CompletionParts.Parameters);
+                    break;
+                case CompletionParts.TemplateParameters:
+                    foreach (var templateParameter in templateParameters)
+                        templateParameter.ForceComplete(location);
+
+                    _state.NotePartComplete(CompletionParts.TemplateParameters);
+                    break;
+                case CompletionParts.StartMethodChecks:
+                case CompletionParts.FinishMethodChecks:
+                    LazyMethodChecks();
+                    goto done;
+                case CompletionParts.None:
+                    return;
+                default:
+                    _state.NotePartComplete(CompletionParts.All & ~CompletionParts.MethodSymbolAll);
+                    break;
+            }
+
+            _state.SpinWaitComplete(incompletePart);
+        }
+
+done:
+        _state.SpinWaitComplete(CompletionParts.MethodSymbolAll);
+    }
+
+    internal abstract ExecutableCodeBinder TryGetBodyBinder(
+        BinderFactory binderFactory = null,
+        bool ignoreAccessibility = false);
+
     private protected abstract void MethodChecks(BelteDiagnosticQueue diagnostics);
+
+    private protected void SetReturnsVoid(bool returnsVoid) {
+        _flags.SetReturnsVoid(returnsVoid);
+    }
+
+    private protected void CheckEffectiveAccessibility(
+        TypeWithAnnotations returnType,
+        ImmutableArray<ParameterSymbol> parameters,
+        BelteDiagnosticQueue diagnostics) {
+        if (declaredAccessibility <= Accessibility.Private)
+            return;
+
+        var underlyingReturnType = returnType.type;
+
+        if (!IsNoMoreVisibleThan(underlyingReturnType)) {
+            if (methodKind == MethodKind.Operator) {
+                diagnostics.Push(
+                    Error.InconsistentAccessibilityOperatorReturn(syntaxReference.location, underlyingReturnType, this)
+                );
+            } else {
+                diagnostics.Push(
+                    Error.InconsistentAccessibilityReturn(syntaxReference.location, underlyingReturnType, this)
+                );
+            }
+        }
+
+        foreach (var parameter in parameters) {
+            if (!parameter.typeWithAnnotations.IsAtLeastAsVisibleAs(this)) {
+                if (methodKind == MethodKind.Operator) {
+                    diagnostics.Push(
+                        Error.InconsistentAccessibilityOperatorParameter(syntaxReference.location, parameter.type, this)
+                    );
+                } else {
+                    diagnostics.Push(
+                        Error.InconsistentAccessibilityParameter(syntaxReference.location, parameter.type, this)
+                    );
+                }
+            }
+        }
+    }
+
+    private protected ExecutableCodeBinder TryGetBodyBinderFromSyntax(
+        BinderFactory binderFactory = null,
+        bool ignoreAccessibility = false) {
+        var inMethod = TryGetInMethodBinder(binderFactory);
+        return inMethod is null
+            ? null
+            : new ExecutableCodeBinder(
+                syntaxNode,
+                this,
+                inMethod.WithAdditionalFlags(ignoreAccessibility ? BinderFlags.IgnoreAccessibility : BinderFlags.None)
+            );
+    }
+
+    private protected void CheckModifiersForBody(TextLocation location, BelteDiagnosticQueue diagnostics) {
+        if (isAbstract)
+            diagnostics.Push(Error.AbstractCannotHaveBody(location, this));
+    }
 
     private protected void LazyMethodChecks() {
         if (!_state.HasComplete(CompletionParts.FinishMethodChecks)) {
@@ -91,5 +211,14 @@ internal abstract class SourceMemberMethodSymbol : SourceMethodSymbol {
                 }
             }
         }
+    }
+
+    private Binder TryGetInMethodBinder(BinderFactory binderFactory = null) {
+        var contextNode = GetInMethodSyntaxNode();
+
+        if (contextNode is null)
+            return null;
+
+        return (binderFactory ?? declaringCompilation.GetBinderFactory(contextNode.syntaxTree)).GetBinder(contextNode);
     }
 }

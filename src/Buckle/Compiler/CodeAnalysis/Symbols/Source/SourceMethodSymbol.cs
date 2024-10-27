@@ -9,6 +9,8 @@ internal abstract class SourceMethodSymbol : MethodSymbol {
         this.syntaxReference = syntaxReference;
     }
 
+    internal sealed override bool hidesBaseMethodsByName => false;
+
     internal override SyntaxReference syntaxReference { get; }
 
     internal override bool hasSpecialName => methodKind switch {
@@ -26,5 +28,16 @@ internal abstract class SourceMethodSymbol : MethodSymbol {
 
     internal abstract ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes();
 
-    internal abstract ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintKinds();
+    internal abstract ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds();
+
+    private protected BelteSyntaxNode GetInMethodSyntaxNode() {
+        return syntaxNode switch {
+            ConstructorDeclarationSyntax constructor
+                => constructor.constructorInitializer ?? (BelteSyntaxNode)constructor.body,
+            BaseMethodDeclarationSyntax method => method.body,
+            LocalFunctionStatementSyntax localFunction => localFunction.body,
+            ClassDeclarationSyntax classDeclaration => classDeclaration,
+            _ => null,
+        };
+    }
 }

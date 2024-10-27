@@ -71,4 +71,9 @@ internal static class SyntaxNodeExtensions {
         refKind = RefKind.None;
         return syntax;
     }
+
+    internal static RefKind GetRefKind(this TypeSyntax syntax) {
+        syntax.SkipRef(out var refKind);
+        return refKind;
+    }
 }

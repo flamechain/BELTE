@@ -9,6 +9,8 @@ namespace Buckle.Diagnostics;
 /// A <see cref="DiagnosticQueue<T>" /> containing <see cref="BelteDiagnostic" />s.
 /// </summary>
 public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
+    internal static readonly BelteDiagnosticQueue Discarded = new BelteDiagnosticQueue(pool: null);
+
     private static readonly ObjectPool<BelteDiagnosticQueue> Pool
         = new ObjectPool<BelteDiagnosticQueue>(() => new BelteDiagnosticQueue(Pool));
 

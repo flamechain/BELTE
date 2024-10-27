@@ -32,6 +32,9 @@ internal sealed class TemplateMap {
         }
     }
 
+    internal TemplateMap(ImmutableArray<TemplateParameterSymbol> from, ImmutableArray<TemplateParameterSymbol> to)
+        : this(from, TemplateParametersAsTypeOrConstants(to)) { }
+
     private static Dictionary<TemplateParameterSymbol, TypeOrConstant> ForType(NamedTypeSymbol containingType) {
         return containingType is SubstitutedNamedTypeSymbol substituted
             ? new Dictionary<TemplateParameterSymbol, TypeOrConstant>(
@@ -78,6 +81,18 @@ internal sealed class TemplateMap {
         }
 
         return new TypeOrConstant(result);
+    }
+
+    internal ImmutableArray<TypeOrConstant> SubstituteTypes(ImmutableArray<TypeWithAnnotations> original) {
+        if (original.IsDefault)
+            return default;
+
+        var result = ArrayBuilder<TypeOrConstant>.GetInstance(original.Length);
+
+        foreach (var type in original)
+            result.Add(SubstituteType(type));
+
+        return result.ToImmutableAndFree();
     }
 
     internal TypeOrConstant SubstituteType(TypeWithAnnotations previous) {

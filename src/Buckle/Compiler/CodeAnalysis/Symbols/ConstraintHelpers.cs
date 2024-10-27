@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
+using System.Linq;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
@@ -12,7 +14,7 @@ internal static class ConstraintsHelpers {
     internal static TypeParameterBounds ResolveBounds(
         this SourceTemplateParameterSymbolBase templateParameter,
         ConsList<TemplateParameterSymbol> inProgress,
-        ImmutableArray<TypeWithAnnotations> constraintTypes,
+        ImmutableArray<TypeOrConstant> constraintTypes,
         bool inherited,
         Compilation currentCompilation,
         BelteDiagnosticQueue diagnostics,
@@ -24,11 +26,12 @@ internal static class ConstraintsHelpers {
         TypeSymbol deducedBaseType = effectiveBaseClass;
 
         if (constraintTypes.Length != 0) {
-            var constraintTypesBuilder = ArrayBuilder<TypeWithAnnotations>.GetInstance();
+            var constraintTypesBuilder = ArrayBuilder<TypeOrConstant>.GetInstance();
 
-            foreach (var constraintType in constraintTypes) {
+            foreach (var constraintTypeOrConstant in constraintTypes) {
                 NamedTypeSymbol constraintEffectiveBase;
                 TypeSymbol constraintDeducedBase;
+                var constraintType = constraintTypeOrConstant.type;
 
                 switch (constraintType.typeKind) {
                     case TypeKind.TemplateParameter:
@@ -56,7 +59,9 @@ internal static class ConstraintsHelpers {
                         constraintEffectiveBase = constraintTypeParameter.GetEffectiveBaseClass(constraintsInProgress);
                         constraintDeducedBase = constraintTypeParameter.GetDeducedBaseType(constraintsInProgress);
 
-                        if (!inherited && currentCompilation is not null && constraintTypeParameter.IsFromCompilation(currentCompilation)) {
+                        if (!inherited &&
+                            currentCompilation is not null &&
+                            constraintTypeParameter.IsFromCompilation(currentCompilation)) {
                             if (constraintTypeParameter.hasPrimitiveTypeConstraint) {
                                 diagnostics.Push(
                                     Error.TemplateObjectBaseWithPrimitiveBase(
@@ -81,7 +86,11 @@ internal static class ConstraintsHelpers {
                                 if (underlyingTypeParameter.containingSymbol == templateParameter.containingSymbol) {
                                     if (inProgress.ContainsReference(underlyingTypeParameter)) {
                                         diagnostics.Push(
-                                            Error.CircularConstraint(errorLocation, underlyingTypeParameter, templateParameter)
+                                            Error.CircularConstraint(
+                                                errorLocation,
+                                                underlyingTypeParameter,
+                                                templateParameter
+                                            )
                                         );
 
                                         continue;
@@ -106,7 +115,7 @@ internal static class ConstraintsHelpers {
                         throw ExceptionUtilities.UnexpectedValue(constraintType.typeKind);
                 }
 
-                constraintTypesBuilder.Add(constraintType);
+                constraintTypesBuilder.Add(constraintTypeOrConstant);
 
                 if (!deducedBaseType.IsErrorType() && !constraintDeducedBase.IsErrorType()) {
                     if (!IsEncompassedBy(deducedBaseType, constraintDeducedBase)) {
@@ -140,6 +149,71 @@ internal static class ConstraintsHelpers {
 
         return bounds;
     }
+
+    internal static ImmutableArray<ImmutableArray<TypeWithAnnotations>> MakeTypeParameterConstraintTypes(
+        this MethodSymbol containingSymbol,
+        Binder withTemplateParametersBinder,
+        ImmutableArray<TemplateParameterSymbol> templateParameters,
+        TemplateParameterListSyntax templateParameterList,
+        SyntaxList<TemplateConstraintClauseSyntax> constraintClauses,
+        BelteDiagnosticQueue diagnostics) {
+        if (templateParameters.Length == 0 || constraintClauses.Count == 0)
+            return [];
+
+        withTemplateParametersBinder = withTemplateParametersBinder
+            .WithAdditionalFlags(BinderFlags.TemplateConstraintsClause | BinderFlags.SuppressConstraintChecks);
+
+        var clauses = withTemplateParametersBinder.BindTypeParameterConstraintClauses(
+            containingSymbol,
+            templateParameters,
+            templateParameterList,
+            constraintClauses,
+            diagnostics
+        );
+
+        if (clauses.All(clause => clause.constraintTypes.IsEmpty))
+            return [];
+
+        return clauses.SelectAsArray(clause => clause.constraintTypes);
+    }
+
+    internal static ImmutableArray<TypeParameterConstraintKinds> MakeTypeParameterConstraintKinds(
+        this MethodSymbol containingSymbol,
+        Binder withTemplateParametersBinder,
+        ImmutableArray<TemplateParameterSymbol> templateParameters,
+        TemplateParameterListSyntax templateParameterList,
+        SyntaxList<TemplateConstraintClauseSyntax> constraintClauses) {
+        if (templateParameters.Length == 0)
+            return [];
+
+        ImmutableArray<TypeParameterConstraintClause> clauses;
+
+        if (constraintClauses.Count == 0) {
+            clauses = withTemplateParametersBinder.GetDefaultTypeParameterConstraintClauses(templateParameterList);
+        } else {
+            withTemplateParametersBinder = withTemplateParametersBinder.WithAdditionalFlags(
+                BinderFlags.TemplateConstraintsClause |
+                BinderFlags.SuppressConstraintChecks |
+                BinderFlags.SuppressTemplateArgumentBinding
+            );
+
+            clauses = withTemplateParametersBinder.BindTypeParameterConstraintClauses(
+                containingSymbol,
+                templateParameters,
+                templateParameterList,
+                constraintClauses,
+                BelteDiagnosticQueue.Discarded
+            );
+
+            clauses = AdjustConstraintKindsBasedOnConstraintTypes(templateParameters, clauses);
+        }
+
+        if (clauses.All(clause => clause.constraints == TypeParameterConstraintKinds.None))
+            return [];
+
+        return clauses.SelectAsArray(clause => clause.constraints);
+    }
+
 
     internal static ImmutableArray<TypeParameterConstraintClause> AdjustConstraintKindsBasedOnConstraintTypes(
         ImmutableArray<TemplateParameterSymbol> templateParameters,
@@ -207,22 +281,24 @@ internal static class ConstraintsHelpers {
         var deducedBase = bounds.deducedBaseType;
         var constraintTypes = bounds.constraintTypes;
 
-        if (IsPrimitiveType(templateParameter, constraintTypes) && IsObjectType(templateParameter, constraintTypes))
+        if (IsPrimitiveType(templateParameter, constraintTypes) && IsObjectType(templateParameter, constraintTypes)) {
             diagnostics.Push(Error.TemplateBaseBothObjectAndPrimitive(errorLocation, templateParameter));
-        else if (deducedBase.IsNullableType() && (templateParameter.hasPrimitiveTypeConstraint || templateParameter.hasObjectTypeConstraint))
+        } else if (deducedBase.IsNullableType() &&
+            (templateParameter.hasPrimitiveTypeConstraint || templateParameter.hasObjectTypeConstraint)) {
             diagnostics.Push(Error.TemplateBaseBothObjectAndPrimitive(errorLocation, templateParameter));
+        }
     }
 
     private static bool IsPrimitiveType(
         TemplateParameterSymbol templateParameter,
-        ImmutableArray<TypeWithAnnotations> constraintTypes) {
+        ImmutableArray<TypeOrConstant> constraintTypes) {
         return templateParameter.hasPrimitiveTypeConstraint ||
             TemplateParameterSymbol.CalculateIsPrimitiveTypeFromConstraintTypes(constraintTypes);
     }
 
     private static bool IsObjectType(
         TemplateParameterSymbol templateParameter,
-        ImmutableArray<TypeWithAnnotations> constraintTypes) {
+        ImmutableArray<TypeOrConstant> constraintTypes) {
         return templateParameter.hasObjectTypeConstraint ||
             TemplateParameterSymbol.CalculateIsObjectTypeFromConstraintTypes(constraintTypes);
     }

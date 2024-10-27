@@ -1298,8 +1298,8 @@ internal static class Error {
     /// <summary>
     /// BU0140. Run `buckle --explain BU0140` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic AbstractCannotHaveBody(TextLocation location, string name) {
-        var message = $"'{name}' cannot declare a body because it is marked abstract";
+    internal static BelteDiagnostic AbstractCannotHaveBody(TextLocation location, MethodSymbol method) {
+        var message = $"'{method}' cannot declare a body because it is marked abstract";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_AbstractCannotHaveBody), location, message);
     }
 
@@ -1460,6 +1460,60 @@ internal static class Error {
         FieldSymbol field) {
         var message = $"inconsistent accessibility: type '{type}' is less accessible than field '{field}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InconsistentAccessibilityField), location, message);
+        // TODO add this to resource doc after finding example
+    }
+
+    /// <summary>
+    /// BU0157. Run `buckle --explain BU0157` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic InconsistentAccessibilityOperatorReturn(
+        TextLocation location,
+        TypeSymbol type,
+        MethodSymbol method) {
+        var message = $"inconsistent accessibility: return type '{type}' is less accessible than operator '{method}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InconsistentAccessibilityOperatorReturn), location, message);
+        // TODO add this to resource doc after finding example
+    }
+
+    /// <summary>
+    /// BU0158. Run `buckle --explain BU0158` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic InconsistentAccessibilityReturn(
+        TextLocation location,
+        TypeSymbol type,
+        MethodSymbol method) {
+        var message = $"inconsistent accessibility: return type '{type}' is less accessible than method '{method}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InconsistentAccessibilityReturn), location, message);
+        // TODO add this to resource doc after finding example
+    }
+
+    /// <summary>
+    /// BU0159. Run `buckle --explain BU0159` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic InconsistentAccessibilityOperatorParameter(
+        TextLocation location,
+        TypeSymbol type,
+        MethodSymbol method) {
+        var message = $"inconsistent accessibility: parameter type '{type}' " +
+            $"is less accessible than operator '{method}'";
+
+        return new BelteDiagnostic(
+            ErrorInfo(DiagnosticCode.ERR_InconsistentAccessibilityOperatorParameter),
+            location,
+            message
+        );
+        // TODO add this to resource doc after finding example
+    }
+
+    /// <summary>
+    /// BU0160. Run `buckle --explain BU0160` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic InconsistentAccessibilityParameter(
+        TextLocation location,
+        TypeSymbol type,
+        MethodSymbol method) {
+        var message = $"inconsistent accessibility: parameter type '{type}' is less accessible than method '{method}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InconsistentAccessibilityParameter), location, message);
         // TODO add this to resource doc after finding example
     }
 

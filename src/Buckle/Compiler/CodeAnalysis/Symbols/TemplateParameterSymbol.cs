@@ -37,6 +37,8 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
 
     internal new virtual TemplateParameterSymbol originalDefinition => this;
 
+    internal MethodSymbol declaringMethod => containingSymbol as MethodSymbol;
+
     private protected sealed override TypeSymbol _originalTypeSymbolDefinition => originalDefinition;
 
     internal NamedTypeSymbol effectiveBaseClass {
@@ -102,9 +104,9 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
     }
 
     internal static bool CalculateIsPrimitiveTypeFromConstraintTypes(
-        ImmutableArray<TypeWithAnnotations> constraintTypes) {
+        ImmutableArray<TypeOrConstant> constraintTypes) {
         foreach (var constraintType in constraintTypes) {
-            if (constraintType.type.isPrimitiveType)
+            if (constraintType.isType && constraintType.type.type.isPrimitiveType)
                 return true;
         }
 
@@ -112,9 +114,9 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
     }
 
     internal static bool CalculateIsObjectTypeFromConstraintTypes(
-        ImmutableArray<TypeWithAnnotations> constraintTypes) {
+        ImmutableArray<TypeOrConstant> constraintTypes) {
         foreach (var constraintType in constraintTypes) {
-            if (ConstraintImpliesObjectType(constraintType.type))
+            if (constraintType.isType && ConstraintImpliesObjectType(constraintType.type.type))
                 return true;
         }
 

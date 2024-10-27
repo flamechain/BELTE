@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis;
@@ -103,5 +104,11 @@ internal static class ImmutableArrayExtensions {
 
     internal static ImmutableArray<T> NullToEmpty<T>(this ImmutableArray<T> array) {
         return array.IsDefault ? [] : array;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static ImmutableArray<TBase> Cast<TDerived, TBase>(this ImmutableArray<TDerived> items)
+        where TDerived : class, TBase {
+        return ImmutableArray<TBase>.CastUp(items);
     }
 }

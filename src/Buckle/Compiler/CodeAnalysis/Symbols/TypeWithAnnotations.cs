@@ -1,4 +1,3 @@
-
 using Buckle.CodeAnalysis.Display;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -33,6 +32,10 @@ internal sealed class TypeWithAnnotations {
 
     internal bool IsVoidType() {
         return type.IsVoidType();
+    }
+
+    internal bool IsAtLeastAsVisibleAs(Symbol symbol) {
+        return type.IsAtLeastAsVisibleAs(symbol);
     }
 
     internal TypeOrConstant SubstituteType(TemplateMap templateMap) {

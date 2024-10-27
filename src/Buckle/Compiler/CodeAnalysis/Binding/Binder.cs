@@ -157,13 +157,23 @@ internal partial class Binder {
         );
     }
 
-    #endregion
+    internal Binder WithAdditionalFlags(BinderFlags flags) {
+        return this.flags.Includes(flags)
+            ? this
+            : new Binder(this, this.flags | flags);
+    }
+
+    internal Binder WithContainingMember(Symbol containing) {
+        return new BinderWithContainingMember(this, containing);
+    }
 
     internal Binder WithAdditionalFlagsAndContainingMember(BinderFlags flags, Symbol containing) {
         return this.flags.Includes(flags)
             ? new BinderWithContainingMember(this, containing)
             : new BinderWithContainingMember(this, this.flags | flags, containing);
     }
+
+    #endregion
 
     #region Constraints
 

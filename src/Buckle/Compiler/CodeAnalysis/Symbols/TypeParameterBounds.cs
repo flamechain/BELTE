@@ -6,7 +6,7 @@ internal sealed class TypeParameterBounds {
     internal static readonly TypeParameterBounds Unset = new TypeParameterBounds();
 
     internal TypeParameterBounds(
-        ImmutableArray<TypeWithAnnotations> constraintTypes,
+        ImmutableArray<TypeOrConstant> constraintTypes,
         NamedTypeSymbol effectiveBaseClass,
         TypeSymbol deducedBaseType) {
         this.constraintTypes = constraintTypes;
@@ -20,7 +20,7 @@ internal sealed class TypeParameterBounds {
         deducedBaseType = null;
     }
 
-    internal ImmutableArray<TypeWithAnnotations> constraintTypes { get; }
+    internal ImmutableArray<TypeOrConstant> constraintTypes { get; }
 
     internal NamedTypeSymbol effectiveBaseClass { get; }
 
