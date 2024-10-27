@@ -1,7 +1,7 @@
 using System.Collections.Generic;
-using Buckle.Libraries.Standard;
-using static Buckle.CodeAnalysis.Binding.BoundFactory;
-using static Buckle.CodeAnalysis.Symbols.SymbolUtilities;
+using System.Linq;
+using Buckle.Libraries;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -12,279 +12,275 @@ internal static class BuiltinMethods {
     /// <summary>
     /// RandInt method, gets a random integer with a maximum (minimum is always 0).
     /// </summary>
-    internal static readonly MethodSymbol RandInt = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol RandInt = CreateBuiltinMethod(
         "RandInt",
-        [], [], [new ParameterSymbol("max", TypeWithAnnotations.Int, 0, NoDefault)],
-        TypeWithAnnotations.Int
+        [("max", SpecialType.Int)],
+        SpecialType.Int
     );
 
     /// <summary>
     /// Value method, gets non nullable value from nullable item (throws if item is null).
     /// Any type overload.
     /// </summary>
-    internal static readonly MethodSymbol ValueAny = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol ValueAny = CreateBuiltinMethod(
         "Value",
-        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableAny, 0, NoDefault)],
-        TypeWithAnnotations.Any
+        [("value", SpecialType.Any, true)],
+        SpecialType.Any
     );
 
     /// <summary>
     /// Value method, gets non nullable value from nullable item (throws if item is null).
     /// Bool type overload.
     /// </summary>
-    internal static readonly MethodSymbol ValueBool = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol ValueBool = CreateBuiltinMethod(
         "Value",
-        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableBool, 0, NoDefault)],
-        TypeWithAnnotations.Bool
+        [("value", SpecialType.Bool, true)],
+        SpecialType.Bool
     );
 
     /// <summary>
     /// Value method, gets non nullable value from nullable item (throws if item is null).
     /// Decimal type overload.
     /// </summary>
-    internal static readonly MethodSymbol ValueDecimal = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol ValueDecimal = CreateBuiltinMethod(
         "Value",
-        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableDecimal, 0, NoDefault)],
-        TypeWithAnnotations.Decimal
+        [("value", SpecialType.Decimal, true)],
+        SpecialType.Decimal
     );
 
     /// <summary>
     /// Value method, gets non nullable value from nullable item (throws if item is null).
     /// Integer type overload.
     /// </summary>
-    internal static readonly MethodSymbol ValueInt = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol ValueInt = CreateBuiltinMethod(
         "Value",
-        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableInt, 0, NoDefault)],
-        TypeWithAnnotations.Int
+        [("value", SpecialType.Int, true)],
+        SpecialType.Int
     );
 
     /// <summary>
     /// Value method, gets non nullable value from nullable item (throws if item is null).
     /// String type overload.
     /// </summary>
-    internal static readonly MethodSymbol ValueString = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol ValueString = CreateBuiltinMethod(
         "Value",
-        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableString, 0, NoDefault)],
-        TypeWithAnnotations.String
+        [("value", SpecialType.String, true)],
+        SpecialType.String
     );
 
     /// <summary>
     /// Value method, gets non nullable value from nullable item (throws if item is null).
     /// Char type overload.
     /// </summary>
-    internal static readonly MethodSymbol ValueChar = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol ValueChar = CreateBuiltinMethod(
         "Value",
-        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableChar, 0, NoDefault)],
-        TypeWithAnnotations.Char
+        [("value", SpecialType.Char, true)],
+        SpecialType.Char
     );
 
     /// <summary>
     /// Checks if nullable item has a value (otherwise it is null).
     /// Any type overload.
     /// </summary>
-    internal static readonly MethodSymbol HasValueAny = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol HasValueAny = CreateBuiltinMethod(
         "HasValue",
-        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableAny, 0, NoDefault)],
-        TypeWithAnnotations.Bool
+        [("value", SpecialType.Any, true)],
+        SpecialType.Bool
     );
 
     /// <summary>
     /// Checks if nullable item has a value (otherwise it is null).
     /// Bool type overload.
     /// </summary>
-    internal static readonly MethodSymbol HasValueBool = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol HasValueBool = CreateBuiltinMethod(
         "HasValue",
-        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableBool, 0, NoDefault)],
-        TypeWithAnnotations.Bool
+        [("value", SpecialType.Bool, true)],
+        SpecialType.Bool
     );
 
     /// <summary>
     /// Checks if nullable item has a value (otherwise it is null).
     /// Decimal type overload.
     /// </summary>
-    internal static readonly MethodSymbol HasValueDecimal = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol HasValueDecimal = CreateBuiltinMethod(
         "HasValue",
-        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableDecimal, 0, NoDefault)],
-        TypeWithAnnotations.Bool
+        [("value", SpecialType.Decimal, true)],
+        SpecialType.Bool
     );
 
     /// <summary>
     /// Checks if nullable item has a value (otherwise it is null).
     /// Int type overload.
     /// </summary>
-    internal static readonly MethodSymbol HasValueInt = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol HasValueInt = CreateBuiltinMethod(
         "HasValue",
-        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableInt, 0, NoDefault)],
-        TypeWithAnnotations.Bool
+        [("value", SpecialType.Int, true)],
+        SpecialType.Bool
     );
 
     /// <summary>
     /// Checks if nullable item has a value (otherwise it is null).
     /// String type overload.
     /// </summary>
-    internal static readonly MethodSymbol HasValueString = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol HasValueString = CreateBuiltinMethod(
         "HasValue",
-        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableString, 0, NoDefault)],
-        TypeWithAnnotations.Bool
+        [("value", SpecialType.String, true)],
+        SpecialType.Bool
     );
 
     /// <summary>
     /// Checks if nullable item has a value (otherwise it is null).
     /// Char type overload.
     /// </summary>
-    internal static readonly MethodSymbol HasValueChar = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol HasValueChar = CreateBuiltinMethod(
         "HasValue",
-        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableChar, 0, NoDefault)],
-        TypeWithAnnotations.Bool
+        [("value", SpecialType.Char, true)],
+        SpecialType.Bool
     );
 
     /// <summary>
     /// Converts an integer into a base 16 representation.
     /// Optionally adds the '0x' prefix.
     /// </summary>
-    internal static readonly MethodSymbol Hex = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol Hex = CreateBuiltinMethod(
         "Hex",
-        [], [], [
-            new ParameterSymbol("value", TypeWithAnnotations.Int, 0, NoDefault),
-            new ParameterSymbol("prefix", TypeWithAnnotations.Bool, 1, Literal(false)),
+        [
+            ("value", SpecialType.Int, null),
+            ("prefix", SpecialType.Bool, true),
         ],
-        TypeWithAnnotations.String
+        SpecialType.String
     );
 
     /// <summary>
     /// Converts an integer into a base 16 representation.
     /// Optionally adds the '0x' prefix.
     /// </summary>
-    internal static readonly MethodSymbol NullableHex = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol NullableHex = CreateBuiltinMethod(
         "Hex",
-        [], [], [
-            new ParameterSymbol("value", TypeWithAnnotations.NullableInt, 0, NoDefault),
-            new ParameterSymbol("prefix", TypeWithAnnotations.Bool, 1, Literal(false)),
+        [
+            ("value", SpecialType.Int, true, null),
+            ("prefix", SpecialType.Bool, false, false),
         ],
-        TypeWithAnnotations.NullableString
+        SpecialType.String,
+        true
     );
 
     /// <summary>
     /// Converts a string of length 1 to the appropriate ASCII code of the character.
     /// </summary>
-    internal static readonly MethodSymbol Ascii = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol Ascii = CreateBuiltinMethod(
         "Ascii",
-        [], [], [new ParameterSymbol("char", TypeWithAnnotations.String, 0, NoDefault)],
-        TypeWithAnnotations.Int
+        [("char", SpecialType.String)],
+        SpecialType.Int
     );
 
     /// <summary>
     /// Converts a string of length 1 to the appropriate ASCII code of the character.
     /// </summary>
-    internal static readonly MethodSymbol NullableAscii = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol NullableAscii = CreateBuiltinMethod(
         "Ascii",
-        [], [], [new ParameterSymbol("char", TypeWithAnnotations.NullableString, 0, NoDefault)],
-        TypeWithAnnotations.NullableInt
+        [("char", SpecialType.String, true)],
+        SpecialType.Int,
+        true
     );
 
     /// <summary>
     /// Converts an integer to the appropriate character using ASCII codes.
     /// Opposite of <see cref="Ascii">.
     /// </summary>
-    internal static readonly MethodSymbol Char = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol Char = CreateBuiltinMethod(
         "Char",
-        [], [], [new ParameterSymbol("ascii", TypeWithAnnotations.Int, 0, NoDefault)],
-        TypeWithAnnotations.String
+        [("ascii", SpecialType.Int)],
+        SpecialType.String
     );
 
     /// <summary>
     /// Converts an integer to the appropriate character using ASCII codes.
     /// Opposite of <see cref="Ascii">.
     /// </summary>
-    internal static readonly MethodSymbol NullableChar = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol NullableChar = CreateBuiltinMethod(
         "Char",
-        [], [], [new ParameterSymbol("ascii", TypeWithAnnotations.NullableInt, 0, NoDefault)],
-        TypeWithAnnotations.NullableString
+        [("ascii", SpecialType.Int, true)],
+        SpecialType.String,
+        true
     );
 
     /// <summary>
     /// Gets the length of the given array. If given a non-array, returns null.
     /// </summary>
-    internal static readonly MethodSymbol LengthNull = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol LengthNull = CreateBuiltinMethod(
         "Length",
-        [], [], [new ParameterSymbol("array", TypeWithAnnotations.NullableAny, 0, NoDefault)],
-        TypeWithAnnotations.NullableInt
+        [("array", SpecialType.Any, true)],
+        SpecialType.Int,
+        true
     );
 
     /// <summary>
     /// Gets the length of the given array.
     /// </summary>
-    internal static readonly MethodSymbol Length = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol Length = CreateBuiltinMethod(
         "Length",
-        [], [], [new ParameterSymbol("array", TypeWithAnnotations.Any, 0, NoDefault)],
-        TypeWithAnnotations.Int
+        [("array", SpecialType.Any)],
+        SpecialType.Int
     );
 
     /// <summary>
     /// LowLevel only.
     /// Converts a truly generic type into a generic primitive.
     /// </summary>
-    internal static readonly MethodSymbol ToAny = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol ToAny = CreateBuiltinMethod(
         "ToAny",
-        [], [], [new ParameterSymbol("primitive", TypeWithAnnotations.NullableAny, 0, NoDefault)],
-        TypeWithAnnotations.NullableAny
+        [("primitive", SpecialType.Any, true)],
+        SpecialType.Any,
+        true
     );
 
     /// <summary>
     /// LowLevel only.
     /// Converts a truly generic type into a generic object.
     /// </summary>
-    internal static readonly MethodSymbol ToObject = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol ToObject = CreateBuiltinMethod(
         "ToObject",
-        [], [], [new ParameterSymbol("object", TypeWithAnnotations.NullableAny, 0, NoDefault)],
-        TypeWithAnnotations.NullableAny
+        [("object", SpecialType.Any, true)],
+        SpecialType.Any,
+        true
     );
 
     /// <summary>
     /// LowLevel only.
     /// Checks if two objects values equal.
     /// </summary>
-    internal static readonly MethodSymbol ObjectsEqual = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol ObjectsEqual = CreateBuiltinMethod(
         "ObjectsEqual",
-        [], [], [
-            new ParameterSymbol("x", new TypeWithAnnotations(StandardLibrary.Object, true), 0, NoDefault),
-            new ParameterSymbol("y", new TypeWithAnnotations(StandardLibrary.Object, true), 1, NoDefault)
+        [
+            ("x", SpecialType.Object, true),
+            ("y", SpecialType.Object, true)
         ],
-        TypeWithAnnotations.NullableBool
+        SpecialType.Bool,
+        true
     );
 
     /// <summary>
     /// LowLevel only.
     /// Checks if two references refer to the same object.
     /// </summary>
-    internal static readonly MethodSymbol ObjectReferencesEqual = new SynthesizedMethodSymbol(
+    internal static readonly MethodSymbol ObjectReferencesEqual = CreateBuiltinMethod(
         "ObjectReferencesEqual",
-        [], [], [
-            new ParameterSymbol(
-                "x",
-                new TypeWithAnnotations(StandardLibrary.Object, true),
-                0,
-                NoDefault,
-                DeclarationModifiers.Ref
-            ),
-            new ParameterSymbol(
-                "y",
-                new TypeWithAnnotations(StandardLibrary.Object, true),
-                1,
-                NoDefault,
-                DeclarationModifiers.Ref
-            )
+        [
+            ("x", SpecialType.Object, true, null, RefKind.Ref),
+            ("y", SpecialType.Object, true, null, RefKind.Ref)
         ],
-        TypeWithAnnotations.NullableBool
+        SpecialType.Bool,
+        true
     );
 
     /// <summary>
     /// Gets the hash of a primitive or object.
     /// </summary>
-    internal static readonly new MethodSymbol GetHashCode = new SynthesizedMethodSymbol(
+    internal static readonly new MethodSymbol GetHashCode = CreateBuiltinMethod(
         "GetHashCode",
-        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableAny, 0, NoDefault)],
-        TypeWithAnnotations.Int
+        [("value", SpecialType.Any, true)],
+        SpecialType.Int
     );
 
     /// <summary>
@@ -308,4 +304,112 @@ internal static class BuiltinMethods {
             ObjectReferencesEqual,
             GetHashCode
         ];
+
+
+    private static SynthesizedGlobalMethodSymbol CreateBuiltinMethod(
+        string name,
+        IEnumerable<(string name, SpecialType type, bool isNullable, object defaultValue)> parameters,
+        SpecialType type,
+        bool isNullable) {
+        return CreateBuiltinMethod(
+            name,
+            parameters.Select<(string name, SpecialType type, bool isNullable, object defaultValue),
+                              (string, SpecialType, bool, object, RefKind)>(
+                p => (p.name, p.type, p.isNullable, p.defaultValue, RefKind.None)
+            ),
+            type,
+            isNullable
+        );
+    }
+
+    private static SynthesizedGlobalMethodSymbol CreateBuiltinMethod(
+        string name,
+        IEnumerable<(string name, SpecialType type, object defaultValue)> parameters,
+        SpecialType type) {
+        return CreateBuiltinMethod(
+            name,
+            parameters.Select<(string name, SpecialType type, object defaultValue),
+                              (string, SpecialType, bool, object, RefKind)>(
+                p => (p.name, p.type, false, p.defaultValue, RefKind.None)
+            ),
+            type,
+            false
+        );
+    }
+
+    private static SynthesizedGlobalMethodSymbol CreateBuiltinMethod(
+        string name,
+        IEnumerable<(string name, SpecialType type, bool isNullable)> parameters,
+        SpecialType type) {
+        return CreateBuiltinMethod(
+            name,
+            parameters.Select<(string name, SpecialType type, bool isNullable),
+                              (string, SpecialType, bool, object, RefKind)>(
+                p => (p.name, p.type, p.isNullable, null, RefKind.None)
+            ),
+            type,
+            false
+        );
+    }
+
+    private static SynthesizedGlobalMethodSymbol CreateBuiltinMethod(
+        string name,
+        IEnumerable<(string name, SpecialType type, bool isNullable)> parameters,
+        SpecialType type,
+        bool isNullable) {
+        return CreateBuiltinMethod(
+            name,
+            parameters.Select<(string name, SpecialType type, bool isNullable),
+                              (string, SpecialType, bool, object, RefKind)>(
+                p => (p.name, p.type, p.isNullable, null, RefKind.None)
+            ),
+            type,
+            isNullable
+        );
+    }
+
+    private static SynthesizedGlobalMethodSymbol CreateBuiltinMethod(
+        string name,
+        IEnumerable<(string name, SpecialType type)> parameters,
+        SpecialType type) {
+        return CreateBuiltinMethod(
+            name,
+            parameters.Select<(string name, SpecialType type), (string, SpecialType, bool, object, RefKind)>(
+                p => (p.name, p.type, false, null, RefKind.None)
+            ),
+            type,
+            false
+        );
+    }
+
+    private static SynthesizedGlobalMethodSymbol CreateBuiltinMethod(
+        string name,
+        IEnumerable<(string name, SpecialType type, bool isNullable, object defaultValue, RefKind refKind)> parameters,
+        SpecialType type,
+        bool isNullable) {
+        var builder = ArrayBuilder<ParameterSymbol>.GetInstance();
+        var i = 0;
+
+        foreach (var parameter in parameters) {
+            var parameterType = CorLibrary.GetSpecialType(parameter.type);
+            var parameterTypeWithAnnotations = new TypeWithAnnotations(parameterType, parameter.isNullable);
+            var constantValue = parameter.defaultValue is null ? null : new ConstantValue(parameter.defaultValue);
+
+            var synthesizedParameter = SynthesizedParameterSymbol.Create(
+                null,
+                parameterTypeWithAnnotations,
+                i,
+                parameter.refKind,
+                parameter.name,
+                defaultValue: constantValue
+            );
+
+            i++;
+        }
+
+        var returnType = CorLibrary.GetSpecialType(type);
+        var returnTypeWithAnnotations = new TypeWithAnnotations(returnType, isNullable);
+
+        return new SynthesizedGlobalMethodSymbol(name, builder.ToImmutableAndFree(), returnTypeWithAnnotations);
+    }
 }

@@ -194,7 +194,6 @@ done:
 
     private protected void LazyMethodChecks() {
         if (!_state.HasComplete(CompletionParts.FinishMethodChecks)) {
-
             var lockObject = _methodChecksLockObject;
 
             lock (lockObject) {
