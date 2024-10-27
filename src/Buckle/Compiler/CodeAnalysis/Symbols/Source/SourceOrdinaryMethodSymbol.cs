@@ -145,7 +145,10 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         );
     }
 
-    private (TypeWithAnnotations returnType, ImmutableArray<ParameterSymbol> parameters, ImmutableArray<TypeParameterConstraintClause> declaredConstraints) MakeParametersAndBindReturnType(BelteDiagnosticQueue diagnostics) {
+    private (TypeWithAnnotations returnType,
+        ImmutableArray<ParameterSymbol> parameters,
+        ImmutableArray<TypeParameterConstraintClause> declaredConstraints)
+        MakeParametersAndBindReturnType(BelteDiagnosticQueue diagnostics) {
         var syntax = (MethodDeclarationSyntax)syntaxNode;
         var returnTypeSyntax = syntax.returnType;
         var withTemplateParametersBinder = declaringCompilation

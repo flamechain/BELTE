@@ -352,20 +352,20 @@ internal static class SyntaxFacts {
     }
 
     /// <summary>
-    /// Gets the associations operator name of an operator token.
+    /// Gets the associations operator name of an operator declaration using the operator token and parameter count.
     /// </summary>
-    /// <param name="type"><see cref="SyntaxKind" />.</param>
-    /// <returns>The association operator of the token, or null if the token is not an overloadable operator.</returns>
-    internal static string GetOperatorMemberName(SyntaxKind type, int arity) {
-        return type switch {
+    internal static string GetOperatorMemberName(OperatorDeclarationSyntax syntax) {
+        var parameterCount = syntax.parameterList.parameters.Count;
+
+        return syntax.operatorToken switch {
             SyntaxKind.AsteriskAsteriskToken => WellKnownMemberNames.PowerOperatorName,
             SyntaxKind.AsteriskToken => WellKnownMemberNames.MultiplyOperatorName,
             SyntaxKind.SlashToken => WellKnownMemberNames.DivideOperatorName,
             SyntaxKind.PercentToken => WellKnownMemberNames.ModulusOperatorName,
-            SyntaxKind.PlusToken when arity == 1 => WellKnownMemberNames.UnaryPlusOperatorName,
-            SyntaxKind.PlusToken when arity != 1 => WellKnownMemberNames.AdditionOperatorName,
-            SyntaxKind.MinusToken when arity == 1 => WellKnownMemberNames.UnaryNegationOperatorName,
-            SyntaxKind.MinusToken when arity != 1 => WellKnownMemberNames.SubtractionOperatorName,
+            SyntaxKind.PlusToken when parameterCount == 1 => WellKnownMemberNames.UnaryPlusOperatorName,
+            SyntaxKind.PlusToken when parameterCount != 1 => WellKnownMemberNames.AdditionOperatorName,
+            SyntaxKind.MinusToken when parameterCount == 1 => WellKnownMemberNames.UnaryNegationOperatorName,
+            SyntaxKind.MinusToken when parameterCount != 1 => WellKnownMemberNames.SubtractionOperatorName,
             SyntaxKind.LessThanLessThanToken => WellKnownMemberNames.LeftShiftOperatorName,
             SyntaxKind.GreaterThanGreaterThanToken => WellKnownMemberNames.RightShiftOperatorName,
             SyntaxKind.GreaterThanGreaterThanGreaterThanToken => WellKnownMemberNames.UnsignedRightShiftOperatorName,
@@ -376,10 +376,10 @@ internal static class SyntaxFacts {
             SyntaxKind.MinusMinusToken => WellKnownMemberNames.DecrementOperatorName,
             SyntaxKind.ExclamationToken => WellKnownMemberNames.LogicalNotOperatorName,
             SyntaxKind.TildeToken => WellKnownMemberNames.BitwiseNotOperatorName,
-            SyntaxKind.OpenBracketToken when arity != 3 => WellKnownMemberNames.IndexOperatorName,
-            SyntaxKind.OpenBracketToken when arity == 3 => WellKnownMemberNames.IndexAssignName,
-            SyntaxKind.QuestionOpenBracketToken when arity != 3 => WellKnownMemberNames.IndexOperatorName,
-            SyntaxKind.QuestionOpenBracketToken when arity == 3 => WellKnownMemberNames.IndexAssignName,
+            SyntaxKind.OpenBracketToken when parameterCount != 3 => WellKnownMemberNames.IndexOperatorName,
+            SyntaxKind.OpenBracketToken when parameterCount == 3 => WellKnownMemberNames.IndexAssignName,
+            SyntaxKind.QuestionOpenBracketToken when parameterCount != 3 => WellKnownMemberNames.IndexOperatorName,
+            SyntaxKind.QuestionOpenBracketToken when parameterCount == 3 => WellKnownMemberNames.IndexAssignName,
             SyntaxKind.EqualsEqualsToken => WellKnownMemberNames.EqualityOperatorName,
             SyntaxKind.ExclamationEqualsToken => WellKnownMemberNames.InequalityOperatorName,
             SyntaxKind.LessThanToken => WellKnownMemberNames.LessThanOperatorName,
