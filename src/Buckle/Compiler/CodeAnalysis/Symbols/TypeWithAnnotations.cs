@@ -20,6 +20,8 @@ internal sealed class TypeWithAnnotations {
 
     internal bool isNullable { get; }
 
+    internal bool hasType => type is not null;
+
     internal TypeKind typeKind => type.typeKind;
 
     internal bool IsSameAs(TypeWithAnnotations other) {

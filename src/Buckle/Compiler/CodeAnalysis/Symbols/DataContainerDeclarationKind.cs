@@ -1,7 +1,7 @@
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal enum LocalDeclarationKind : byte {
+internal enum DataContainerDeclarationKind : byte {
     None,
     Variable,
     Constant,

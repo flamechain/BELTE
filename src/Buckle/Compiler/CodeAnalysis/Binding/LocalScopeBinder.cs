@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -10,10 +9,10 @@ namespace Buckle.CodeAnalysis.Binding;
 internal class LocalScopeBinder : Binder {
     private protected const int DefaultLocalSymbolArrayCapacity = 16;
 
-    private ImmutableArray<LocalSymbol> _locals;
+    private ImmutableArray<DataContainerSymbol> _locals;
     private ImmutableArray<LocalFunctionSymbol> _localFunctions;
     private ImmutableArray<LabelSymbol> _labels;
-    private Dictionary<string, LocalSymbol> _lazyLocalsMap;
+    private Dictionary<string, DataContainerSymbol> _lazyLocalsMap;
     private Dictionary<string, LocalFunctionSymbol> _lazyLocalFunctionsMap;
     private Dictionary<string, LabelSymbol> _lazyLabelsMap;
 
@@ -21,7 +20,7 @@ internal class LocalScopeBinder : Binder {
 
     internal LocalScopeBinder(Binder next, BinderFlags flags) : base(next, flags) { }
 
-    internal sealed override ImmutableArray<LocalSymbol> locals {
+    internal sealed override ImmutableArray<DataContainerSymbol> locals {
         get {
             if (_locals.IsDefault)
                 ImmutableInterlocked.InterlockedCompareExchange(ref _locals, BuildLocals(), default);
@@ -30,7 +29,7 @@ internal class LocalScopeBinder : Binder {
         }
     }
 
-    private protected virtual ImmutableArray<LocalSymbol> BuildLocals() {
+    private protected virtual ImmutableArray<DataContainerSymbol> BuildLocals() {
         return [];
     }
 
@@ -60,7 +59,7 @@ internal class LocalScopeBinder : Binder {
         return [];
     }
 
-    private Dictionary<string, LocalSymbol> _localsMap {
+    private Dictionary<string, DataContainerSymbol> _localsMap {
         get {
             if (_lazyLocalsMap == null && locals.Length > 0)
                 _lazyLocalsMap = BuildMap(locals);
@@ -98,8 +97,10 @@ internal class LocalScopeBinder : Binder {
         return map;
     }
 
-    protected ImmutableArray<LocalSymbol> BuildLocals(SyntaxList<StatementSyntax> statements, Binder enclosingBinder) {
-        var locals = ArrayBuilder<LocalSymbol>.GetInstance(DefaultLocalSymbolArrayCapacity);
+    protected ImmutableArray<DataContainerSymbol> BuildLocals(
+        SyntaxList<StatementSyntax> statements,
+        Binder enclosingBinder) {
+        var locals = ArrayBuilder<DataContainerSymbol>.GetInstance(DefaultLocalSymbolArrayCapacity);
         foreach (var statement in statements) {
             BuildLocals(enclosingBinder, statement, locals);
         }
@@ -107,7 +108,10 @@ internal class LocalScopeBinder : Binder {
         return locals.ToImmutableAndFree();
     }
 
-    internal void BuildLocals(Binder enclosingBinder, StatementSyntax statement, ArrayBuilder<LocalSymbol> locals) {
+    internal void BuildLocals(
+        Binder enclosingBinder,
+        StatementSyntax statement,
+        ArrayBuilder<DataContainerSymbol> locals) {
         // TODO
     }
 
@@ -132,16 +136,14 @@ internal class LocalScopeBinder : Binder {
         }
     }
 
-    private protected SourceLocalSymbol MakeLocal(
+    private protected SourceDataContainerSymbol MakeLocal(
         VariableDeclarationSyntax declaration,
-        LocalDeclarationKind kind,
-        bool allowScoped,
+        DataContainerDeclarationKind kind,
         Binder initializerBinder = null) {
-        return SourceLocalSymbol.MakeLocal(
+        return SourceDataContainerSymbol.MakeLocal(
             containingMember,
             this,
             allowRefKind: true,
-            allowScoped: allowScoped,
             declaration.type,
             declaration.identifier,
             kind,
@@ -170,14 +172,14 @@ internal class LocalScopeBinder : Binder {
         StatementSyntax statement,
         ref ArrayBuilder<LabelSymbol> labels) { }
 
-    private protected override SourceLocalSymbol LookupLocal(SyntaxToken identifier) {
+    private protected override SourceDataContainerSymbol LookupLocal(SyntaxToken identifier) {
         if (_localsMap != null && _localsMap.TryGetValue(identifier.text, out var result)) {
-            if (result.identifier == identifier)
-                return (SourceLocalSymbol)result;
+            if (result.identifierToken == identifier)
+                return (SourceDataContainerSymbol)result;
 
             foreach (var local in locals) {
-                if (local.identifier == identifier)
-                    return (SourceLocalSymbol)local;
+                if (local.identifierToken == identifier)
+                    return (SourceDataContainerSymbol)local;
             }
         }
 

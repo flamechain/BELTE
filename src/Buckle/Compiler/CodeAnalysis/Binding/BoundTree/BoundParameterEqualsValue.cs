@@ -6,7 +6,7 @@ namespace Buckle.CodeAnalysis.Binding;
 internal sealed class BoundParameterEqualsValue : BoundEqualsValue {
     internal BoundParameterEqualsValue(
         Symbol parameter,
-        ImmutableArray<LocalSymbol> locals,
+        ImmutableArray<DataContainerSymbol> locals,
         BoundExpression value)
         : base(locals, value) {
         this.parameter = parameter;

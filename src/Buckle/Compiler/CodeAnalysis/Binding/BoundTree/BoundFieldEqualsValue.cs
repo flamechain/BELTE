@@ -4,7 +4,7 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 internal sealed class BoundFieldEqualsValue : BoundEqualsValue {
-    internal BoundFieldEqualsValue(FieldSymbol field, ImmutableArray<LocalSymbol> locals, BoundExpression value)
+    internal BoundFieldEqualsValue(FieldSymbol field, ImmutableArray<DataContainerSymbol> locals, BoundExpression value)
         : base(locals, value) {
         this.field = field;
     }

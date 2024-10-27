@@ -12,7 +12,7 @@ internal class InContainerBinder : Binder {
 
     internal override Symbol containingMember => container;
 
-    private protected override SourceLocalSymbol LookupLocal(SyntaxToken identifier) {
+    private protected override SourceDataContainerSymbol LookupLocal(SyntaxToken identifier) {
         return null;
     }
 

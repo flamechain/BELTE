@@ -49,7 +49,7 @@ internal partial class Binder {
 
     internal virtual bool inMethod => next.inMethod;
 
-    internal virtual LocalSymbol localInProgress => next.localInProgress;
+    internal virtual DataContainerSymbol localInProgress => next.localInProgress;
 
     internal virtual ConstantFieldsInProgress constantFieldsInProgress => next.constantFieldsInProgress;
 
@@ -57,7 +57,7 @@ internal partial class Binder {
 
     internal virtual ConsList<FieldSymbol> fieldsBeingBound => next.fieldsBeingBound;
 
-    internal virtual ImmutableArray<LocalSymbol> locals => [];
+    internal virtual ImmutableArray<DataContainerSymbol> locals => [];
 
     internal virtual ImmutableArray<LocalFunctionSymbol> localFunctions => [];
 
@@ -99,7 +99,7 @@ internal partial class Binder {
         return next.GetBinder(node);
     }
 
-    internal virtual ImmutableArray<LocalSymbol> GetDeclaredLocalsForScope(SyntaxNode scopeDesignator) {
+    internal virtual ImmutableArray<DataContainerSymbol> GetDeclaredLocalsForScope(SyntaxNode scopeDesignator) {
         return next.GetDeclaredLocalsForScope(scopeDesignator);
     }
 
@@ -120,7 +120,7 @@ internal partial class Binder {
         return next.BindDoWhileParts(diagnostics, originalBinder);
     }
 
-    private protected virtual SourceLocalSymbol LookupLocal(SyntaxToken identifier) {
+    private protected virtual SourceDataContainerSymbol LookupLocal(SyntaxToken identifier) {
         return next.LookupLocal(identifier);
     }
 
@@ -271,9 +271,44 @@ internal partial class Binder {
 
     }
 
+    internal TypeWithAnnotations BindTypeOrImplicitType(
+        TypeSyntax syntax,
+        BelteDiagnosticQueue diagnostics,
+        out bool isImplicitlyTyped) {
+        // TODO
+
+    }
+
+    internal NamedTypeSymbol CreateErrorType(string name = "") {
+        return new ExtendedErrorTypeSymbol(compilation, name, 0, null);
+    }
+
     #endregion
 
     #region Expressions
+
+    internal BoundExpression BindDataContainerInitializerValue(
+        EqualsValueClauseSyntax initializer,
+        RefKind refKind,
+        TypeSymbol varType,
+        BelteDiagnosticQueue diagnostics) {
+        if (initializer is null)
+            return null;
+
+        IsInitializerRefKindValid(initializer, initializer, refKind, diagnostics, out var valueKind, out var value);
+        BoundExpression boundInitializer = BindPossibleArrayInitializer(value, varType, valueKind, diagnostics);
+        boundInitializer = GenerateConversionForAssignment(varType, boundInitializer, diagnostics);
+        return boundInitializer;
+    }
+
+    internal BoundExpression BindInferredDataContainerInitializer(
+        BelteDiagnosticQueue diagnostics,
+        RefKind refKind,
+        EqualsValueClauseSyntax initializer,
+        BelteSyntaxNode errorSyntax) {
+        IsInitializerRefKindValid(initializer, initializer, refKind, diagnostics, out var valueKind, out var value);
+        return BindInferredVariableInitializer(diagnostics, value, valueKind, errorSyntax);
+    }
 
     internal Binder CreateBinderForParameterDefaultValue(Symbol parameter, EqualsValueClauseSyntax defaultValueSyntax) {
         var binder = new LocalScopeBinder(

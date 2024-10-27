@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis;
 
@@ -14,7 +15,14 @@ internal partial class ConstantValue {
         this.value = value;
     }
 
+    internal ConstantValue(object value, BelteDiagnostic[] diagnostics) {
+        this.value = value;
+        this.diagnostics = diagnostics;
+    }
+
     internal object value { get; }
+
+    internal BelteDiagnostic[] diagnostics { get; }
 
     internal static bool IsNull(ConstantValue constant) {
         if (constant is not null && constant.value is null)

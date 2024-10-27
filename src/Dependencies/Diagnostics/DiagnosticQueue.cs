@@ -50,7 +50,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// <see cref="DiagnosticQueue<T>" />).
     /// </summary>
     /// <returns>Array copy of the <see cref="DiagnosticQueue<T>" /> (not a reference).</returns>
-    public Diagnostic[] ToArray() => _diagnostics.ToArray();
+    public T[] ToArray() => _diagnostics.ToArray();
 
     /// <summary>
     /// Checks if the queue contains any Diagnostics of the given severity.

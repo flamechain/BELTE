@@ -198,7 +198,7 @@ internal sealed class Expander : BoundTreeExpander {
         return statements;
     }
 
-    private LocalSymbol GenerateTempLocal(BoundType type) {
+    private DataContainerSymbol GenerateTempLocal(BoundType type) {
         string name;
         do {
             name = $"temp{_tempCount++}";

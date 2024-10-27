@@ -4,12 +4,12 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 internal abstract class BoundEqualsValue : BoundNode {
-    private protected BoundEqualsValue(ImmutableArray<LocalSymbol> locals, BoundExpression value) {
+    private protected BoundEqualsValue(ImmutableArray<DataContainerSymbol> locals, BoundExpression value) {
         this.locals = locals;
         this.value = value;
     }
 
-    internal ImmutableArray<LocalSymbol> locals { get; }
+    internal ImmutableArray<DataContainerSymbol> locals { get; }
 
     internal BoundExpression value { get; }
 }

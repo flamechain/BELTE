@@ -94,4 +94,10 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
             _pool.Free(this);
         }
     }
+
+    internal BelteDiagnostic[] ToArrayAndFree() {
+        var diagnostics = ToArray();
+        Free();
+        return diagnostics;
+    }
 }

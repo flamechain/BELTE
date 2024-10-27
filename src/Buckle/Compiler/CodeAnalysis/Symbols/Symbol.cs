@@ -194,7 +194,8 @@ internal abstract class Symbol : ISymbol {
                 returnType = method.returnTypeWithAnnotations;
                 break;
             case SymbolKind.Local:
-                var local = (LocalSymbol)this;
+            case SymbolKind.Global:
+                var local = (DataContainerSymbol)this;
                 refKind = local.refKind;
                 returnType = local.typeWithAnnotations;
                 break;
