@@ -86,7 +86,8 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             declarationModifiers,
             false,
             false,
-            syntax.body is not null
+            syntax.body is not null,
+            false
         );
 
         return (declarationModifiers, flags);

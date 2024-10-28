@@ -24,12 +24,16 @@ internal abstract partial class SourceMemberMethodSymbol {
         private const int ReturnsVoidSize = 2;
 
         private const int HasAnyBodyOffset = ReturnsVoidOffset + ReturnsVoidSize;
+        private const int HasAnyBodySize = 1;
+
+        private const int HasThisInitializerOffset = HasAnyBodyOffset + HasAnyBodySize;
 
         private const int HasAnyBodyBit = 1 << HasAnyBodyOffset;
         private const int IsMetadataVirtualBit = 1 << IsMetadataVirtualOffset;
         private const int IsMetadataVirtualLockedBit = 1 << IsMetadataVirtualLockedOffset;
         private const int ReturnsVoidBit = 1 << ReturnsVoidOffset;
         private const int ReturnsVoidIsSetBit = 1 << ReturnsVoidOffset + 1;
+        private const int HasThisInitializerBit = 1 << HasThisInitializerOffset;
 
         internal readonly MethodKind methodKind => (MethodKind)((_flags >> MethodKindOffset) & MethodKindMask);
 
@@ -43,13 +47,16 @@ internal abstract partial class SourceMemberMethodSymbol {
 
         internal readonly bool isMetadataVirtualLocked => (_flags & IsMetadataVirtualLockedBit) != 0;
 
+        internal readonly bool hasThisInitializer => (_flags & HasThisInitializerBit) != 0;
+
         internal Flags(
             MethodKind methodKind,
             RefKind refKind,
             DeclarationModifiers modifiers,
             bool returnsVoid,
             bool returnsVoidIsSet,
-            bool hasAnyBody) {
+            bool hasAnyBody,
+            bool hasThisInitializer) {
             var isMetadataVirtual = (modifiers &
                 (DeclarationModifiers.Abstract | DeclarationModifiers.Virtual | DeclarationModifiers.Override))
                 != 0;
@@ -60,13 +67,15 @@ internal abstract partial class SourceMemberMethodSymbol {
             var isMetadataVirtualInt = isMetadataVirtual ? IsMetadataVirtualBit : 0;
             var returnsVoidInt = returnsVoid ? ReturnsVoidBit : 0;
             var returnsVoidIsSetInt = returnsVoidIsSet ? ReturnsVoidIsSetBit : 0;
+            var hasThisInitializerInt = hasThisInitializer ? HasThisInitializerBit : 0;
 
             _flags = methodKindInt
                 | refKindInt
                 | hasAnyBodyInt
                 | isMetadataVirtualInt
                 | returnsVoidInt
-                | returnsVoidIsSetInt;
+                | returnsVoidIsSetInt
+                | hasThisInitializerInt;
         }
 
         internal void SetReturnsVoid(bool value) {
