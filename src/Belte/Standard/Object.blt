@@ -2,30 +2,16 @@
 class Object {
     protected constructor() { }
 
-    public virtual bool! Equals(Object object) {
-        if (object is null)
-            return false;
-
-        return ObjectsEquals(this, object)!;
-    }
-
     public virtual string ToString() {
-        return "";
+        return GetType().ToString();
     }
 
-    public virtual bool! ReferenceEquals(ref Object object) {
-        if (object is null)
-            return false;
-
-        return ObjectReferencesEqual(this, object)!;
+    public virtual bool! Equals(Object object) {
+        return this == object;
     }
 
-    public static bool operator==(Object x, Object y) {
-        return ObjectsEqual(x, y);
-    }
-
-    public static bool operator!=(Object x, Object y) {
-        return !ObjectsEqual(x, y);
+    public bool! ReferenceEquals(Object object) {
+        return this == object;
     }
 
     public virtual int! GetHashCode() {

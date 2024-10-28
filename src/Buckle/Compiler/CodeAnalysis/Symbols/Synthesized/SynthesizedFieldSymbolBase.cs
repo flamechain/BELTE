@@ -11,19 +11,21 @@ internal abstract class SynthesizedFieldSymbolBase : FieldSymbol {
         string name,
         bool isPublic,
         bool isConst,
+        bool isConstExpr,
         bool isStatic) {
         this.containingType = containingType;
         this.name = name;
         _modifiers = (isPublic ? DeclarationModifiers.Public : DeclarationModifiers.Private) |
             (isConst ? DeclarationModifiers.Const : DeclarationModifiers.None) |
-            (isStatic ? DeclarationModifiers.Static : DeclarationModifiers.None);
+            (isStatic ? DeclarationModifiers.Static : DeclarationModifiers.None) |
+            (isConstExpr ? DeclarationModifiers.ConstExpr : DeclarationModifiers.None);
     }
 
     public override string name { get; }
 
     public override bool isConst => (_modifiers & DeclarationModifiers.Const) != 0;
 
-    public override bool isConstExpr => false;
+    public override bool isConstExpr => (_modifiers & DeclarationModifiers.ConstExpr) != 0;
 
     internal override Symbol containingSymbol => containingType;
 
