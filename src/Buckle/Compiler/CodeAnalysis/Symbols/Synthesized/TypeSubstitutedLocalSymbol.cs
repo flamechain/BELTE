@@ -19,6 +19,8 @@ internal sealed class TypeSubstitutedLocalSymbol : DataContainerSymbol {
 
     public override string name => _originalLocal.name;
 
+    public override RefKind refKind => _originalLocal.refKind;
+
     internal override Symbol containingSymbol { get; }
 
     internal override TypeWithAnnotations typeWithAnnotations { get; }
@@ -34,8 +36,6 @@ internal sealed class TypeSubstitutedLocalSymbol : DataContainerSymbol {
     internal override SyntaxToken identifierToken => _originalLocal.identifierToken;
 
     internal override bool isCompilerGenerated => _originalLocal.isCompilerGenerated;
-
-    internal override RefKind refKind => _originalLocal.refKind;
 
     internal override ScopedKind scope => throw new InvalidOperationException();
 

@@ -28,7 +28,13 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol {
     public sealed override ImmutableArray<TypeOrConstant> templateArguments
         => GetTemplateParametersAsTemplateArguments();
 
-    internal sealed override int arity => templateParameters.Length;
+    public sealed override int arity => templateParameters.Length;
+
+    public override bool returnsVoid => _flags.returnsVoid;
+
+    public sealed override MethodKind methodKind => _flags.methodKind;
+
+    public sealed override RefKind refKind => _flags.refKind;
 
     internal sealed override OverriddenOrHiddenMembersResult overriddenOrHiddenMembers {
         get {
@@ -52,10 +58,6 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol {
 
     internal override NamedTypeSymbol containingType { get; }
 
-    internal override bool returnsVoid => _flags.returnsVoid;
-
-    internal sealed override MethodKind methodKind => _flags.methodKind;
-
     internal override Accessibility declaredAccessibility => ModifierHelpers.EffectiveAccessibility(_modifiers);
 
     internal sealed override bool isSealed => (_modifiers & DeclarationModifiers.Sealed) != 0;
@@ -67,8 +69,6 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol {
     internal sealed override bool isVirtual => (_modifiers & DeclarationModifiers.Virtual) != 0;
 
     internal sealed override bool isStatic => (_modifiers & DeclarationModifiers.Static) != 0;
-
-    internal sealed override RefKind refKind => _flags.refKind;
 
     internal override bool isDeclaredConst => (_modifiers & DeclarationModifiers.Const) != 0;
 

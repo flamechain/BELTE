@@ -42,6 +42,12 @@ public sealed class Compilation {
 
     public string assemblyName { get; }
 
+    public INamespaceSymbol globalNamespace => globalNamespaceInternal;
+
+    public CompilationOptions options { get; }
+
+    public Compilation previous { get; }
+
     internal BelteDiagnosticQueue declarationDiagnostics {
         get {
             if (_lazyDeclarationDiagnostics is null)
@@ -51,15 +57,11 @@ public sealed class Compilation {
         }
     }
 
-    internal CompilationOptions options { get; }
-
-    internal Compilation previous { get; }
-
     internal ImmutableArray<SyntaxTree> syntaxTrees => _syntax.state.syntaxTrees;
 
     internal bool keepLookingForCorTypes => CorLibrary.StillLookingForSpecialTypes();
 
-    internal NamespaceSymbol globalNamespace {
+    internal NamespaceSymbol globalNamespaceInternal {
         get {
             if (_lazyGlobalNamespace is null) {
                 var extent = new NamespaceExtent(this);
@@ -95,6 +97,13 @@ public sealed class Compilation {
     }
 
     public EvaluationResult Evaluate(ValueWrapper<bool> abort, bool logTime = false) {
+        return Evaluate([], abort, logTime);
+    }
+
+    public EvaluationResult Evaluate(
+        Dictionary<IDataContainerSymbol, EvaluatorObject> globals,
+        ValueWrapper<bool> abort,
+        bool logTime = false) {
         var timer = logTime ? Stopwatch.StartNew() : null;
         var builder = GetDiagnostics();
 
@@ -117,7 +126,7 @@ public sealed class Compilation {
         if (builder.AnyErrors())
             return EvaluationResult.Failed(builder);
 
-        var eval = new Evaluator(program, options.arguments);
+        var eval = new Evaluator(program, globals, options.arguments);
         var evalResult = eval.Evaluate(abort, out var hasValue);
 
         if (logTime) {
@@ -372,7 +381,7 @@ public sealed class Compilation {
         }
 
         if (includeDeclaration) {
-            globalNamespace.ForceComplete(null);
+            globalNamespaceInternal.ForceComplete(null);
             builder.PushRange(declarationDiagnostics);
         }
 

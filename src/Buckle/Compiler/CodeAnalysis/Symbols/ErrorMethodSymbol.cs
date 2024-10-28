@@ -18,6 +18,17 @@ internal sealed class ErrorMethodSymbol : MethodSymbol {
 
     public override string name { get; }
 
+    public override RefKind refKind => RefKind.None;
+
+    public override bool returnsVoid => returnType.IsVoidType();
+
+    public override int arity => 0;
+
+    public override MethodKind methodKind => name switch {
+        WellKnownMemberNames.InstanceConstructorName => MethodKind.Constructor,
+        _ => MethodKind.Ordinary,
+    };
+
     public override ImmutableArray<TemplateParameterSymbol> templateParameters => [];
 
     public override ImmutableArray<TypeOrConstant> templateArguments => [];
@@ -48,18 +59,7 @@ internal sealed class ErrorMethodSymbol : MethodSymbol {
 
     internal override ImmutableArray<ParameterSymbol> parameters => [];
 
-    internal override RefKind refKind => RefKind.None;
-
     internal override TypeWithAnnotations returnTypeWithAnnotations { get; }
 
-    internal override bool returnsVoid => returnType.IsVoidType();
-
     internal override bool hidesBaseMethodsByName => false;
-
-    internal override int arity => 0;
-
-    internal override MethodKind methodKind => name switch {
-        WellKnownMemberNames.InstanceConstructorName => MethodKind.Constructor,
-        _ => MethodKind.Ordinary,
-    };
 }

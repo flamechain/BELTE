@@ -1,6 +1,6 @@
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal enum NamespaceKind : byte {
+public enum NamespaceKind : byte {
     Compilation,
 }

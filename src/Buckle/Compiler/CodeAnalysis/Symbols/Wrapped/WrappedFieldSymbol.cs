@@ -10,19 +10,19 @@ internal abstract class WrappedFieldSymbol : FieldSymbol {
 
     public override string name => underlyingField.name;
 
+    public override bool isConst => underlyingField.isConst;
+
+    public override bool isConstExpr => underlyingField.isConstExpr;
+
+    public override RefKind refKind => underlyingField.refKind;
+
+    public override object constantValue => underlyingField.constantValue;
+
     internal FieldSymbol underlyingField { get; }
 
     internal override Accessibility declaredAccessibility => underlyingField.declaredAccessibility;
 
     internal override bool isImplicitlyDeclared => underlyingField.isImplicitlyDeclared;
-
-    internal override bool isConst => underlyingField.isConst;
-
-    internal override bool isConstExpr => underlyingField.isConstExpr;
-
-    internal override RefKind refKind => underlyingField.refKind;
-
-    internal override object constantValue => underlyingField.constantValue;
 
     internal override SyntaxReference syntaxReference => underlyingField.syntaxReference;
 

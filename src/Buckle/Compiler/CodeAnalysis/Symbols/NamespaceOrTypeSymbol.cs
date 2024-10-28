@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal abstract class NamespaceOrTypeSymbol : Symbol {
+internal abstract class NamespaceOrTypeSymbol : Symbol, INamespaceOrTypeSymbol {
     protected static readonly ObjectPool<PooledDictionary<ReadOnlyMemory<char>, object>> NameToObjectPool =
         PooledDictionary<ReadOnlyMemory<char>, object>.CreatePool(ReadOnlyMemoryOfCharComparer.Instance);
 
@@ -31,4 +31,14 @@ internal abstract class NamespaceOrTypeSymbol : Symbol {
     internal abstract ImmutableArray<NamedTypeSymbol> GetTypeMembers(ReadOnlyMemory<char> name);
 
     internal virtual ImmutableArray<NamedTypeSymbol> GetTypeMembersUnordered() => GetTypeMembers();
+
+    ImmutableArray<ISymbol> INamespaceOrTypeSymbol.GetMembers() => GetMembers().Cast<Symbol, ISymbol>();
+
+    ImmutableArray<ISymbol> INamespaceOrTypeSymbol.GetMembers(string name) => GetMembers(name).Cast<Symbol, ISymbol>();
+
+    ImmutableArray<INamedTypeSymbol> INamespaceOrTypeSymbol.GetTypeMembers()
+        => GetTypeMembers().Cast<NamedTypeSymbol, INamedTypeSymbol>();
+
+    ImmutableArray<INamedTypeSymbol> INamespaceOrTypeSymbol.GetTypeMembers(string name)
+        => GetTypeMembers(name.AsMemory()).Cast<NamedTypeSymbol, INamedTypeSymbol>();
 }

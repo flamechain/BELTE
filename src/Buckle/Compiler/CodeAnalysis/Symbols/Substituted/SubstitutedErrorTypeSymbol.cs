@@ -12,9 +12,9 @@ internal abstract class SubstitutedErrorTypeSymbol : ErrorTypeSymbol {
 
     public override string name => _originalDefinition.name;
 
-    internal override NamedTypeSymbol originalDefinition => _originalDefinition;
+    public override int arity => _originalDefinition.arity;
 
-    internal override int arity => _originalDefinition.arity;
+    internal override NamedTypeSymbol originalDefinition => _originalDefinition;
 
     internal override bool mangleName => _originalDefinition.mangleName;
 

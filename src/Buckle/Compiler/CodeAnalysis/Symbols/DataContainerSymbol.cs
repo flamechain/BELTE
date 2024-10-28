@@ -7,7 +7,35 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
     public sealed override SymbolKind kind => isGlobal ? SymbolKind.Global : SymbolKind.Local;
 
-    public ITypeSymbol typeSymbol => type;
+    public bool isConst => declarationKind == DataContainerDeclarationKind.Constant;
+
+    public bool isConstExpr => declarationKind == DataContainerDeclarationKind.ConstantExpression;
+
+    public bool isNullable => typeWithAnnotations.isNullable;
+
+    public bool isRef => refKind != RefKind.None;
+
+    public abstract RefKind refKind { get; }
+
+    public bool hasConstantValue {
+        get {
+            if (!isConstExpr)
+                return false;
+
+            var constant = GetConstantValue(null, null, null);
+            return constant is not null;
+        }
+    }
+
+    public object constantValue {
+        get {
+            if (!isConstExpr)
+                return false;
+
+            var constant = GetConstantValue(null, null, null);
+            return constant?.value;
+        }
+    }
 
     internal sealed override bool isSealed => false;
 
@@ -31,8 +59,6 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
 
     internal abstract bool isCompilerGenerated { get; }
 
-    internal abstract RefKind refKind { get; }
-
     internal abstract SyntaxNode scopeDesignator { get; }
 
     internal abstract ScopedKind scope { get; }
@@ -42,35 +68,9 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
         _ => true,
     };
 
-    internal bool hasConstantValue {
-        get {
-            if (!isConstExpr)
-                return false;
-
-            var constant = GetConstantValue(null, null, null);
-            return constant is not null;
-        }
-    }
-
-    internal object constantValue {
-        get {
-            if (!isConstExpr)
-                return false;
-
-            var constant = GetConstantValue(null, null, null);
-            return constant?.value;
-        }
-    }
-
-    internal bool isConst => declarationKind == DataContainerDeclarationKind.Constant;
-
-    internal bool isConstExpr => declarationKind == DataContainerDeclarationKind.ConstantExpression;
-
     internal TypeSymbol type => typeWithAnnotations.type;
 
     internal bool isGlobal => containingSymbol == containingNamespace;
-
-    internal bool isRef => refKind != RefKind.None;
 
     internal abstract ConstantValue GetConstantValue(
         SyntaxNode node,
@@ -80,4 +80,6 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
     internal abstract BelteDiagnostic[] GetConstantValueDiagnostics(BoundExpression boundInitValue);
 
     internal abstract SyntaxNode GetDeclarationSyntax();
+
+    ITypeSymbol IDataContainerSymbol.type => type;
 }

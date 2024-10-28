@@ -7,11 +7,11 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// A symbol that has template parameters.
 /// </summary>
 internal interface ISymbolWithTemplates : ISymbol {
-    public ImmutableArray<TemplateParameterSymbol> templateParameters { get; }
+    ImmutableArray<TemplateParameterSymbol> templateParameters { get; }
 
-    public ImmutableArray<BoundExpression> templateConstraints { get; }
+    ImmutableArray<BoundExpression> templateConstraints { get; }
 
-    public abstract ImmutableArray<TypeOrConstant> templateArguments { get; }
+    abstract ImmutableArray<TypeOrConstant> templateArguments { get; }
 
-    public abstract TemplateMap templateSubstitution { get; }
+    abstract TemplateMap templateSubstitution { get; }
 }

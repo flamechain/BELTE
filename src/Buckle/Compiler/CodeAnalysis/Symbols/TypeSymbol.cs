@@ -11,6 +11,14 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
     public override SymbolKind kind => SymbolKind.NamedType;
 
+    public abstract TypeKind typeKind { get; }
+
+    public abstract bool isPrimitiveType { get; }
+
+    public abstract bool isObjectType { get; }
+
+    public virtual SpecialType specialType => SpecialType.None;
+
     internal new TypeSymbol originalDefinition => _originalTypeSymbolDefinition;
 
     private protected virtual TypeSymbol _originalTypeSymbolDefinition => this;
@@ -18,14 +26,6 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
     private protected sealed override Symbol _originalSymbolDefinition => _originalTypeSymbolDefinition;
 
     internal abstract NamedTypeSymbol baseType { get; }
-
-    internal abstract TypeKind typeKind { get; }
-
-    internal abstract bool isPrimitiveType { get; }
-
-    internal abstract bool isObjectType { get; }
-
-    internal virtual SpecialType specialType => SpecialType.None;
 
     internal TypeSymbol EffectiveType() {
         return typeKind == TypeKind.TemplateParameter ? ((TemplateParameterSymbol)this).effectiveBaseClass : this;
@@ -196,4 +196,6 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
     public ImmutableArray<ISymbol> GetMembersPublic() {
         return [.. GetMembers()];
     }
+
+    INamedTypeSymbol ITypeSymbol.baseType => baseType;
 }

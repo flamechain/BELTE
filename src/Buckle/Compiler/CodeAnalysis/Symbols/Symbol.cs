@@ -18,8 +18,6 @@ internal abstract class Symbol : ISymbol {
 
     public virtual string metadataName => name;
 
-    public ITypeSymbolWithMembers parent => containingType;
-
     /// <summary>
     /// The accessibility/protection level of the symbol.
     /// </summary> <summary>
@@ -254,6 +252,10 @@ internal abstract class Symbol : ISymbol {
         return SymbolDisplay.ToDisplayString(this, format);
     }
 
+    public ImmutableArray<DisplayTextSegment> ToDisplaySegments(SymbolDisplayFormat format) {
+        return SymbolDisplay.ToDisplaySegments(this, format);
+    }
+
     public override string ToString() {
         return ToDisplayString(null);
     }
@@ -279,4 +281,6 @@ internal abstract class Symbol : ISymbol {
 
         return (object)left != right && !right.Equals(left);
     }
+
+    ISymbol ISymbol.containingSymbol => containingSymbol;
 }

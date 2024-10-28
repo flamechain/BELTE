@@ -20,11 +20,11 @@ internal sealed class SynthesizedDataContainerSymbol : DataContainerSymbol {
 
     public override string name => null;
 
+    public override RefKind refKind { get; }
+
     internal override Symbol containingSymbol { get; }
 
     internal override SyntaxReference syntaxReference => _syntax is null ? null : new SyntaxReference(_syntax);
-
-    internal override RefKind refKind { get; }
 
     internal override TypeWithAnnotations typeWithAnnotations { get; }
 

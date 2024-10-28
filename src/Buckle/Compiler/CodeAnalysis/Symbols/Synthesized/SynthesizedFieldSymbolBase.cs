@@ -21,13 +21,13 @@ internal abstract class SynthesizedFieldSymbolBase : FieldSymbol {
 
     public override string name { get; }
 
+    public override bool isConst => (_modifiers & DeclarationModifiers.Const) != 0;
+
+    public override bool isConstExpr => false;
+
     internal override Symbol containingSymbol => containingType;
 
     internal override NamedTypeSymbol containingType { get; }
-
-    internal override bool isConst => (_modifiers & DeclarationModifiers.Const) != 0;
-
-    internal override bool isConstExpr => false;
 
     internal override SyntaxReference syntaxReference => null;
 

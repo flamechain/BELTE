@@ -543,14 +543,13 @@ public sealed partial class BelteRepl : Repl {
     [MetaCommand("list", "List all defined symbols")]
     private void EvaluateList() {
         var compilation = state.previous ?? EmptyCompilation;
-        var symbols = compilation.GetSymbols().OrderBy(s => s.kind).ThenBy(s => s.name);
+        // TODO Does this get globals from previous submissions?
+        var symbols = compilation.globalNamespace.GetMembers().OrderBy(s => s.kind).ThenBy(s => s.name);
         var displayText = new DisplayText();
 
         foreach (var symbol in symbols) {
-            if (symbol.parent is null) {
-                SymbolDisplay.DisplaySymbol(displayText, symbol, true);
-                displayText.Write(CreateLine());
-            }
+            displayText.Write(symbol.ToDisplaySegments());
+            displayText.Write(CreateLine());
         }
 
         WriteDisplayText(displayText);
@@ -559,19 +558,22 @@ public sealed partial class BelteRepl : Repl {
     [MetaCommand("dump", "Show contents of symbol <signature>")]
     private void EvaluateDump(string signature) {
         // TODO Let this work with template overloads
+        // TODO Rewrite this with new public symbol model
         var compilation = state.previous ?? EmptyCompilation;
+        // TODO Does globalNamespace.GetMembers() get previous submission symbols like Compilation.GetSymbols used to?
+        var globalNamespace = compilation.globalNamespace;
         var name = signature.Contains('(') ? signature.Split('(')[0] : signature;
         ISymbol[] symbols;
 
         if (name.Contains('.')) {
             var failed = false;
             var parts = name.Split('.');
-            var currentSymbols = compilation.GetSymbols();
+            var currentSymbols = globalNamespace.GetMembers();
 
             for (var i = 0; i < parts.Length - 1; i++) {
                 var namedTypes = currentSymbols
-                    .Where(s => s.name == parts[i] && s is ITypeSymbolWithMembers)
-                    .Select(s => s as ITypeSymbolWithMembers);
+                    .Where(s => s.name == parts[i] && s is INamedTypeSymbol)
+                    .Select(s => s as INamedTypeSymbol);
 
                 if (!namedTypes.Any()) {
                     failed = true;
@@ -579,10 +581,7 @@ public sealed partial class BelteRepl : Repl {
                 }
 
                 var first = namedTypes.First();
-                currentSymbols = first.GetMembersPublic().Where(s => s.parent == first);
-
-                if (!currentSymbols.Any())
-                    currentSymbols = first.GetMembersPublic();
+                currentSymbols = first.GetMembers();
             }
 
             if (failed) {
@@ -596,8 +595,8 @@ public sealed partial class BelteRepl : Repl {
             }
         } else {
             symbols = (signature == name
-                ? compilation.GetSymbols().Where(f => f.name == name)
-                : compilation.GetSymbols<IMethodSymbol>().Where(f => f.Signature() == signature))
+                ? globalNamespace.GetMembers(name)
+                : globalNamespace.GetMembers(name).Where(f => f.Signature() == signature))
                     .ToArray();
         }
 

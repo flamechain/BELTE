@@ -23,9 +23,9 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
 
     public sealed override string name { get; }
 
-    internal sealed override bool requiresCompletion => true;
+    public sealed override RefKind refKind { get; }
 
-    internal sealed override RefKind refKind { get; }
+    internal sealed override bool requiresCompletion => true;
 
     internal override SyntaxReference syntaxReference { get; }
 

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Syntax;
@@ -45,7 +46,11 @@ internal abstract partial class ArrayTypeSymbol : TypeSymbol {
 
     public override SymbolKind kind => SymbolKind.ArrayType;
 
-    internal override TypeKind typeKind => TypeKind.Array;
+    public override TypeKind typeKind => TypeKind.Array;
+
+    public override bool isObjectType => false;
+
+    public override bool isPrimitiveType => true;
 
     internal override Symbol containingSymbol => null;
 
@@ -72,6 +77,14 @@ internal abstract partial class ArrayTypeSymbol : TypeSymbol {
     }
 
     internal override ImmutableArray<Symbol> GetMembers(string name) {
+        return [];
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers() {
+        return [];
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers(ReadOnlyMemory<char> name) {
         return [];
     }
 

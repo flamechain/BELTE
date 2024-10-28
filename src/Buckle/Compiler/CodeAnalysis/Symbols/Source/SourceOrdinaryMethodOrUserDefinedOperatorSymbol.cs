@@ -15,7 +15,7 @@ internal abstract class SourceOrdinaryMethodOrUserDefinedOperatorSymbol : Source
         (DeclarationModifiers modifiers, Flags flags) modifiersAndFlags)
         : base(containingType, syntaxReference, modifiersAndFlags) { }
 
-    internal sealed override bool returnsVoid {
+    public sealed override bool returnsVoid {
         get {
             LazyMethodChecks();
             return base.returnsVoid;

@@ -22,6 +22,12 @@ public static class SymbolDisplay {
         return text;
     }
 
+    internal static ImmutableArray<DisplayTextSegment> ToDisplaySegments(
+        Symbol symbol,
+        SymbolDisplayFormat format = null) {
+        return ToDisplayText(symbol, format).segments.ToImmutableArray();
+    }
+
     internal static string ToDisplayString(Symbol symbol, SymbolDisplayFormat format = null) {
         return ToDisplayText(symbol, format).ToString();
     }

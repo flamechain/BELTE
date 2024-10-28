@@ -9,7 +9,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// Represents a method or method-like symbol (including constructor or operator).
 /// </summary>
-internal abstract class MethodSymbol : Symbol, ISymbolWithTemplates {
+internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplates {
     private ParameterSignature _lazyParameterSignature;
 
     private protected MethodSymbol() { }
@@ -24,15 +24,23 @@ internal abstract class MethodSymbol : Symbol, ISymbolWithTemplates {
 
     public virtual TemplateMap templateSubstitution => null;
 
-    internal abstract RefKind refKind { get; }
+    public abstract RefKind refKind { get; }
 
-    internal abstract bool returnsVoid { get; }
+    public abstract bool returnsVoid { get; }
+
+    public abstract MethodKind methodKind { get; }
+
+    public abstract int arity { get; }
+
+    public virtual bool isTemplateMethod => arity != 0;
+
+    public bool returnsByRef => refKind == RefKind.Ref;
+
+    public bool returnsByRefConst => refKind == RefKind.RefConst;
+
+    public bool returnTypeIsNullable => returnTypeWithAnnotations.isNullable;
 
     internal abstract TypeWithAnnotations returnTypeWithAnnotations { get; }
-
-    internal abstract MethodKind methodKind { get; }
-
-    internal abstract int arity { get; }
 
     internal abstract ImmutableArray<ParameterSymbol> parameters { get; }
 
@@ -51,8 +59,6 @@ internal abstract class MethodSymbol : Symbol, ISymbolWithTemplates {
 
     internal virtual bool requiresInstanceReceiver => !isStatic;
 
-    internal virtual bool isTemplateMethod => arity != 0;
-
     internal virtual OverriddenOrHiddenMembersResult overriddenOrHiddenMembers => this.MakeOverriddenOrHiddenMembers();
 
     internal virtual MethodSymbol reducedFrom => null;
@@ -66,10 +72,6 @@ internal abstract class MethodSymbol : Symbol, ISymbolWithTemplates {
     private protected sealed override Symbol _originalSymbolDefinition => originalDefinition;
 
     internal TypeSymbol returnType => returnTypeWithAnnotations.type;
-
-    internal bool returnsByRef => refKind == RefKind.Ref;
-
-    internal bool returnsByRefConst => refKind == RefKind.RefConst;
 
     internal bool isEntryPointCandidate
         => isStatic && !isAbstract && !isVirtual && name == WellKnownMemberNames.EntryPointMethodName;
@@ -207,4 +209,14 @@ internal abstract class MethodSymbol : Symbol, ISymbolWithTemplates {
 
         return base.Equals(other, compareKind);
     }
+
+    bool IMethodSymbol.isConst => isDeclaredConst;
+
+    ITypeSymbol IMethodSymbol.returnType => returnType;
+
+    ImmutableArray<IParameterSymbol> IMethodSymbol.parameters => parameters.Cast<ParameterSymbol, IParameterSymbol>();
+
+    ITypeSymbol IMethodSymbol.receiverType => receiverType;
+
+    IMethodSymbol IMethodSymbol.overriddenMethod => overriddenMethod;
 }

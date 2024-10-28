@@ -11,15 +11,15 @@ internal abstract class WrappedNamedTypeSymbol : NamedTypeSymbol {
 
     public override string metadataName => underlyingNamedType.metadataName;
 
+    public override int arity => underlyingNamedType.arity;
+
+    public override TypeKind typeKind => underlyingNamedType.typeKind;
+
     internal override bool mangleName => underlyingNamedType.mangleName;
 
     internal NamedTypeSymbol underlyingNamedType { get; }
 
-    internal override int arity => underlyingNamedType.arity;
-
     internal override Accessibility declaredAccessibility => underlyingNamedType.declaredAccessibility;
-
-    internal override TypeKind typeKind => underlyingNamedType.typeKind;
 
     internal override SyntaxReference syntaxReference => underlyingNamedType.syntaxReference;
 

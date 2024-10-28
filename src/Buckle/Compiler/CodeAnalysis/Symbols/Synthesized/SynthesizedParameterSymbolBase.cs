@@ -20,13 +20,13 @@ internal abstract class SynthesizedParameterSymbolBase : ParameterSymbol {
 
     public override string name { get; }
 
+    public override RefKind refKind { get; }
+
+    public override int ordinal { get; }
+
     internal override Symbol containingSymbol { get; }
 
     internal override TypeWithAnnotations typeWithAnnotations { get; }
-
-    internal override RefKind refKind { get; }
-
-    internal override int ordinal { get; }
 
     internal override SyntaxReference syntaxReference => null;
 

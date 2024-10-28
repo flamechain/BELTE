@@ -5,10 +5,25 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// Represents a parameter of a method.
 /// </summary>
-internal abstract class ParameterSymbol : Symbol {
+internal abstract class ParameterSymbol : Symbol, IParameterSymbol {
     internal ParameterSymbol() { }
 
     public override SymbolKind kind => SymbolKind.Parameter;
+
+    public abstract RefKind refKind { get; }
+
+    public abstract int ordinal { get; }
+
+    public bool isNullable => typeWithAnnotations.isNullable;
+
+    public object explicitDefaultValue {
+        get {
+            if (hasExplicitDefaultValue)
+                return explicitDefaultConstantValue.value;
+
+            throw new InvalidOperationException();
+        }
+    }
 
     internal override Accessibility declaredAccessibility => Accessibility.NotApplicable;
 
@@ -24,10 +39,6 @@ internal abstract class ParameterSymbol : Symbol {
 
     internal abstract TypeWithAnnotations typeWithAnnotations { get; }
 
-    internal abstract RefKind refKind { get; }
-
-    internal abstract int ordinal { get; }
-
     internal abstract bool isMetadataOptional { get; }
 
     internal abstract ScopedKind effectiveScope { get; }
@@ -36,15 +47,6 @@ internal abstract class ParameterSymbol : Symbol {
 
     internal bool hasExplicitDefaultValue => isOptional && explicitDefaultConstantValue is not null;
 
-    internal object explicitDefaultValue {
-        get {
-            if (hasExplicitDefaultValue)
-                return explicitDefaultConstantValue.value;
-
-            throw new InvalidOperationException();
-        }
-    }
-
     internal bool isOptional => refKind == RefKind.None && isMetadataOptional;
 
     internal TypeSymbol type => typeWithAnnotations.type;
@@ -52,4 +54,8 @@ internal abstract class ParameterSymbol : Symbol {
     internal new virtual ParameterSymbol originalDefinition => this;
 
     private protected sealed override Symbol _originalSymbolDefinition => originalDefinition;
+
+    bool IParameterSymbol.isOptional => isMetadataOptional;
+
+    ITypeSymbol IParameterSymbol.type => type;
 }

@@ -5,10 +5,38 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// Represents a field in a class or struct.
 /// </summary>
-internal abstract class FieldSymbol : Symbol {
+internal abstract class FieldSymbol : Symbol, IFieldSymbol {
     internal FieldSymbol() { }
 
     public override SymbolKind kind => SymbolKind.Field;
+
+    public abstract bool isConst { get; }
+
+    public abstract bool isConstExpr { get; }
+
+    public abstract RefKind refKind { get; }
+
+    public bool isNullable => typeWithAnnotations.isNullable;
+
+    public virtual bool hasConstantValue {
+        get {
+            if (!isConst && !isConstExpr)
+                return false;
+
+            var constantValue = GetConstantValue(ConstantFieldsInProgress.Empty);
+            return constantValue is not null;
+        }
+    }
+
+    public virtual object constantValue {
+        get {
+            if (!isConst && !isConstExpr)
+                return null;
+
+            var constantValue = GetConstantValue(ConstantFieldsInProgress.Empty);
+            return constantValue?.value;
+        }
+    }
 
     internal new virtual FieldSymbol originalDefinition => this;
 
@@ -17,12 +45,6 @@ internal abstract class FieldSymbol : Symbol {
     internal TypeWithAnnotations typeWithAnnotations => GetFieldType(ConsList<FieldSymbol>.Empty);
 
     internal TypeSymbol type => typeWithAnnotations.type;
-
-    internal abstract bool isConst { get; }
-
-    internal abstract bool isConstExpr { get; }
-
-    internal abstract RefKind refKind { get; }
 
     internal virtual bool requiresInstanceReceiver => !isStatic;
 
@@ -33,26 +55,6 @@ internal abstract class FieldSymbol : Symbol {
     internal sealed override bool isSealed => false;
 
     internal sealed override bool isVirtual => false;
-
-    internal virtual bool hasConstantValue {
-        get {
-            if (!isConst && !isConstExpr)
-                return false;
-
-            var constantValue = GetConstantValue(ConstantFieldsInProgress.Empty);
-            return constantValue is not null;
-        }
-    }
-
-    internal virtual object constantValue {
-        get {
-            if (!isConst && !isConstExpr)
-                return null;
-
-            var constantValue = GetConstantValue(ConstantFieldsInProgress.Empty);
-            return constantValue?.value;
-        }
-    }
 
     internal abstract ConstantValue GetConstantValue(ConstantFieldsInProgress inProgress);
 
@@ -72,4 +74,6 @@ internal abstract class FieldSymbol : Symbol {
     public override int GetHashCode() {
         return base.GetHashCode();
     }
+
+    ITypeSymbol IFieldSymbol.type => type;
 }

@@ -20,7 +20,11 @@ internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
 
     public override ImmutableArray<BoundExpression> templateConstraints => [];
 
-    internal override SpecialType specialType { get; }
+    public override SpecialType specialType { get; }
+
+    public override TypeKind typeKind => TypeKind.Primitive;
+
+    public override int arity => 0;
 
     internal override bool mangleName => false;
 
@@ -28,11 +32,7 @@ internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
 
     internal override NamedTypeSymbol constructedFrom => this;
 
-    internal override TypeKind typeKind => TypeKind.Primitive;
-
     internal override Accessibility declaredAccessibility => Accessibility.Public;
-
-    internal override int arity => 0;
 
     internal override bool isAbstract => false;
 
@@ -45,7 +45,6 @@ internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
     internal override SyntaxReference syntaxReference => throw new InvalidOperationException();
 
     internal override IEnumerable<string> memberNames => throw new InvalidOperationException();
-
 
     internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
         throw new InvalidOperationException();

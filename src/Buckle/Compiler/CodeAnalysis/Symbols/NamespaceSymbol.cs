@@ -3,17 +3,17 @@ using System.Collections.Immutable;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal abstract class NamespaceSymbol : NamespaceOrTypeSymbol {
+internal abstract class NamespaceSymbol : NamespaceOrTypeSymbol, INamespaceSymbol {
     public sealed override SymbolKind kind => SymbolKind.Namespace;
 
-    internal sealed override bool isImplicitlyDeclared => isGlobalNamespace;
+    public virtual bool isGlobalNamespace => containingNamespace is null;
 
-    internal virtual bool isGlobalNamespace => containingNamespace is null;
+    public NamespaceKind namespaceKind => extent.kind;
 
-    internal Compilation containingCompilation
+    public Compilation containingCompilation
         => namespaceKind == NamespaceKind.Compilation ? extent.compilation : null;
 
-    internal NamespaceKind namespaceKind => extent.kind;
+    internal sealed override bool isImplicitlyDeclared => isGlobalNamespace;
 
     internal sealed override NamedTypeSymbol containingType => null;
 

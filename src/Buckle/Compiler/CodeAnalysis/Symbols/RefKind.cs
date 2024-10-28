@@ -1,7 +1,7 @@
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal enum RefKind : byte {
+public enum RefKind : byte {
     None,
     Ref,
     RefConst,

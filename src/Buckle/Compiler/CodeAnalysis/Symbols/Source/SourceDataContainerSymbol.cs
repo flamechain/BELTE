@@ -34,6 +34,8 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
 
     public override string name => identifierToken.text;
 
+    public override RefKind refKind { get; }
+
     internal Binder scopeBinder { get; }
 
     internal override Symbol containingSymbol { get; }
@@ -43,8 +45,6 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
     internal override DataContainerDeclarationKind declarationKind { get; }
 
     internal override ScopedKind scope { get; }
-
-    internal override RefKind refKind { get; }
 
     internal override SyntaxToken identifierToken { get; }
 

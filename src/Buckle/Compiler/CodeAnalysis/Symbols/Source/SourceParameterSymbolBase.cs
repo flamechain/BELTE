@@ -8,9 +8,9 @@ internal abstract class SourceParameterSymbolBase : ParameterSymbol {
         this.ordinal = ordinal;
     }
 
-    internal sealed override Symbol containingSymbol { get; }
+    public sealed override int ordinal { get; }
 
-    internal sealed override int ordinal { get; }
+    internal sealed override Symbol containingSymbol { get; }
 
     internal sealed override bool Equals(Symbol obj, TypeCompareKind compareKind) {
         if ((object)obj == this)

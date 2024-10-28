@@ -16,6 +16,14 @@ internal sealed class SynthesizedGlobalMethodSymbol : MethodSymbol {
 
     public override string name { get; }
 
+    public override int arity => 0;
+
+    public override RefKind refKind => RefKind.None;
+
+    public override bool returnsVoid => returnTypeWithAnnotations.IsVoidType();
+
+    public override MethodKind methodKind => MethodKind.Builtin;
+
     public override ImmutableArray<TemplateParameterSymbol> templateParameters => [];
 
     public override ImmutableArray<TypeOrConstant> templateArguments => [];
@@ -34,8 +42,6 @@ internal sealed class SynthesizedGlobalMethodSymbol : MethodSymbol {
 
     internal override SyntaxReference syntaxReference => null;
 
-    internal override int arity => 0;
-
     internal override bool isAbstract => false;
 
     internal override bool isVirtual => false;
@@ -45,12 +51,6 @@ internal sealed class SynthesizedGlobalMethodSymbol : MethodSymbol {
     internal override bool isStatic => false;
 
     internal override bool isSealed => false;
-
-    internal override RefKind refKind => RefKind.None;
-
-    internal override bool returnsVoid => returnTypeWithAnnotations.IsVoidType();
-
-    internal override MethodKind methodKind => MethodKind.Builtin;
 
     internal override bool hasSpecialName => false;
 

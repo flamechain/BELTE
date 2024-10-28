@@ -16,7 +16,7 @@ internal sealed class ExtendedErrorTypeSymbol : ErrorTypeSymbol {
         DiagnosticInfo errorInfo,
         bool unreported = false,
         bool variableUsedBeforeDeclaration = false)
-        : this(compilation.globalNamespace, name, arity, errorInfo, unreported, variableUsedBeforeDeclaration) {
+        : this(compilation.globalNamespaceInternal, name, arity, errorInfo, unreported, variableUsedBeforeDeclaration) {
     }
 
     internal ExtendedErrorTypeSymbol(
@@ -73,6 +73,8 @@ internal sealed class ExtendedErrorTypeSymbol : ErrorTypeSymbol {
 
     public override string name { get; }
 
+    public override int arity { get; }
+
     internal override DiagnosticInfo errorInfo { get; }
 
     internal override LookupResultKind resultKind { get; }
@@ -80,8 +82,6 @@ internal sealed class ExtendedErrorTypeSymbol : ErrorTypeSymbol {
     internal override ImmutableArray<Symbol> candidateSymbols => _candidateSymbols.NullToEmpty();
 
     internal override bool unreported { get; }
-
-    internal override int arity { get; }
 
     internal override bool mangleName => arity > 0;
 

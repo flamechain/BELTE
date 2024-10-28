@@ -24,9 +24,9 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
             ReportModifiersDiagnostics(diagnostics);
     }
 
-    internal sealed override bool hasInitializer { get; }
+    public sealed override RefKind refKind => GetTypeAndRefKind(ConsList<FieldSymbol>.Empty).refKind;
 
-    internal sealed override RefKind refKind => GetTypeAndRefKind(ConsList<FieldSymbol>.Empty).refKind;
+    internal sealed override bool hasInitializer { get; }
 
     private protected sealed override TypeSyntax _typeSyntax => _variableDeclaration.type;
 

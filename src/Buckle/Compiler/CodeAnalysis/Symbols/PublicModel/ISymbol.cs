@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Display;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -9,22 +10,24 @@ public interface ISymbol {
     /// <summary>
     /// Name of the symbol.
     /// </summary>
-    public string name { get; }
+    string name { get; }
 
     /// <summary>
     /// Name of the symbol including template suffix.
     /// </summary>
-    public string metadataName { get; }
+    string metadataName { get; }
 
     /// <summary>
     /// The type of symbol this is (see <see cref="SymbolKind" />).
     /// </summary>
-    public abstract SymbolKind kind { get; }
+    SymbolKind kind { get; }
 
     /// <summary>
     /// The symbol that this symbol is a member of, if applicable.
     /// </summary>
-    public abstract ITypeSymbolWithMembers parent { get; }
+    ISymbol containingSymbol { get; }
 
-    public abstract string ToDisplayString(SymbolDisplayFormat format);
+    string ToDisplayString(SymbolDisplayFormat format = null);
+
+    ImmutableArray<DisplayTextSegment> ToDisplaySegments(SymbolDisplayFormat format = null);
 }

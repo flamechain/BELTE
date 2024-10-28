@@ -15,12 +15,12 @@ namespace Buckle.CodeAnalysis.Display;
 /// Can be multiple lines.
 /// </summary>
 public sealed class DisplayText {
-    private readonly List<DisplayTextSegment> _segments;
+    internal readonly List<DisplayTextSegment> segments;
 
     private bool _writeIndent = true;
 
     public DisplayText() {
-        _segments = new List<DisplayTextSegment>();
+        segments = new List<DisplayTextSegment>();
         indent = 0;
     }
 
@@ -36,7 +36,7 @@ public sealed class DisplayText {
     public override string ToString() {
         var builder = new StringBuilder();
 
-        foreach (var segment in _segments)
+        foreach (var segment in segments)
             builder.Append(segment.text);
 
         return builder.ToString();
@@ -47,8 +47,8 @@ public sealed class DisplayText {
     /// </summary>
     /// <returns>The contents before clearing.</returns>
     public ImmutableArray<DisplayTextSegment> Flush() {
-        var array = ImmutableArray.CreateRange(_segments);
-        _segments.Clear();
+        var array = ImmutableArray.CreateRange(segments);
+        segments.Clear();
 
         return array;
     }
@@ -62,13 +62,22 @@ public sealed class DisplayText {
             _writeIndent = false;
 
             for (var i = 0; i < indent; i++)
-                _segments.Add(CreateIndent());
+                segments.Add(CreateIndent());
         }
 
-        _segments.Add(segment);
+        segments.Add(segment);
 
         if (segment.classification == Classification.Line)
             _writeIndent = true;
+    }
+
+    /// <summary>
+    /// Appends multiple <see cref="DisplayTextSegment" /> to the end of this <see cref="DisplayText" />.
+    /// </summary>
+    /// <param name="segments"><see cref="DisplayTextSegment" />s to append.</param>
+    public void Write(IEnumerable<DisplayTextSegment> segments) {
+        foreach (var segment in segments)
+            Write(segment);
     }
 
     /// <summary>

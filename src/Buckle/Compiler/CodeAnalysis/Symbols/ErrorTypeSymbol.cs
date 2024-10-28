@@ -16,6 +16,14 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
 
     public override SymbolKind kind => SymbolKind.ErrorType;
 
+    public override TypeKind typeKind => TypeKind.Error;
+
+    public override int arity => 0;
+
+    public override bool isObjectType => true;
+
+    public override bool isPrimitiveType => true;
+
     public override ImmutableArray<TemplateParameterSymbol> templateParameters {
         get {
             if (_lazyTemplateParameters.IsDefault) {
@@ -41,8 +49,6 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
 
     internal virtual bool unreported => false;
 
-    internal override TypeKind typeKind => TypeKind.Error;
-
     internal override Symbol containingSymbol => null;
 
     internal override SyntaxReference syntaxReference => null;
@@ -58,12 +64,6 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
     internal sealed override bool isSealed => false;
 
     internal override NamedTypeSymbol baseType => null;
-
-    internal override int arity => 0;
-
-    internal override bool isObjectType => true;
-
-    internal override bool isPrimitiveType => true;
 
     internal override IEnumerable<string> memberNames => SpecializedCollections.EmptyEnumerable<string>();
 

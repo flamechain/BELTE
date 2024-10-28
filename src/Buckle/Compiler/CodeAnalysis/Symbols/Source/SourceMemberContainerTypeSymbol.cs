@@ -67,6 +67,12 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     public override string name { get; }
 
+    public override int arity { get; }
+
+    public override TypeKind typeKind { get; }
+
+    public override SpecialType specialType { get; }
+
     internal sealed override bool mangleName => arity > 0;
 
     internal sealed override bool isStatic => HasFlag(DeclarationModifiers.Static);
@@ -83,13 +89,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     internal bool isLowLevel => HasFlag(DeclarationModifiers.LowLevel);
 
-    internal override int arity { get; }
-
     internal override Symbol containingSymbol { get; }
-
-    internal override TypeKind typeKind { get; }
-
-    internal override SpecialType specialType { get; }
 
     internal override SyntaxReference syntaxReference => new SyntaxReference(_declaration);
 

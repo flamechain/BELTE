@@ -11,9 +11,11 @@ internal abstract class WrappedParameterSymbol : ParameterSymbol {
 
     public sealed override string metadataName => underlyingParameter.metadataName;
 
-    internal ParameterSymbol underlyingParameter { get; }
+    public sealed override RefKind refKind => underlyingParameter.refKind;
 
-    internal sealed override RefKind refKind => underlyingParameter.refKind;
+    public override int ordinal => underlyingParameter.ordinal;
+
+    internal ParameterSymbol underlyingParameter { get; }
 
     internal sealed override SyntaxReference syntaxReference => underlyingParameter.syntaxReference;
 
@@ -23,8 +25,6 @@ internal abstract class WrappedParameterSymbol : ParameterSymbol {
     internal sealed override ScopedKind effectiveScope => underlyingParameter.effectiveScope;
 
     internal override TypeWithAnnotations typeWithAnnotations => underlyingParameter.typeWithAnnotations;
-
-    internal override int ordinal => underlyingParameter.ordinal;
 
     internal override bool isMetadataOptional => underlyingParameter.isMetadataOptional;
 

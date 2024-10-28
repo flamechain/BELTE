@@ -9,13 +9,17 @@ internal abstract class WrappedMethodSymbol : MethodSymbol {
 
     public override string name => underlyingMethod.name;
 
+    public override bool isTemplateMethod => underlyingMethod.isTemplateMethod;
+
+    public override int arity => underlyingMethod.arity;
+
+    public override RefKind refKind => underlyingMethod.refKind;
+
+    public override MethodKind methodKind => underlyingMethod.methodKind;
+
+    public override bool returnsVoid => underlyingMethod.returnsVoid;
+
     internal MethodSymbol underlyingMethod { get; }
-
-    internal override bool isTemplateMethod => underlyingMethod.isTemplateMethod;
-
-    internal override int arity => underlyingMethod.arity;
-
-    internal override RefKind refKind => underlyingMethod.refKind;
 
     internal override int parameterCount => underlyingMethod.parameterCount;
 
@@ -40,10 +44,6 @@ internal abstract class WrappedMethodSymbol : MethodSymbol {
     internal override bool isImplicitlyDeclared => underlyingMethod.isImplicitlyDeclared;
 
     internal override bool hasSpecialName => underlyingMethod.hasSpecialName;
-
-    internal override MethodKind methodKind => underlyingMethod.methodKind;
-
-    internal override bool returnsVoid => underlyingMethod.returnsVoid;
 
     internal override bool isDeclaredConst => underlyingMethod.isDeclaredConst;
 }

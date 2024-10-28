@@ -26,7 +26,7 @@ internal abstract partial class ErrorTypeSymbol {
 
         internal override TypeWithAnnotations underlyingType => null;
 
-        internal override ConstantValue defaultValue => null;
+        internal override TypeOrConstant defaultValue => null;
 
         internal override bool hasObjectTypeConstraint => false;
 

@@ -7,7 +7,25 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal abstract class TemplateParameterSymbol : TypeSymbol {
     public sealed override SymbolKind kind => SymbolKind.TemplateParameter;
 
-    internal sealed override TypeKind typeKind => TypeKind.TemplateParameter;
+    public sealed override TypeKind typeKind => TypeKind.TemplateParameter;
+
+    public sealed override bool isObjectType {
+        get {
+            if (hasObjectTypeConstraint)
+                return true;
+
+            return isObjectTypeFromConstraintTypes;
+        }
+    }
+
+    public sealed override bool isPrimitiveType {
+        get {
+            if (hasPrimitiveTypeConstraint)
+                return true;
+
+            return isPrimitiveTypeFromConstraintTypes;
+        }
+    }
 
     internal sealed override Accessibility declaredAccessibility => Accessibility.NotApplicable;
 
@@ -55,24 +73,6 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         }
     }
 
-    internal sealed override bool isObjectType {
-        get {
-            if (hasObjectTypeConstraint)
-                return true;
-
-            return isObjectTypeFromConstraintTypes;
-        }
-    }
-
-    internal sealed override bool isPrimitiveType {
-        get {
-            if (hasPrimitiveTypeConstraint)
-                return true;
-
-            return isPrimitiveTypeFromConstraintTypes;
-        }
-    }
-
     internal abstract ImmutableArray<TypeWithAnnotations> GetConstraintTypes(ConsList<TemplateParameterSymbol> inProgress);
 
     internal abstract NamedTypeSymbol GetEffectiveBaseClass(ConsList<TemplateParameterSymbol> inProgress);
@@ -104,19 +104,18 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
     }
 
     internal static bool CalculateIsPrimitiveTypeFromConstraintTypes(
-        ImmutableArray<TypeOrConstant> constraintTypes) {
+        ImmutableArray<TypeWithAnnotations> constraintTypes) {
         foreach (var constraintType in constraintTypes) {
-            if (constraintType.isType && constraintType.type.type.isPrimitiveType)
+            if (constraintType.type.isPrimitiveType)
                 return true;
         }
 
         return false;
     }
 
-    internal static bool CalculateIsObjectTypeFromConstraintTypes(
-        ImmutableArray<TypeOrConstant> constraintTypes) {
+    internal static bool CalculateIsObjectTypeFromConstraintTypes(ImmutableArray<TypeWithAnnotations> constraintTypes) {
         foreach (var constraintType in constraintTypes) {
-            if (constraintType.isType && ConstraintImpliesObjectType(constraintType.type.type))
+            if (ConstraintImpliesObjectType(constraintType.type))
                 return true;
         }
 

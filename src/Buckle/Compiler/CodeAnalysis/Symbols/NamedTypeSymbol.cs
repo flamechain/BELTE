@@ -9,7 +9,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, ISymbolWithTemplates {
+internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolWithTemplates {
     private protected bool _hasNoBaseCycles;
 
     public abstract override string name { get; }
@@ -27,19 +27,13 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, IS
 
     public virtual TemplateMap templateSubstitution { get; } = null;
 
-    internal abstract bool mangleName { get; }
+    public abstract int arity { get; }
 
-    internal abstract IEnumerable<string> memberNames { get; }
+    public override bool isObjectType => originalDefinition.specialType.IsObjectType();
 
-    internal abstract NamedTypeSymbol constructedFrom { get; }
+    public override bool isPrimitiveType => originalDefinition.specialType.IsPrimitiveType();
 
-    internal abstract override Accessibility declaredAccessibility { get; }
-
-    internal abstract int arity { get; }
-
-    internal ImmutableArray<MethodSymbol> constructors => GetConstructors();
-
-    internal bool isTemplateType {
+    public bool isTemplateType {
         get {
             for (var current = this; !ReferenceEquals(current, null); current = current.containingType) {
                 if (current.templateArguments.Length != 0)
@@ -50,15 +44,21 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, IS
         }
     }
 
+    internal abstract bool mangleName { get; }
+
+    internal abstract IEnumerable<string> memberNames { get; }
+
+    internal abstract NamedTypeSymbol constructedFrom { get; }
+
+    internal abstract override Accessibility declaredAccessibility { get; }
+
+    internal ImmutableArray<MethodSymbol> constructors => GetConstructors();
+
     internal virtual bool isUnboundTemplateType => false;
 
     internal new virtual NamedTypeSymbol originalDefinition => this;
 
     private protected sealed override TypeSymbol _originalTypeSymbolDefinition => originalDefinition;
-
-    internal override bool isObjectType => originalDefinition.specialType.IsObjectType();
-
-    internal override bool isPrimitiveType => originalDefinition.specialType.IsPrimitiveType();
 
     internal abstract override ImmutableArray<Symbol> GetMembers();
 
@@ -263,4 +263,6 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, IS
 
         return true;
     }
+
+    ImmutableArray<IMethodSymbol> INamedTypeSymbol.constructors => constructors.Cast<MethodSymbol, IMethodSymbol>();
 }
