@@ -1,46 +1,10 @@
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 internal static partial class BoundFactory {
-    internal static BoundGlobalScope GlobalScope(BoundGlobalScope previous, BelteDiagnosticQueue diagnostics) {
-        return new BoundGlobalScope(
-            ImmutableArray<(MethodSymbol, BoundBlockStatement)>.Empty,
-            previous,
-            diagnostics,
-            new Dictionary<string, MethodSymbol> {
-                { WellKnownMethodNames.EntryPoint, null },
-                { WellKnownMethodNames.GraphicsStart, null },
-                { WellKnownMethodNames.GraphicsUpdate, null }
-            },
-            ImmutableArray<MethodSymbol>.Empty,
-            ImmutableArray<VariableSymbol>.Empty,
-            ImmutableArray<NamedTypeSymbol>.Empty,
-            ImmutableArray<BoundStatement>.Empty,
-            previous.libraryTypes,
-            []
-        );
-    }
-
-    internal static BoundProgram Program(BoundProgram previous, BelteDiagnosticQueue diagnostics) {
-        return new BoundProgram(
-            previous,
-            diagnostics,
-            new Dictionary<string, MethodSymbol> {
-                { WellKnownMethodNames.EntryPoint, null },
-                { WellKnownMethodNames.GraphicsStart, null },
-                { WellKnownMethodNames.GraphicsUpdate, null }
-            },
-            ImmutableDictionary<MethodSymbol, BoundBlockStatement>.Empty,
-            ImmutableArray<NamedTypeSymbol>.Empty,
-            ImmutableArray<NamedTypeSymbol>.Empty
-        );
-    }
-
     internal static BoundNopStatement Nop() {
         return new BoundNopStatement();
     }
