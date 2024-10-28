@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -29,6 +30,17 @@ internal abstract class SourceMethodSymbol : MethodSymbol {
     internal abstract ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes();
 
     internal abstract ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds();
+
+    internal static void ReportErrorIfHasConstraints(
+        TemplateConstraintClauseListSyntax syntax,
+        BelteDiagnosticQueue diagnostics) {
+        if (syntax.constraintClauses.Count > 0) {
+            // TODO Do we even want an error here?
+            // I can't imagine a situation where you could add an error-free constraint clause without having templates
+            // However this would speed up compilation slightly as you wouldn't need to actually bind the constraints
+            // Just push this error instead
+        }
+    }
 
     private protected BelteSyntaxNode GetInMethodSyntaxNode() {
         return syntaxNode switch {

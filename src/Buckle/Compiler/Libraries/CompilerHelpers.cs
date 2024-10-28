@@ -1,4 +1,3 @@
-
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -30,15 +29,6 @@ public static class CompilerHelpers {
             syntaxTrees.Add(syntaxTree);
         }
 
-        var newOptions = new CompilationOptions(
-            options.buildMode,
-            options.projectType,
-            options.arguments,
-            options.isScript,
-            options.enableOutput,
-            true
-        );
-
-        return Compilation.Create(newOptions, syntaxTrees.ToArray());
+        return Compilation.Create("StandardLibrary", options, syntaxTrees.ToArray());
     }
 }

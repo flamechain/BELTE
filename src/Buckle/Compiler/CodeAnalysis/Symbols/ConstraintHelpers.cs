@@ -14,7 +14,7 @@ internal static class ConstraintsHelpers {
     internal static TypeParameterBounds ResolveBounds(
         this SourceTemplateParameterSymbolBase templateParameter,
         ConsList<TemplateParameterSymbol> inProgress,
-        ImmutableArray<TypeOrConstant> constraintTypes,
+        ImmutableArray<TypeWithAnnotations> constraintTypes,
         bool inherited,
         Compilation currentCompilation,
         BelteDiagnosticQueue diagnostics,
@@ -26,12 +26,11 @@ internal static class ConstraintsHelpers {
         TypeSymbol deducedBaseType = effectiveBaseClass;
 
         if (constraintTypes.Length != 0) {
-            var constraintTypesBuilder = ArrayBuilder<TypeOrConstant>.GetInstance();
+            var constraintTypesBuilder = ArrayBuilder<TypeWithAnnotations>.GetInstance();
 
-            foreach (var constraintTypeOrConstant in constraintTypes) {
+            foreach (var constraintType in constraintTypes) {
                 NamedTypeSymbol constraintEffectiveBase;
                 TypeSymbol constraintDeducedBase;
-                var constraintType = constraintTypeOrConstant.type;
 
                 switch (constraintType.typeKind) {
                     case TypeKind.TemplateParameter:
@@ -115,7 +114,7 @@ internal static class ConstraintsHelpers {
                         throw ExceptionUtilities.UnexpectedValue(constraintType.typeKind);
                 }
 
-                constraintTypesBuilder.Add(constraintTypeOrConstant);
+                constraintTypesBuilder.Add(constraintType);
 
                 if (!deducedBaseType.IsErrorType() && !constraintDeducedBase.IsErrorType()) {
                     if (!IsEncompassedBy(deducedBaseType, constraintDeducedBase)) {
@@ -291,14 +290,14 @@ internal static class ConstraintsHelpers {
 
     private static bool IsPrimitiveType(
         TemplateParameterSymbol templateParameter,
-        ImmutableArray<TypeOrConstant> constraintTypes) {
+        ImmutableArray<TypeWithAnnotations> constraintTypes) {
         return templateParameter.hasPrimitiveTypeConstraint ||
             TemplateParameterSymbol.CalculateIsPrimitiveTypeFromConstraintTypes(constraintTypes);
     }
 
     private static bool IsObjectType(
         TemplateParameterSymbol templateParameter,
-        ImmutableArray<TypeOrConstant> constraintTypes) {
+        ImmutableArray<TypeWithAnnotations> constraintTypes) {
         return templateParameter.hasObjectTypeConstraint ||
             TemplateParameterSymbol.CalculateIsObjectTypeFromConstraintTypes(constraintTypes);
     }

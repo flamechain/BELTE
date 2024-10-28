@@ -57,7 +57,8 @@ internal sealed class SourceMethodTemplateParameterSymbol : SourceTemplateParame
     private protected override TypeParameterBounds ResolveBounds(
         ConsList<TemplateParameterSymbol> inProgress,
         BelteDiagnosticQueue diagnostics) {
-        var constraintTypes = _owner.GetTemplateParameterConstraintTypes(ordinal);
+        var constraints = _owner.GetTypeParameterConstraintTypes();
+        var constraintTypes = constraints.IsEmpty ? [] : constraints[ordinal];
 
         if (constraintTypes.IsEmpty && GetConstraintKinds() == TypeParameterConstraintKinds.None)
             return null;
@@ -68,11 +69,13 @@ internal sealed class SourceMethodTemplateParameterSymbol : SourceTemplateParame
             constraintTypes,
             false,
             declaringCompilation,
-            diagnostics
+            diagnostics,
+            syntaxReference.location
         );
     }
 
     private TypeParameterConstraintKinds GetConstraintKinds() {
-        return _owner.GetTypeParameterConstraintKinds(ordinal);
+        var constraints = _owner.GetTypeParameterConstraintKinds();
+        return constraints.IsEmpty ? TypeParameterConstraintKinds.None : constraints[ordinal];
     }
 }

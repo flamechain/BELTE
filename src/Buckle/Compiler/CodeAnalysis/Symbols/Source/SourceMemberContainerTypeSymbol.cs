@@ -227,6 +227,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     private protected virtual void AfterMembersCompletedChecks(BelteDiagnosticQueue diagnostics) { }
 
     private protected void AfterMembersChecks(BelteDiagnosticQueue diagnostics) {
+        // TODO
+        /*
         CheckMemberNamesDistinctFromType(diagnostics);
         CheckMemberNameConflicts(diagnostics);
         CheckRecordMemberNames(diagnostics);
@@ -237,6 +239,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         CheckForProtectedInStaticClass(diagnostics);
         CheckForUnmatchedOperators(diagnostics);
         CheckForRequiredMemberAttribute(diagnostics);
+        */
     }
 
     private protected Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> GetMembersByName() {
@@ -436,8 +439,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
             switch (typeKind) {
                 case TypeKind.Struct:
-                    CheckForStructBadInitializers(builder, diagnostics);
-                    CheckForStructDefaultConstructors(builder.nonTypeMembers, isEnum: false, diagnostics: diagnostics);
+                    // TODO
+                    // CheckForStructBadInitializers(builder, diagnostics);
+                    // CheckForStructDefaultConstructors(builder.nonTypeMembers, isEnum: false, diagnostics: diagnostics);
                     break;
                 default:
                     break;
@@ -512,10 +516,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         var fieldSyntax = (FieldDeclarationSyntax)m;
 
                         var modifiers = SourceMemberFieldSymbol.MakeModifiers(
-                            this,
                             fieldSyntax.declaration.identifier,
                             fieldSyntax.modifiers,
-                            isRefField: refKind != RefKind.None,
                             diagnostics,
                             out var modifierErrors
                         );
@@ -539,7 +541,6 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         var methodSyntax = (MethodDeclarationSyntax)m;
                         var method = SourceOrdinaryMethodSymbol.CreateMethodSymbol(
                             this,
-                            bodyBinder,
                             methodSyntax,
                             diagnostics
                         );
@@ -639,10 +640,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             }
         }
 
-        if ((!hasParameterlessConstructor && IsStructType()) ||
-            (!hasConstructor && !isStatic)) {
+        if (!hasConstructor && !isStatic)
             builder.AddNonTypeMember(new SynthesizedInstanceConstructor(this), declaredMembersAndInitializers);
-        }
     }
 
     private DeclarationModifiers MakeModifiers(BelteDiagnosticQueue diagnostics) {

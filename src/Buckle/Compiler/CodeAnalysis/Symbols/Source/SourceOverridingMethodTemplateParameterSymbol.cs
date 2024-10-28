@@ -53,7 +53,7 @@ internal sealed class SourceOverridingMethodTemplateParameterSymbol : SourceTemp
             return null;
 
         var map = _map.templateMap;
-        var constraintTypes = map.SubstituteTypes(templateParameter.constraintTypes);
+        var constraintTypes = map.SubstituteTypes(templateParameter.constraintTypes).SelectAsArray(t => t.type);
 
         return this.ResolveBounds(
             inProgress.Prepend(this),

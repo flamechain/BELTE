@@ -121,6 +121,31 @@ internal abstract class Symbol : ISymbol {
 
     internal virtual void AfterAddingTypeMembersChecks(BelteDiagnosticQueue diagnostics) { }
 
+    internal TemplateParameterSymbol FindEnclosingTemplateParameter(string name) {
+        var methodOrType = this;
+
+        while (methodOrType is not null) {
+            switch (methodOrType.kind) {
+                case SymbolKind.Method:
+                case SymbolKind.NamedType:
+                case SymbolKind.ErrorType:
+                case SymbolKind.Field:
+                    break;
+                default:
+                    return null;
+            }
+
+            foreach (var templateParameter in methodOrType.GetMemberTemplateParameters()) {
+                if (templateParameter.name == name)
+                    return templateParameter;
+            }
+
+            methodOrType = methodOrType.containingSymbol;
+        }
+
+        return null;
+    }
+
     internal NamespaceOrTypeSymbol ContainingNamespaceOrType() {
         if (containingSymbol is not null) {
             switch (containingSymbol.kind) {

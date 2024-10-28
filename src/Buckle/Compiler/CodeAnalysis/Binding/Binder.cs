@@ -367,4 +367,52 @@ internal partial class Binder {
     }
 
     #endregion
+
+    #region Lookup
+
+    internal virtual void LookupSymbolsInSingleBinder(
+        LookupResult result,
+        string name,
+        int arity,
+        ConsList<TypeSymbol> basesBeingResolved,
+        LookupOptions options,
+        Binder originalBinder,
+        bool diagnose) { }
+
+    internal virtual void AddLookupSymbolsInfoInSingleBinder(
+        LookupSymbolsInfo info,
+        LookupOptions options,
+        Binder originalBinder) { }
+
+    internal bool CanAddLookupSymbolInfo(
+        Symbol symbol,
+        LookupOptions options,
+        LookupSymbolsInfo info,
+        TypeSymbol accessThroughType) {
+
+    }
+
+    internal SingleLookupResult CheckViability(
+        Symbol symbol,
+        int arity,
+        LookupOptions options,
+        TypeSymbol accessThroughType,
+        bool diagnose,
+        ConsList<TypeSymbol> basesBeingResolved = null) {
+
+    }
+
+    #endregion
+
+    #region Statements
+
+    internal BoundExpression GenerateConversionForAssignment(
+        TypeSymbol targetType,
+        BoundExpression expression,
+        BelteDiagnosticQueue diagnostics,
+        ConversionForAssignmentFlags flags = ConversionForAssignmentFlags.None) {
+
+    }
+
+    #endregion
 }

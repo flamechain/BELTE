@@ -100,4 +100,9 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
         Free();
         return diagnostics;
     }
+
+    internal void PushRangeAndFree(BelteDiagnosticQueue diagnostics) {
+        PushRange(diagnostics);
+        diagnostics.Free();
+    }
 }

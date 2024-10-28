@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 
-namespace Buckle.CodeAnalysis.Symbols;
+namespace Buckle.Libraries;
 
 internal sealed class SynthesizedSimpleNamedTypeSymbol : NamedTypeSymbol {
     private readonly DeclarationModifiers _modifiers;

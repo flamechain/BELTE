@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
+using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.Utilities;
 
-namespace Buckle.CodeAnalysis.Symbols;
+namespace Buckle.Libraries;
 
 internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbol {
     private ImmutableArray<Symbol> _allMembers;
@@ -81,7 +83,7 @@ internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbo
         if (_nameToTypeMembersMap is null) {
             Interlocked.CompareExchange(
                 ref _nameToTypeMembersMap,
-                ImmutableArrayExtensions
+                CodeAnalysis.ImmutableArrayExtensions
                     .GetTypesFromMemberMap<ReadOnlyMemory<char>, NamespaceOrTypeSymbol, NamedTypeSymbol>(
                         GetNameToMembersMap(),
                         ReadOnlyMemoryOfCharComparer.Instance
@@ -96,15 +98,20 @@ internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbo
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>> MakeNameToMembersMap() {
         var builder = NameToObjectPool.Allocate();
 
-        foreach (var symbol in _allMembers)
-            ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(builder, symbol.name.AsMemory(), symbol);
+        foreach (var symbol in _allMembers) {
+            CodeAnalysis.ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(
+                builder,
+                symbol.name.AsMemory(),
+                symbol
+            );
+        }
 
         var result = new Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>>(
             builder.Count,
             ReadOnlyMemoryOfCharComparer.Instance
         );
 
-        ImmutableArrayExtensions.CreateNameToMembersMap<
+        CodeAnalysis.ImmutableArrayExtensions.CreateNameToMembersMap<
                 ReadOnlyMemory<char>,
                 NamespaceOrTypeSymbol,
                 NamedTypeSymbol,

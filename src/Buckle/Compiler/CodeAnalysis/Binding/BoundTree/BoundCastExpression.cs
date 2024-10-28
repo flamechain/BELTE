@@ -6,10 +6,15 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A bound cast expression, bound from a <see cref="Syntax.CastExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundCastExpression : BoundExpression {
-    internal BoundCastExpression(TypeSymbol type, BoundExpression operand) {
+    internal BoundCastExpression(
+        TypeSymbol type,
+        BoundExpression operand,
+        ConversionKind conversionKind,
+        ConstantValue constantValue) {
         this.type = type;
         this.operand = operand;
-        constantValue = ConstantFolding.FoldCast(this.operand, this.type);
+        this.constantValue = constantValue;
+        this.conversionKind = conversionKind;
     }
 
     internal BoundExpression operand { get; }
@@ -19,4 +24,6 @@ internal sealed class BoundCastExpression : BoundExpression {
     internal override ConstantValue constantValue { get; }
 
     internal override TypeSymbol type { get; }
+
+    internal ConversionKind conversionKind { get; }
 }

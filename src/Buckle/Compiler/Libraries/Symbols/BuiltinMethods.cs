@@ -12,8 +12,8 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol RandInt = Method(
         "RandInt",
-        [("max", SpecialType.Int)],
-        SpecialType.Int
+        SpecialType.Int,
+        [("max", SpecialType.Int)]
     );
 
     /// <summary>
@@ -22,11 +22,8 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol Hex = Method(
         "Hex",
-        [
-            ("value", SpecialType.Int, null),
-            ("prefix", SpecialType.Bool, true),
-        ],
-        SpecialType.String
+        SpecialType.String,
+        [("value", SpecialType.Int, null), ("prefix", SpecialType.Bool, true)]
     );
 
     /// <summary>
@@ -35,12 +32,9 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol NullableHex = Method(
         "Hex",
-        [
-            ("value", SpecialType.Int, true, null),
-            ("prefix", SpecialType.Bool, false, false),
-        ],
         SpecialType.String,
-        true
+        true,
+        [("value", SpecialType.Int, true, null), ("prefix", SpecialType.Bool, false, false)]
     );
 
     /// <summary>
@@ -48,8 +42,8 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol Ascii = Method(
         "Ascii",
-        [("char", SpecialType.String)],
-        SpecialType.Int
+        SpecialType.Int,
+        [("char", SpecialType.String)]
     );
 
     /// <summary>
@@ -57,9 +51,9 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol NullableAscii = Method(
         "Ascii",
-        [("char", SpecialType.String, true)],
         SpecialType.Int,
-        true
+        true,
+        [("char", SpecialType.String, true)]
     );
 
     /// <summary>
@@ -68,8 +62,8 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol Char = Method(
         "Char",
-        [("ascii", SpecialType.Int)],
-        SpecialType.String
+        SpecialType.String,
+        [("ascii", SpecialType.Int)]
     );
 
     /// <summary>
@@ -78,9 +72,9 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol NullableChar = Method(
         "Char",
-        [("ascii", SpecialType.Int, true)],
         SpecialType.String,
-        true
+        true,
+        [("ascii", SpecialType.Int, true)]
     );
 
     /// <summary>
@@ -88,9 +82,9 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol LengthNull = Method(
         "Length",
-        [("array", SpecialType.Any, true)],
         SpecialType.Int,
-        true
+        true,
+        [("array", SpecialType.Any, true)]
     );
 
     /// <summary>
@@ -98,8 +92,8 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol Length = Method(
         "Length",
-        [("array", SpecialType.Any)],
-        SpecialType.Int
+        SpecialType.Int,
+        [("array", SpecialType.Any)]
     );
 
     /// <summary>
@@ -108,9 +102,9 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol ToAny = Method(
         "ToAny",
-        [("primitive", SpecialType.Any, true)],
         SpecialType.Any,
-        true
+        true,
+        [("primitive", SpecialType.Any, true)]
     );
 
     /// <summary>
@@ -119,37 +113,9 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol ToObject = Method(
         "ToObject",
-        [("object", SpecialType.Any, true)],
         SpecialType.Any,
-        true
-    );
-
-    /// <summary>
-    /// LowLevel only.
-    /// Checks if two objects values equal.
-    /// </summary>
-    internal static readonly MethodSymbol ObjectsEqual = Method(
-        "ObjectsEqual",
-        [
-            ("x", SpecialType.Object, true),
-            ("y", SpecialType.Object, true)
-        ],
-        SpecialType.Bool,
-        true
-    );
-
-    /// <summary>
-    /// LowLevel only.
-    /// Checks if two references refer to the same object.
-    /// </summary>
-    internal static readonly MethodSymbol ObjectReferencesEqual = Method(
-        "ObjectReferencesEqual",
-        [
-            ("x", SpecialType.Object, true, null, RefKind.Ref),
-            ("y", SpecialType.Object, true, null, RefKind.Ref)
-        ],
-        SpecialType.Bool,
-        true
+        true,
+        [("object", SpecialType.Any, true)]
     );
 
     /// <summary>
@@ -157,8 +123,8 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly new MethodSymbol GetHashCode = Method(
         "GetHashCode",
-        [("value", SpecialType.Any, true)],
-        SpecialType.Int
+        SpecialType.Int,
+        [("value", SpecialType.Any, true)]
     );
 
     /// <summary>

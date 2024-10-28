@@ -1,7 +1,8 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Symbols;
 
-namespace Buckle.CodeAnalysis.Symbols;
+namespace Buckle.Libraries;
 
 internal sealed class SynthesizedFinishedMethodSymbol : WrappedMethodSymbol {
     internal SynthesizedFinishedMethodSymbol(

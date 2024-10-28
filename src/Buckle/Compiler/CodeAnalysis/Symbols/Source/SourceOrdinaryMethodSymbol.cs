@@ -48,17 +48,6 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             : new SourceComplexOrdinaryMethodSymbol(containingType, name, syntax, MethodKind.Ordinary, diagnostics);
     }
 
-    internal static void ReportErrorIfHasConstraints(
-        TemplateConstraintClauseListSyntax syntax,
-        BelteDiagnosticQueue diagnostics) {
-        if (syntax.constraintClauses.Count > 0) {
-            // TODO Do we even want an error here?
-            // I can't imagine a situation where you could add an error-free constraint clause without having templates
-            // However this would speed up compilation slightly as you wouldn't need to actually bind the constraints
-            // Just push this error instead
-        }
-    }
-
     internal sealed override ExecutableCodeBinder TryGetBodyBinder(
         BinderFactory binderFactory = null,
         bool ignoreAccessibility = false) {
