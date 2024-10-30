@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -18,9 +17,10 @@ internal sealed class SourceUserDefinedOperatorSymbol : SourceUserDefinedOperato
             name,
             containingType,
             syntax,
-            MakeDeclarationModifiers(methodKind, syntax, diagnostics),
+            MakeDeclarationModifiers(syntax, syntax.operatorToken.location, diagnostics),
             syntax.body is not null,
-            diagnostics) { }
+            diagnostics
+        ) { }
 
     private protected override TextLocation _returnTypeLocation => GetSyntax().returnType.location;
 
@@ -51,11 +51,5 @@ internal sealed class SourceUserDefinedOperatorSymbol : SourceUserDefinedOperato
 
     private protected override int GetParameterCountFromSyntax() {
         return GetSyntax().parameterList.parameters.Count;
-    }
-
-    private protected override (TypeWithAnnotations ReturnType, ImmutableArray<ParameterSymbol> Parameters)
-        MakeParametersAndBindReturnType(BelteDiagnosticQueue diagnostics) {
-        var declarationSyntax = GetSyntax();
-        return MakeParametersAndBindReturnType(declarationSyntax, declarationSyntax.returnType, diagnostics);
     }
 }

@@ -1,10 +1,11 @@
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
-
     private SourceConstructorSymbol(
         SourceMemberContainerTypeSymbol containingType,
         ConstructorDeclarationSyntax syntax,
@@ -17,11 +18,19 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
                 syntax,
                 syntax.constructorInitializer.thisOrBaseKeyword.kind == SyntaxKind.ThisKeyword,
                 diagnostics,
-                out bool hasErrors
+                out var hasErrors
             )
         ) {
+        var hasAnyBody = _flags.hasAnyBody;
+        var location = syntax.constructorKeyword.location;
 
+        ModifierHelpers.CheckAccessibility(_modifiers, diagnostics, location);
+
+        if (!hasErrors)
+            CheckModifiers(hasAnyBody, location, diagnostics);
     }
+
+    private protected override bool _allowRef => true;
 
     internal static SourceConstructorSymbol CreateConstructorSymbol(
         SourceMemberContainerTypeSymbol containingType,
@@ -29,6 +38,20 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
         BelteDiagnosticQueue diagnostics) {
         // Eventually this will distinguish static and instance constructors
         return new SourceConstructorSymbol(containingType, syntax, diagnostics);
+    }
+
+    internal ConstructorDeclarationSyntax GetSyntax() {
+        return (ConstructorDeclarationSyntax)syntaxReference.node;
+    }
+
+    internal override ExecutableCodeBinder TryGetBodyBinder(
+        BinderFactory binderFactory = null,
+        bool ignoreAccessibility = false) {
+        return TryGetBodyBinderFromSyntax(binderFactory, ignoreAccessibility);
+    }
+
+    private protected override ParameterListSyntax GetParameterList() {
+        return GetSyntax().parameterList;
     }
 
     private static (DeclarationModifiers, Flags) MakeModifiersAndFlags(
@@ -79,5 +102,15 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
         );
 
         return mods;
+    }
+
+    private void CheckModifiers(bool hasBody, TextLocation location, BelteDiagnosticQueue diagnostics) {
+        if (!hasBody) ;
+        // TODO Does this ever happen? Or does the Parser catch this
+        // diagnostics.Add(ErrorCode.ERR_ConcreteMissingBody, location, this);
+        else if (containingType.isSealed && declaredAccessibility == Accessibility.Protected && !isOverride)
+            diagnostics.Push(Warning.ProtectedMemberInSealedType(location, containingType, this));
+        else if (containingType.isStatic)
+            diagnostics.Push(Error.ConstructorInStaticClass(location));
     }
 }

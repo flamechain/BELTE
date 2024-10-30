@@ -5,10 +5,10 @@ using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal sealed class TypeSubstitutedLocalSymbol : DataContainerSymbol {
+internal sealed class SubstitutedLocalSymbol : DataContainerSymbol {
     private readonly DataContainerSymbol _originalLocal;
 
-    internal TypeSubstitutedLocalSymbol(
+    internal SubstitutedLocalSymbol(
         DataContainerSymbol originalVariable,
         TypeWithAnnotations type,
         Symbol containingSymbol) {

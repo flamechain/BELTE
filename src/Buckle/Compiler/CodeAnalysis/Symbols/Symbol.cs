@@ -159,8 +159,7 @@ internal abstract class Symbol : ISymbol {
         return null;
     }
 
-    internal LexicalSortKey GetLexicalSortKey() {
-        var declaringCompilation = this.declaringCompilation;
+    internal virtual LexicalSortKey GetLexicalSortKey() {
         return new LexicalSortKey(syntaxReference, declaringCompilation);
     }
 

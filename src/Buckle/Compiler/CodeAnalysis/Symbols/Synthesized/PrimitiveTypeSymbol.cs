@@ -46,6 +46,8 @@ internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
 
     internal override IEnumerable<string> memberNames => throw new InvalidOperationException();
 
+    internal override bool isImplicitlyDeclared => true;
+
     internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
         throw new InvalidOperationException();
     }

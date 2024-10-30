@@ -1051,9 +1051,9 @@ internal static class Error {
     /// <summary>
     /// BU0110. Run `buckle --explain BU0110` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic StaticOperator(TextLocation location) {
+    internal static BelteDiagnostic OperatorInStaticClass(TextLocation location) {
         var message = $"static classes cannot contain operators";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_StaticOperator), location, message);
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_OperatorInStaticClass), location, message);
     }
 
     /// <summary>
@@ -1290,8 +1290,8 @@ internal static class Error {
     /// <summary>
     /// BU0139. Run `buckle --explain BU0139` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic NonAbstractMustHaveBody(TextLocation location, string name) {
-        var message = $"'{name}' must declare a body because it is not marked abstract";
+    internal static BelteDiagnostic NonAbstractMustHaveBody(TextLocation location, MethodSymbol method) {
+        var message = $"'{method}' must declare a body because it is not marked abstract";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NonAbstractMustHaveBody), location, message);
     }
 

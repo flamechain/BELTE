@@ -118,7 +118,7 @@ public enum DiagnosticCode : ushort {
     ERR_CannotReturnStatic = 107,
     ERR_IncorrectOperatorParameterCount = 108,
     ERR_OperatorMustBePublicAndStatic = 109,
-    ERR_StaticOperator = 110,
+    ERR_OperatorInStaticClass = 110,
     ERR_OperatorAtLeastOneClassParameter = 111,
     ERR_OperatorMustReturnClass = 112,
     ERR_IndexOperatorFirstParameter = 113,

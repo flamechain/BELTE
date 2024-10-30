@@ -565,7 +565,6 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                         var method = SourceUserDefinedOperatorSymbol.CreateUserDefinedOperatorSymbol(
                             this,
-                            bodyBinder,
                             operatorSyntax,
                             diagnostics
                         );
@@ -641,7 +640,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         }
 
         if (!hasConstructor && !isStatic)
-            builder.AddNonTypeMember(new SynthesizedInstanceConstructor(this), declaredMembersAndInitializers);
+            builder.AddNonTypeMember(new SynthesizedConstructorSymbol(this), declaredMembersAndInitializers);
     }
 
     private DeclarationModifiers MakeModifiers(BelteDiagnosticQueue diagnostics) {
