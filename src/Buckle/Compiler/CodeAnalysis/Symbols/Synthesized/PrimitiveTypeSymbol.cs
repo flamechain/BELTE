@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -43,6 +44,8 @@ internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
     internal override NamedTypeSymbol baseType => throw new InvalidOperationException();
 
     internal override SyntaxReference syntaxReference => throw new InvalidOperationException();
+
+    internal override TextLocation location => null;
 
     internal override IEnumerable<string> memberNames => throw new InvalidOperationException();
 

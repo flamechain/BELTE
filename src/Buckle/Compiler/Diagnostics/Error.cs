@@ -1517,6 +1517,15 @@ internal static class Error {
         // TODO add this to resource doc after finding example
     }
 
+    /// <summary>
+    /// BU0161. Run `buckle --explain BU0161` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic NoSuitableEntryPoint() {
+        var message = $"no suitable entry point found";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_NoSuitableEntryPoint), message);
+        // TODO add this to resource doc after finding example
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

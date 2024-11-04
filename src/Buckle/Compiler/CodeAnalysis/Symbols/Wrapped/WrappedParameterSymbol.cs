@@ -1,4 +1,5 @@
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -18,6 +19,8 @@ internal abstract class WrappedParameterSymbol : ParameterSymbol {
     internal ParameterSymbol underlyingParameter { get; }
 
     internal sealed override SyntaxReference syntaxReference => underlyingParameter.syntaxReference;
+
+    internal sealed override TextLocation location => underlyingParameter.location;
 
     internal sealed override ConstantValue explicitDefaultConstantValue
         => underlyingParameter.explicitDefaultConstantValue;

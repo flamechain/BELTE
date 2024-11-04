@@ -24,6 +24,8 @@ internal sealed class TypeWithAnnotations {
 
     internal TypeKind typeKind => type.typeKind;
 
+    internal SpecialType specialType => type.specialType;
+
     internal bool IsSameAs(TypeWithAnnotations other) {
         return ReferenceEquals(type, other.type) && isNullable == other.isNullable;
     }

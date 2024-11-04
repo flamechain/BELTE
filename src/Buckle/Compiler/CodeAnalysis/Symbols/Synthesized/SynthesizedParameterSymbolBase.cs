@@ -1,4 +1,5 @@
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -29,6 +30,8 @@ internal abstract class SynthesizedParameterSymbolBase : ParameterSymbol {
     internal override TypeWithAnnotations typeWithAnnotations { get; }
 
     internal override SyntaxReference syntaxReference => null;
+
+    internal override TextLocation location => null;
 
     internal override bool isMetadataOptional => explicitDefaultConstantValue is not null;
 

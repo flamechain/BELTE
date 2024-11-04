@@ -169,6 +169,7 @@ public enum DiagnosticCode : ushort {
     ERR_InconsistentAccessibilityReturn = 158,
     ERR_InconsistentAccessibilityOperatorParameter = 159,
     ERR_InconsistentAccessibilityParameter = 160,
+    ERR_NoSuitableEntryPoint = 161,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

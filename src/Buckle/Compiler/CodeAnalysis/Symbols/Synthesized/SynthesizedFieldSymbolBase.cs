@@ -1,5 +1,6 @@
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -32,6 +33,8 @@ internal abstract class SynthesizedFieldSymbolBase : FieldSymbol {
     internal override NamedTypeSymbol containingType { get; }
 
     internal override SyntaxReference syntaxReference => null;
+
+    internal override TextLocation location => null;
 
     internal override Accessibility declaredAccessibility => ModifierHelpers.EffectiveAccessibility(_modifiers);
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -52,6 +53,8 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
     internal override Symbol containingSymbol => null;
 
     internal override SyntaxReference syntaxReference => null;
+
+    internal override TextLocation location => null;
 
     internal override NamedTypeSymbol constructedFrom => this;
 

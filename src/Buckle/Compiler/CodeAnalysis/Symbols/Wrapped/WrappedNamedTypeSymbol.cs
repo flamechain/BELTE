@@ -1,4 +1,5 @@
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -22,6 +23,8 @@ internal abstract class WrappedNamedTypeSymbol : NamedTypeSymbol {
     internal override Accessibility declaredAccessibility => underlyingNamedType.declaredAccessibility;
 
     internal override SyntaxReference syntaxReference => underlyingNamedType.syntaxReference;
+
+    internal override TextLocation location => underlyingNamedType.location;
 
     internal override bool isStatic => underlyingNamedType.isStatic;
 

@@ -21,6 +21,7 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
         this.name = name;
         this.ordinal = ordinal;
         this.syntaxReference = syntaxReference;
+        location = (syntaxReference.node as ParameterSyntax).identifier.location;
     }
 
     public sealed override string name { get; }
@@ -59,6 +60,8 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
     }
 
     internal sealed override SyntaxReference syntaxReference { get; }
+
+    internal sealed override TextLocation location { get; }
 
     private protected abstract ImmutableArray<TemplateParameterSymbol> _containerTemplateParameters { get; }
 

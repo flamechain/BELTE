@@ -28,6 +28,8 @@ internal sealed class GlobalNamespaceSymbol : NamespaceSymbol {
 
     internal override SyntaxReference syntaxReference => null;
 
+    internal override TextLocation location => null;
+
     internal override Symbol containingSymbol => null;
 
     internal override void ForceComplete(TextLocation location) {

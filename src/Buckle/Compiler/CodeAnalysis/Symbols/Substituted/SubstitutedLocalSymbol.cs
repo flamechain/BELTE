@@ -1,6 +1,7 @@
 using System;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -30,6 +31,8 @@ internal sealed class SubstitutedLocalSymbol : DataContainerSymbol {
     internal override SyntaxNode scopeDesignator => _originalLocal.scopeDesignator;
 
     internal override SyntaxReference syntaxReference => _originalLocal.syntaxReference;
+
+    internal override TextLocation location => _originalLocal.location;
 
     internal override bool hasSourceLocation => _originalLocal.hasSourceLocation;
 

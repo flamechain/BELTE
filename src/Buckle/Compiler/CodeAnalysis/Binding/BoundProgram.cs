@@ -20,45 +20,12 @@ internal sealed class BoundProgram {
         MethodSymbol entryPoint = null;
 
         if (entryPointCandidates.Length == 0) {
-            // TODO no entry point error
+            diagnostics.Push(Error.NoSuitableEntryPoint());
         } else if (entryPointCandidates.Length == 1) {
             entryPoint = entryPointCandidates[0];
-
-            if (!HasEntryPointSignature(entryPoint))
-                diagnostics.Push(Error.InvalidMain(entryPoint.))
-
-            if ((!entryPoint.returnsVoid && entryPoint.returnType.specialType != SpecialType.Int) ||
-                entryPoint.returnTypeIsNullable) {
-                diagnostics.Push(Error.InvalidMain(entryPoint.returnType.syntaxReference.location));
-            }
-
-            if (entryPoint.parameterCount > 0) {
-                var invalidSignature = entryPoint.parameterCount != 1 ||
-                    entryPoint.parameters[0].type.specialType != SpecialType.List;
-
-                if (!invalidSignature) {
-                    var parameterTemplates = entryPoint.parameters[0].type;
-
-                    invalidSignature = invalidSignature || parameterTemplates.Length != 1 || parameterTemplates[0].type
-                }
-            }
-
-            var argsType = new BoundType(
-                binder._scope.LookupSymbol<ClassSymbol>(WellKnownTypeNames.List),
-                isNullable: false,
-                templateArguments: [new TypeOrConstant(BoundType.String)],
-                arity: 1
-            );
-
-            if (entryPoint.parameters.Any()) {
-                if (entryPoint.parameters.Length != 1 ||
-                    entryPoint.parameters[0].name != "args" ||
-                    !(entryPoint.parameters[0].type?.Equals(argsType) ?? false)) {
-                    binder.diagnostics.Push(Error.InvalidMain(location));
-                }
-            }
+        } else {
+            diagnostics.Push(Error.MultipleMains(entryPointCandidates[0].location));
         }
-
 
 
     }
@@ -68,17 +35,29 @@ internal sealed class BoundProgram {
 
         if (returnType.specialType != SpecialType.Int && !returnType.IsVoidType())
             return false;
-        
+
         if (method.refKind != RefKind.None)
             return false;
-        
+
         if (method.parameterCount == 0)
             return true;
-        
+
         if (method.parameterCount > 1)
             return false;
-        
+
         if (!method.parameterRefKinds.IsDefault)
             return false;
+
+        var firstType = method.parameters[0].type;
+
+        if (firstType.specialType != SpecialType.List)
+            return false;
+
+        var elementType = ((NamedTypeSymbol)firstType).templateArguments[0].type;
+
+        if (elementType.specialType != SpecialType.String)
+            return false;
+
+        return true;
     }
 }

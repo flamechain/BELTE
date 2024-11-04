@@ -105,8 +105,9 @@ internal abstract class Symbol : ISymbol {
         }
     }
 
-    // TODO Will need to change this to an immutable array when `partial` keyword is added
     internal abstract SyntaxReference syntaxReference { get; }
+
+    internal abstract TextLocation location { get; }
 
     internal virtual void AddDeclarationDiagnostics(BelteDiagnosticQueue diagnostics) {
         if (diagnostics.Count > 0)

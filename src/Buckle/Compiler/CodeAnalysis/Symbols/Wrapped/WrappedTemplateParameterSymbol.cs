@@ -1,4 +1,5 @@
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -32,6 +33,8 @@ internal abstract class WrappedTemplateParameterSymbol : TemplateParameterSymbol
     internal override TypeOrConstant defaultValue => underlyingTemplateParameter.defaultValue;
 
     internal override SyntaxReference syntaxReference => underlyingTemplateParameter.syntaxReference;
+
+    internal override TextLocation location => underlyingTemplateParameter.location;
 
     internal override void EnsureConstraintsAreResolved() {
         underlyingTemplateParameter.EnsureConstraintsAreResolved();

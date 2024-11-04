@@ -19,7 +19,6 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         new Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>>(EmptyReadOnlyMemoryOfCharComparer.Instance);
 
     private readonly DeclarationModifiers _modifiers;
-    private readonly TextLocation _nameLocation;
     private protected SymbolCompletionState _state;
     private protected readonly TypeDeclarationSyntax _declaration;
 
@@ -37,7 +36,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         BelteDiagnosticQueue diagnostics) {
         this.containingSymbol = containingSymbol;
         _declaration = declaration;
-        _nameLocation = declaration.identifier.location;
+        location = declaration.identifier.location;
         typeKind = declaration.kind == SyntaxKind.ClassDeclaration ? TypeKind.Class : TypeKind.Struct;
         name = declaration.identifier.text;
         arity = declaration.templateParameterList.parameters.Count;
@@ -92,6 +91,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     internal override Symbol containingSymbol { get; }
 
     internal override SyntaxReference syntaxReference => new SyntaxReference(_declaration);
+
+    internal override TextLocation location { get; }
 
     internal override IEnumerable<string> memberNames => GetMembers().Select(m => m.name);
 
@@ -667,14 +668,14 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             (mods & DeclarationModifiers.Abstract) != 0 &&
             (mods & (DeclarationModifiers.Sealed | DeclarationModifiers.Static)) != 0) {
             diagnostics.Push(
-                Error.ConflictingModifiers(_nameLocation, "abstract", isSealed ? "sealed" : "static")
+                Error.ConflictingModifiers(location, "abstract", isSealed ? "sealed" : "static")
             );
         }
 
         if (!hasErrors &&
             (mods & (DeclarationModifiers.Sealed | DeclarationModifiers.Static)) ==
             (DeclarationModifiers.Sealed | DeclarationModifiers.Static)) {
-            diagnostics.Push(Error.ConflictingModifiers(_nameLocation, "sealed", "static"));
+            diagnostics.Push(Error.ConflictingModifiers(location, "sealed", "static"));
         }
 
         if (typeKind == TypeKind.Struct)
@@ -698,7 +699,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             true,
             modifiers,
             allowedModifiers,
-            _nameLocation,
+            location,
             diagnostics,
             out hasErrors
         );
@@ -706,7 +707,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         hasErrors |= hasDuplicateErrors;
 
         if (!hasErrors)
-            hasErrors = ModifierHelpers.CheckAccessibility(modifiers, diagnostics, _nameLocation);
+            hasErrors = ModifierHelpers.CheckAccessibility(modifiers, diagnostics, location);
 
         if ((modifiers & DeclarationModifiers.AccessibilityMask) == 0)
             modifiers |= defaultAccess;

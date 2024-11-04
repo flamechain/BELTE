@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -57,6 +58,8 @@ internal sealed class SynthesizedConstructorSymbol : MethodSymbol {
     internal override bool isSealed => false;
 
     internal override SyntaxReference syntaxReference => null;
+
+    internal override TextLocation location => null;
 
     internal override bool isImplicitlyDeclared => true;
 

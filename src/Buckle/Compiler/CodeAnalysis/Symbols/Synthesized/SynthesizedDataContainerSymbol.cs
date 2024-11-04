@@ -1,5 +1,6 @@
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -15,6 +16,7 @@ internal sealed class SynthesizedDataContainerSymbol : DataContainerSymbol {
         this.containingSymbol = containingSymbol;
         this.refKind = refKind;
         typeWithAnnotations = type;
+        // This is the syntax of just the name
         _syntax = syntax;
     }
 
@@ -25,6 +27,8 @@ internal sealed class SynthesizedDataContainerSymbol : DataContainerSymbol {
     internal override Symbol containingSymbol { get; }
 
     internal override SyntaxReference syntaxReference => _syntax is null ? null : new SyntaxReference(_syntax);
+
+    internal override TextLocation location => _syntax is null ? null : syntaxReference.location;
 
     internal override TypeWithAnnotations typeWithAnnotations { get; }
 

@@ -138,7 +138,7 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
         var current = this;
 
         while (current is not null) {
-            if (current == (object)baseType)
+            if ((object)current == baseType)
                 return true;
 
             current = current.baseType?.originalDefinition;

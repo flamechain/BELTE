@@ -145,16 +145,15 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         if (ReferenceEquals(this, other))
             return true;
 
-        if ((object)other is null || !ReferenceEquals(other.originalDefinition, originalDefinition))
+        if (other is null || !ReferenceEquals(other.originalDefinition, originalDefinition))
             return false;
 
         return other.containingSymbol.containingType.Equals(containingSymbol.containingType, compareKind);
     }
 
     private static bool ConstraintImpliesObjectType(TypeSymbol constraint) {
-        if (constraint.typeKind == TypeKind.TemplateParameter) {
+        if (constraint.typeKind == TypeKind.TemplateParameter)
             return ((TemplateParameterSymbol)constraint).isObjectTypeFromConstraintTypes;
-        }
 
         return NonTypeParameterConstraintImpliesObjectType(constraint);
     }

@@ -1,4 +1,5 @@
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -10,4 +11,6 @@ internal sealed class SynthesizedLabelSymbol : LabelSymbol {
     public override string name { get; }
 
     internal override SyntaxReference syntaxReference => null;
+
+    internal override TextLocation location => null;
 }

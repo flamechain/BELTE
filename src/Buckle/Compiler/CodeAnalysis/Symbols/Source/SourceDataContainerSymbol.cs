@@ -1,6 +1,7 @@
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
 
@@ -51,6 +52,8 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
     internal override bool hasSourceLocation => true;
 
     internal override SyntaxReference syntaxReference => new SyntaxReference(GetDeclarationSyntax());
+
+    internal override TextLocation location => identifierToken.location;
 
     internal override bool isCompilerGenerated => false;
 

@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -8,11 +9,14 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal abstract class SourceMethodSymbol : MethodSymbol {
     private protected SourceMethodSymbol(SyntaxReference syntaxReference) {
         this.syntaxReference = syntaxReference;
+        location = ((MethodDeclarationSyntax)syntaxNode).identifier.location;
     }
 
     internal sealed override bool hidesBaseMethodsByName => false;
 
     internal override SyntaxReference syntaxReference { get; }
+
+    internal override TextLocation location { get; }
 
     internal override bool hasSpecialName => methodKind switch {
         MethodKind.Constructor => true,

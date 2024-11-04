@@ -61,7 +61,7 @@ internal sealed class SourceOverridingMethodTemplateParameterSymbol : SourceTemp
             true,
             declaringCompilation,
             diagnostics,
-            syntaxReference.location
+            location
         );
     }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Immutable;
 using System.Threading;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -32,6 +33,8 @@ internal sealed class IndexedTemplateParameterSymbol : TemplateParameterSymbol {
     internal override Symbol containingSymbol => null;
 
     internal override SyntaxReference syntaxReference => null;
+
+    internal override TextLocation location => null;
 
     internal override TypeWithAnnotations underlyingType => null;
 

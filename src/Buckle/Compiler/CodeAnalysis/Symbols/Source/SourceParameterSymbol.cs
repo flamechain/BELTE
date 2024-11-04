@@ -19,6 +19,7 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
         effectiveScope = scope;
         this.name = name;
         syntaxReference = new SyntaxReference(syntax);
+        location = syntax.identifier.location;
     }
 
     public sealed override string name { get; }
@@ -28,6 +29,8 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
     internal sealed override bool requiresCompletion => true;
 
     internal override SyntaxReference syntaxReference { get; }
+
+    internal override TextLocation location { get; }
 
     internal override bool isImplicitlyDeclared => false;
 

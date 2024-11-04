@@ -1,5 +1,6 @@
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -25,6 +26,8 @@ internal abstract class WrappedFieldSymbol : FieldSymbol {
     internal override bool isImplicitlyDeclared => underlyingField.isImplicitlyDeclared;
 
     internal override SyntaxReference syntaxReference => underlyingField.syntaxReference;
+
+    internal override TextLocation location => underlyingField.location;
 
     internal override bool isStatic => underlyingField.isStatic;
 

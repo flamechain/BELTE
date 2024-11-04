@@ -171,6 +171,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0158 | Error | inconsistent accessibility: return type '{0}' is less accessible than method '{1}' |
 | BU0159 | Error | inconsistent accessibility: parameter type '{0}' is less accessible than operator '{1}' |
 | BU0160 | Error | inconsistent accessibility: parameter type '{0}' is less accessible than method '{1}' |
+| BU0161 | Error | no suitable entry point found |
 
 ## Command Line Diagnostics
 

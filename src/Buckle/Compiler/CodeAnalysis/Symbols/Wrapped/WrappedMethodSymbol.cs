@@ -1,4 +1,5 @@
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -26,6 +27,8 @@ internal abstract class WrappedMethodSymbol : MethodSymbol {
     internal override bool hidesBaseMethodsByName => underlyingMethod.hidesBaseMethodsByName;
 
     internal override SyntaxReference syntaxReference => underlyingMethod.syntaxReference;
+
+    internal override TextLocation location => underlyingMethod.location;
 
     internal override Accessibility declaredAccessibility => underlyingMethod.declaredAccessibility;
 
