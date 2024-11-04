@@ -415,4 +415,16 @@ internal partial class Binder {
     }
 
     #endregion
+
+    #region Initializers
+
+    internal static void BindFieldInitializers(
+        Compilation compilation,
+        ImmutableArray<ImmutableArray<FieldInitializer>> fieldInitializers,
+        BelteDiagnosticQueue diagnostics,
+        ref ProcessedFieldInitializers processedInitializers) {
+        // TODO
+    }
+
+    #endregion
 }

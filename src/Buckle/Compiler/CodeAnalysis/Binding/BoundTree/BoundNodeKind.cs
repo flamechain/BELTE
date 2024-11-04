@@ -54,5 +54,6 @@ internal enum BoundNodeKind : byte {
     VariableDeclaration,
     FieldEqualsValue,
     ParameterEqualsValue,
+    GlobalStatement,
     MethodGroup,
 }

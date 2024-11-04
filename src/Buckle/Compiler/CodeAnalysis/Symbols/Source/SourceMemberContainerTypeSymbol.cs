@@ -96,6 +96,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     internal override IEnumerable<string> memberNames => GetMembers().Select(m => m.name);
 
+    internal ImmutableArray<ImmutableArray<FieldInitializer>> initializers
+        => GetMembersAndInitializers().fieldInitializers;
+
     internal sealed override ImmutableArray<Symbol> GetMembers() {
         if (!_lazyMembersFlattened.IsDefault)
             return _lazyMembersFlattened;
