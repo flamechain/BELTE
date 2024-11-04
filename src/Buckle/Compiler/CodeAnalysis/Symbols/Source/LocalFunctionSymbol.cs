@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal sealed class SourceLocalFunctionSymbol : SourceMethodSymbol {
+internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
     private readonly RefKind _refKind;
     private readonly DeclarationModifiers _modifiers;
     private readonly BelteDiagnosticQueue _declarationDiagnostics;
@@ -18,7 +18,7 @@ internal sealed class SourceLocalFunctionSymbol : SourceMethodSymbol {
     private ImmutableArray<ParameterSymbol> _lazyParameters;
     private TypeWithAnnotations _lazyReturnType;
 
-    internal SourceLocalFunctionSymbol(Binder binder, Symbol containingSymbol, LocalFunctionStatementSyntax syntax)
+    internal LocalFunctionSymbol(Binder binder, Symbol containingSymbol, LocalFunctionStatementSyntax syntax)
         : base(new SyntaxReference(syntax)) {
         this.containingSymbol = containingSymbol;
         _declarationDiagnostics = new BelteDiagnosticQueue();
