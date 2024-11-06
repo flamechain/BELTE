@@ -2,6 +2,7 @@ using System;
 using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -127,6 +128,21 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
             return this;
 
         return new ConstructedMethodSymbol(this, templateArguments);
+    }
+
+    internal bool IncludeFieldInitializersInBody() {
+        return methodKind == MethodKind.Constructor && !HasThisConstructorInitializer();
+    }
+
+    internal bool HasThisConstructorInitializer() {
+        if (methodKind == MethodKind.Constructor) {
+            if (this is SourceMemberMethodSymbol sourceMethod) {
+                var constructorSyntax = sourceMethod.syntaxNode as ConstructorDeclarationSyntax;
+                return constructorSyntax?.constructorInitializer?.thisOrBaseKeyword?.kind == SyntaxKind.ThisKeyword;
+            }
+        }
+
+        return false;
     }
 
     internal MethodSymbol AsMember(NamedTypeSymbol newOwner) {

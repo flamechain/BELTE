@@ -27,9 +27,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
     /// </summary>
     /// <param name="method">Method to lower.</param>
     /// <param name="statement">Method body.</param>
-    /// <param name="transpilerMode">If the compiler is transpiling, if true skips part of lowering.</param>
     /// <returns>Lowered method body (same type).</returns>
-    internal static (BoundBlockStatement, BoundBlockStatement) Lower(MethodSymbol method, BoundStatement statement, bool transpilerMode) {
+    internal static BoundBlockStatement Lower(MethodSymbol method, BoundStatement statement) {
         var lowerer = new Lowerer(false) {
             _expander = new Expander() {
                 transpilerMode = transpilerMode

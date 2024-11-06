@@ -503,17 +503,11 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         if (members.Count == 0)
             return;
 
-        var firstMember = members[0];
-        var bodyBinder = GetBinder(firstMember);
-
         ArrayBuilder<FieldInitializer>? initializers = null;
-        var compilation = declaringCompilation;
 
         foreach (var m in members) {
             if (_lazyMembersAndInitializers is not null)
                 return;
-
-            var reportMisplacedGlobalCode = !m.containsDiagnostics;
 
             switch (m.kind) {
                 case SyntaxKind.FieldDeclaration: {
@@ -576,14 +570,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         builder.nonTypeMembers.Add(method);
                     }
                     break;
-                case SyntaxKind.GlobalStatement: {
-                        // TODO ensure this is even possible to reach
-                        var globalStatement = ((GlobalStatementSyntax)m).statement;
-                        // diagnostics.Add(ErrorCode.ERR_GlobalStatement, new SourceLocation(globalStatement));
-                    }
-                    break;
                 default:
-                    break;
+                    throw ExceptionUtilities.UnexpectedValue(m.kind);
             }
         }
 

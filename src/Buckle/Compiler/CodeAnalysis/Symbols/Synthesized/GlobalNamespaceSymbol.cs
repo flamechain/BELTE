@@ -5,7 +5,9 @@ using System.Threading;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -160,10 +162,32 @@ done:
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>> MakeNameToMembersMap(
         BelteDiagnosticQueue diagnostics) {
         var builder = NameToObjectPool.Allocate();
+        var globals = new Dictionary<SourceText, ArrayBuilder<GlobalStatementSyntax>>();
 
         foreach (var declaration in _declarations) {
-            var symbol = BuildSymbol(declaration, diagnostics);
-            ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(builder, symbol.name.AsMemory(), symbol);
+            if (declaration is GlobalStatementSyntax g) {
+                var sourceText = g.location.text;
+
+                if (globals.TryGetValue(sourceText, out var value)) {
+                    value.Add(g);
+                } else {
+                    var globalsBuilder = ArrayBuilder<GlobalStatementSyntax>.GetInstance();
+                    globalsBuilder.Add(g);
+                    globals.Add(sourceText, globalsBuilder);
+                }
+            } else {
+                var symbol = BuildSymbol(declaration, diagnostics);
+                ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(builder, symbol.name.AsMemory(), symbol);
+            }
+        }
+
+        if (globals.Count > 0) {
+            var returnType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void));
+
+            foreach (var keyValuePair in globals) {
+                var symbol = new SynthesizedEntryPoint(this, returnType, keyValuePair.Value.ToImmutableAndFree());
+                ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(builder, symbol.name.AsMemory(), symbol);
+            }
         }
 
         var result = new Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>>(
@@ -187,10 +211,6 @@ done:
             case SyntaxKind.StructDeclaration:
             case SyntaxKind.ClassDeclaration:
                 return new SourceNamedTypeSymbol(this, (TypeDeclarationSyntax)declaration, diagnostics);
-            case SyntaxKind.GlobalStatement:
-                // TODO What to do here?
-                // return new ImplicitNamedTypeSymbol(this, (MergedTypeDeclaration)declaration, diagnostics);
-                return null;
             default:
                 throw ExceptionUtilities.UnexpectedValue(declaration.kind);
         }

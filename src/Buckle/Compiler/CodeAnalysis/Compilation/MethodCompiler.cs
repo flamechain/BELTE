@@ -1,4 +1,7 @@
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -7,20 +10,33 @@ namespace Buckle.CodeAnalysis;
 
 internal sealed class MethodCompiler {
     private readonly Compilation _compilation;
+    private readonly bool _emitting;
     private readonly BelteDiagnosticQueue _diagnostics;
     private readonly MethodSymbol _entryPoint;
+    private readonly Dictionary<MethodSymbol, BoundBlockStatement> _methodBodies;
+    private readonly ArrayBuilder<NamedTypeSymbol> _types;
 
-    private MethodCompiler(Compilation compilation, BelteDiagnosticQueue diagnostics, MethodSymbol entryPoint) {
+    private MethodCompiler(
+        Compilation compilation,
+        BelteDiagnosticQueue diagnostics,
+        MethodSymbol entryPoint,
+        bool emitting) {
         _compilation = compilation;
         _diagnostics = diagnostics;
         _entryPoint = entryPoint;
+        _emitting = emitting;
+        _types = ArrayBuilder<NamedTypeSymbol>.GetInstance();
+        _methodBodies = [];
     }
 
-    internal static BoundProgram CompileMethodBodies(Compilation compilation, BelteDiagnosticQueue diagnostics) {
+    internal static BoundProgram CompileMethodBodies(
+        Compilation compilation,
+        BelteDiagnosticQueue diagnostics,
+        bool emitting) {
         var globalNamespace = compilation.globalNamespaceInternal;
         var entryPoint = GetEntryPoint(globalNamespace, diagnostics);
 
-        var methodCompiler = new MethodCompiler(compilation, diagnostics, entryPoint);
+        var methodCompiler = new MethodCompiler(compilation, diagnostics, entryPoint, emitting);
 
         methodCompiler.CompileNamespace(globalNamespace);
         return methodCompiler.CreateBoundProgram();
@@ -28,10 +44,15 @@ internal sealed class MethodCompiler {
 
     private static MethodSymbol GetEntryPoint(NamespaceSymbol globalNamespace, BelteDiagnosticQueue diagnostics) {
         var builder = ArrayBuilder<MethodSymbol>.GetInstance();
+        var globalsCount = 0;
 
         foreach (var member in globalNamespace.GetMembers(WellKnownMemberNames.EntryPointMethodName)) {
-            if (member is MethodSymbol m && HasEntryPointSignature(m))
+            if (member is MethodSymbol m && HasEntryPointSignature(m)) {
+                if (m is SynthesizedEntryPoint)
+                    globalsCount++;
+
                 builder.Add(m);
+            }
         }
 
         var entryPointCandidates = builder.ToImmutableAndFree();
@@ -42,7 +63,18 @@ internal sealed class MethodCompiler {
         } else if (entryPointCandidates.Length == 1) {
             entryPoint = entryPointCandidates[0];
         } else {
-            diagnostics.Push(Error.MultipleMains(entryPointCandidates[0].location));
+            if (entryPointCandidates.Length > globalsCount + 1)
+                diagnostics.Push(Error.MultipleMains(entryPointCandidates[0].location));
+
+            if (globalsCount > 0 && entryPointCandidates.Length > globalsCount)
+                diagnostics.Push(Error.MainAndGlobals(entryPointCandidates[0].location));
+
+            if (globalsCount > 1) {
+                for (var i = 0; i < entryPointCandidates.Length; i++) {
+                    if (entryPointCandidates[i] is SynthesizedEntryPoint s)
+                        diagnostics.Push(Error.GlobalStatementsInMultipleFiles(s.location));
+                }
+            }
         }
 
         return entryPoint;
@@ -80,7 +112,7 @@ internal sealed class MethodCompiler {
     }
 
     private BoundProgram CreateBoundProgram() {
-
+        return new BoundProgram(null, _types.ToImmutableAndFree(), _entryPoint);
     }
 
     private void CompileNamespace(NamespaceSymbol globalNamespace) {
@@ -94,6 +126,8 @@ internal sealed class MethodCompiler {
     }
 
     private void CompileNamedType(NamedTypeSymbol namedType) {
+        _types.Add(namedType);
+
         var state = new TypeCompilationState(namedType, _compilation);
         var members = namedType.GetMembers();
         var processedInitializers = new Binder.ProcessedFieldInitializers();
@@ -121,13 +155,8 @@ internal sealed class MethodCompiler {
                     CompileMethod(m, ordinal, ref initializers, state);
                     break;
                 case FieldSymbol f:
-                    if (f.isConstExpr) {
-                        var constantValue = f.GetConstantValue(ConstantFieldsInProgress.Empty);
-
-                        if (constantValue is null)
-                            // TODO error
-                            ;
-                    }
+                    if (f.isConstExpr)
+                        f.GetConstantValue(ConstantFieldsInProgress.Empty);
 
                     break;
             }
@@ -144,6 +173,30 @@ internal sealed class MethodCompiler {
         if (method.isAbstract)
             return;
 
+        var currentDiagnostics = BelteDiagnosticQueue.GetInstance();
+        ImmutableArray<BoundStatement>? analyzedInitializers = null;
 
+        var includeInitializers = method.IncludeFieldInitializersInBody();
+        var includeNonEmptyInitializers = includeInitializers &&
+            !processedInitializers.boundInitializers.IsDefaultOrEmpty;
+
+        if (includeNonEmptyInitializers && processedInitializers.loweredInitializers is null)
+            analyzedInitializers = InitializerRewriter.RewriteConstructor(processedInitializers.boundInitializers);
+
+        var body = BindMethodBody(
+            method,
+            state,
+            currentDiagnostics,
+            includeInitializers,
+            analyzedInitializers
+        );
+
+        if (!_emitting || currentDiagnostics.AnyErrors()) {
+            _diagnostics.PushRangeAndFree(currentDiagnostics);
+            _methodBodies.Add(method, body);
+            return;
+        }
+
+        var loweredBody = Lowerer.Lower(method, body);
     }
 }

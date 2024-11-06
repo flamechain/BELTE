@@ -12,6 +12,7 @@ internal sealed class SynthesizedEntryPoint : MethodSymbol {
         ImmutableArray<GlobalStatementSyntax> syntax) {
         this.containingSymbol = containingSymbol;
         returnTypeWithAnnotations = returnType;
+        statements = syntax;
     }
 
     public override string name => WellKnownMemberNames.EntryPointMethodName;
@@ -36,6 +37,8 @@ internal sealed class SynthesizedEntryPoint : MethodSymbol {
 
     internal override ImmutableArray<ParameterSymbol> parameters => [];
 
+    internal override int parameterCount => 0;
+
     internal override bool hidesBaseMethodsByName => false;
 
     internal override bool hasSpecialName => false;
@@ -43,19 +46,22 @@ internal sealed class SynthesizedEntryPoint : MethodSymbol {
     internal override bool isDeclaredConst => false;
 
     internal override Accessibility declaredAccessibility => Accessibility.Public;
-    // TODO
 
-    internal override bool isStatic => throw new System.NotImplementedException();
+    internal override bool isStatic => false;
 
-    internal override bool isVirtual => throw new System.NotImplementedException();
+    internal override bool isVirtual => false;
 
-    internal override bool isAbstract => throw new System.NotImplementedException();
+    internal override bool isAbstract => false;
 
-    internal override bool isOverride => throw new System.NotImplementedException();
+    internal override bool isOverride => false;
 
-    internal override bool isSealed => throw new System.NotImplementedException();
+    internal override bool isSealed => false;
 
-    internal override SyntaxReference syntaxReference => throw new System.NotImplementedException();
+    internal override bool requiresInstanceReceiver => false;
 
-    internal override TextLocation location => throw new System.NotImplementedException();
+    internal override SyntaxReference syntaxReference => null;
+
+    internal override TextLocation location => null;
+
+    internal ImmutableArray<GlobalStatementSyntax> statements { get; }
 }
