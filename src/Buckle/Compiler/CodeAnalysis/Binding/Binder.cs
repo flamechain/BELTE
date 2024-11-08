@@ -366,6 +366,32 @@ internal partial class Binder {
         return new BoundFieldEqualsValue(field, initializerBinder.GetDeclaredLocalsForScope(initializer), result);
     }
 
+    internal static BoundCallExpression GenerateBaseParameterlessConstructorInitializer(
+        MethodSymbol constructor,
+        BelteDiagnosticQueue diagnostics) {
+        var containingType = constructor.containingType;
+        var baseType = containingType.baseType;
+        MethodSymbol baseConstructor = null;
+        var resultKind = LookupResultKind.Viable;
+        var errorLocation = constructor.location;
+
+        foreach (var ctor in baseType.constructors) {
+            if (ctor.parameterCount == 0) {
+                baseConstructor = ctor;
+                break;
+            }
+        }
+
+        if (!AccessCheck.IsSymbolAccessible(baseConstructor, containingType)) {
+            // TODO bad access error
+            resultKind = LookupResultKind.Inaccessible;
+        }
+
+        var reciever = new BoundThisExpression(containingType);
+
+        return new BoundCallExpression(reciever, baseConstructor, []);
+    }
+
     #endregion
 
     #region Lookup
@@ -414,6 +440,32 @@ internal partial class Binder {
 
     }
 
+    internal virtual BoundNode BindMethodBody(BelteSyntaxNode syntax, BelteDiagnosticQueue diagnostics) {
+        switch (syntax) {
+            case BaseMethodDeclarationSyntax method:
+                if (method.kind == SyntaxKind.ConstructorDeclaration)
+                    return BindConstructorBody((ConstructorDeclarationSyntax)method, diagnostics);
+
+                return BindMethodBody(method, method.body, diagnostics);
+            default:
+                throw ExceptionUtilities.UnexpectedValue(syntax.kind);
+        }
+    }
+
+    private BoundNode BindConstructorBody(ConstructorDeclarationSyntax constructor, BelteDiagnosticQueue diagnostics) {
+        var initializer = constructor.constructorInitializer;
+        var bodyBinder = GetBinder(constructor);
+
+        var initializerCall = initializer is null
+            ? bodyBinder.BindImplicitConstructorInitializer(constructor, diagnostics)
+            : bodyBinder.BindConstructorInitializer(initializer, diagnostics);
+
+        var body = (BoundBlockStatement)bodyBinder.BindStatement(constructor.body, diagnostics);
+        var locals = bodyBinder.GetDeclaredLocalsForScope(constructor);
+
+        return new BoundConstructorMethodBody(locals, initializerCall, body);
+    }
+
     #endregion
 
     #region Initializers
@@ -424,6 +476,29 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics,
         ref ProcessedFieldInitializers processedInitializers) {
         // TODO
+    }
+
+    internal BoundExpressionStatement BindImplicitConstructorInitializer(
+        SyntaxNode syntax,
+        BelteDiagnosticQueue diagnostics) {
+        var call = BindImplicitConstructorInitializer((MethodSymbol)containingMember, diagnostics, compilation);
+        return new BoundExpressionStatement(call);
+    }
+
+    internal static BoundExpression BindImplicitConstructorInitializer(
+        MethodSymbol constructor,
+        BelteDiagnosticQueue diagnostics,
+        Compilation compilation
+        ) {
+    }
+
+    internal virtual BoundExpressionStatement BindConstructorInitializer(
+        ConstructorInitializerSyntax initializer,
+        BelteDiagnosticQueue diagnostics) {
+        var call = GetBinder(initializer)
+            .BindConstructorInitializer(initializer.argumentList, (MethodSymbol)containingMember, diagnostics);
+
+        return new BoundExpressionStatement(call);
     }
 
     #endregion

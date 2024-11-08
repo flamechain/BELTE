@@ -6,14 +6,14 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Lowering;
 
 internal static class InitializerRewriter {
-    internal static ImmutableArray<BoundStatement> RewriteConstructor(
+    internal static BoundBlockStatement RewriteConstructor(
         ImmutableArray<BoundInitializer> boundInitializers) {
         var builder = ArrayBuilder<BoundStatement>.GetInstance();
 
         foreach (var initializer in boundInitializers)
             builder.Add(RewriteInitializer(initializer));
 
-        return builder.ToImmutableAndFree();
+        return new BoundBlockStatement(builder.ToImmutableAndFree(), [], []);
 
         BoundStatement RewriteInitializer(BoundInitializer initializer) {
             return initializer.kind switch {

@@ -3,7 +3,9 @@ using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis;
@@ -112,7 +114,12 @@ internal sealed class MethodCompiler {
     }
 
     private BoundProgram CreateBoundProgram() {
-        return new BoundProgram(null, _types.ToImmutableAndFree(), _entryPoint);
+        return new BoundProgram(
+            _methodBodies.ToImmutableDictionary(),
+            _types.ToImmutableAndFree(),
+            _entryPoint,
+            _compilation.previous?.boundProgram
+        );
     }
 
     private void CompileNamespace(NamespaceSymbol globalNamespace) {
@@ -120,6 +127,10 @@ internal sealed class MethodCompiler {
             switch (member) {
                 case NamedTypeSymbol n:
                     CompileNamedType(n);
+                    break;
+                case MethodSymbol m:
+                    var _ = new Binder.ProcessedFieldInitializers();
+                    CompileMethod(m, ref _, null);
                     break;
             }
         }
@@ -145,6 +156,8 @@ internal sealed class MethodCompiler {
 
         for (var ordinal = 0; ordinal < members.Length; ordinal++) {
             var member = members[ordinal];
+            // TODO Does CompileMethod (specifically Lowerer.Lower) need ordinal?
+            // Maybe its for raising local functions signature in the case of overloads with the same containing name?
 
             switch (member) {
                 case NamedTypeSymbol n:
@@ -152,7 +165,7 @@ internal sealed class MethodCompiler {
                     break;
                 case MethodSymbol m:
                     var initializers = m.methodKind == MethodKind.Constructor ? processedInitializers : default;
-                    CompileMethod(m, ordinal, ref initializers, state);
+                    CompileMethod(m, ref initializers, state);
                     break;
                 case FieldSymbol f:
                     if (f.isConstExpr)
@@ -161,20 +174,19 @@ internal sealed class MethodCompiler {
                     break;
             }
         }
+
+        state.Free();
     }
 
     private void CompileMethod(
         MethodSymbol method,
-        int ordinal,
         ref Binder.ProcessedFieldInitializers processedInitializers,
         TypeCompilationState state) {
-        var sourceMethod = method as SourceMethodSymbol;
-
         if (method.isAbstract)
             return;
 
         var currentDiagnostics = BelteDiagnosticQueue.GetInstance();
-        ImmutableArray<BoundStatement>? analyzedInitializers = null;
+        BoundBlockStatement analyzedInitializers = null;
 
         var includeInitializers = method.IncludeFieldInitializersInBody();
         var includeNonEmptyInitializers = includeInitializers &&
@@ -198,5 +210,115 @@ internal sealed class MethodCompiler {
         }
 
         var loweredBody = Lowerer.Lower(method, body);
+
+        _diagnostics.PushRangeAndFree(currentDiagnostics);
+        _methodBodies.Add(method, loweredBody);
+    }
+
+    private static BoundBlockStatement BindMethodBody(
+        MethodSymbol method,
+        TypeCompilationState state,
+        BelteDiagnosticQueue diagnostics,
+        bool includeInitializers,
+        BoundBlockStatement initializersBody) {
+        BoundBlockStatement body = null;
+        initializersBody ??= new BoundBlockStatement([], [], []);
+        var builder = ArrayBuilder<BoundStatement>.GetInstance();
+        BelteSyntaxNode syntaxNode = null;
+
+        if (method is SourceMemberMethodSymbol sourceMethod) {
+            syntaxNode = sourceMethod.syntaxNode;
+            var bodyBinder = sourceMethod.TryGetBodyBinder();
+
+            if (bodyBinder is null)
+                return null;
+
+            var methodBody = bodyBinder.BindMethodBody(syntaxNode, diagnostics);
+
+            switch (methodBody) {
+                case BoundConstructorMethodBody constructor:
+                    body = constructor.body;
+
+                    if (constructor.initializer is BoundExpressionStatement expressionStatement) {
+                        ReportConstructorInitializerCycles(
+                            method,
+                            expressionStatement.expression,
+                            state,
+                            syntaxNode,
+                            diagnostics
+                        );
+
+                        if (includeInitializers)
+                            builder.Add(initializersBody);
+
+                        builder.Add(constructor.initializer);
+
+                        if (body is not null)
+                            builder.Add(body);
+
+                        body = new BoundBlockStatement(builder.ToImmutableAndFree(), constructor.locals, []);
+                    }
+
+                    return body;
+                case BoundNonConstructorMethodBody nonConstructor:
+                    body = nonConstructor.body;
+                    break;
+                case BoundBlockStatement block:
+                    body = block;
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(methodBody.kind);
+            }
+        } else if (method is SynthesizedConstructorSymbol constructor) {
+            var baseConstructorCall = Binder.GenerateBaseParameterlessConstructorInitializer(constructor, diagnostics);
+            var statement = new BoundExpressionStatement(baseConstructorCall);
+            body = new BoundBlockStatement([statement], [], []);
+        }
+
+        var constructorInitializer = BindImplicitConstructorInitializerIfAny(method, state, syntaxNode, diagnostics);
+
+        if (includeInitializers)
+            builder.Add(initializersBody);
+
+        if (constructorInitializer is not null)
+            builder.Add(constructorInitializer);
+
+        if (body is not null)
+            builder.Add(body);
+
+        return new BoundBlockStatement(builder.ToImmutableAndFree(), [], []);
+    }
+
+    private static BoundStatement BindImplicitConstructorInitializerIfAny(
+        MethodSymbol method,
+        TypeCompilationState state,
+        SyntaxNode syntax,
+        BelteDiagnosticQueue diagnostics) {
+        if (method.methodKind == MethodKind.Constructor) {
+            var compilation = method.declaringCompilation;
+            var call = Binder.BindImplicitConstructorInitializer(method, diagnostics, compilation);
+
+            if (call is not null) {
+                ReportConstructorInitializerCycles(method, call, state, syntax, diagnostics);
+                return new BoundExpressionStatement(call);
+            }
+        }
+
+        return null;
+    }
+
+    private static void ReportConstructorInitializerCycles(
+        MethodSymbol method,
+        BoundExpression expression,
+        TypeCompilationState state,
+        SyntaxNode syntax,
+        BelteDiagnosticQueue diagnostics) {
+        var call = expression as BoundCallExpression;
+
+        if (call is not null &&
+            call.method != method &&
+            TypeSymbol.Equals(call.method.containingType, method.containingType, TypeCompareKind.ConsiderEverything)) {
+            state.ReportConstructorInitializerCycles(method, call.method, syntax, diagnostics);
+        }
     }
 }

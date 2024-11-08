@@ -4,7 +4,9 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
+using Buckle.CodeAnalysis.Authoring;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Emitting;
 using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.FlowAnalysis;
@@ -28,6 +30,8 @@ public sealed class Compilation {
     private NamespaceSymbol _lazyGlobalNamespace;
     private WeakReference<BinderFactory>[] _binderFactories;
     private BelteDiagnosticQueue _lazyDeclarationDiagnostics;
+    private BoundProgram _lazyBoundProgram;
+    private BelteDiagnosticQueue _lazyMethodDiagnostics;
 
     private Compilation(
         string assemblyName,
@@ -57,9 +61,23 @@ public sealed class Compilation {
         }
     }
 
+    internal BoundProgram boundProgram {
+        get {
+            EnsureBoundProgramAndMethodDiagnostics();
+            return _lazyBoundProgram;
+        }
+    }
+
+    internal BelteDiagnosticQueue methodDiagnostics {
+        get {
+            EnsureBoundProgramAndMethodDiagnostics();
+            return _lazyMethodDiagnostics;
+        }
+    }
+
     internal ImmutableArray<SyntaxTree> syntaxTrees => _syntax.state.syntaxTrees;
 
-    internal bool keepLookingForCorTypes => CorLibrary.StillLookingForSpecialTypes();
+    internal static bool KeepLookingForCorTypes => CorLibrary.StillLookingForSpecialTypes();
 
     internal NamespaceSymbol globalNamespaceInternal {
         get {
@@ -106,13 +124,16 @@ public sealed class Compilation {
         bool logTime = false) {
         var timer = logTime ? Stopwatch.StartNew() : null;
         var builder = GetDiagnostics();
+        var program = boundProgram;
 
 #if DEBUG
         if (options.enableOutput) {
-            CreateCfg(program);
-            CreateBoundProgram(program);
+            EmitCFG();
+            EmitBoundProgram();
         }
 #endif
+
+        Log(logTime, timer, builder, $"Bound the program in {timer.ElapsedMilliseconds} ms");
 
         if (logTime) {
             timer.Stop();
@@ -129,13 +150,7 @@ public sealed class Compilation {
         var eval = new Evaluator(program, globals, options.arguments);
         var evalResult = eval.Evaluate(abort, out var hasValue);
 
-        if (logTime) {
-            timer.Stop();
-            builder.Push(new BelteDiagnostic(
-                DiagnosticSeverity.Debug,
-                $"Evaluated the program in {timer.ElapsedMilliseconds} ms"
-            ));
-        }
+        Log(logTime, timer, builder, $"Evaluated the program in {timer.ElapsedMilliseconds} ms");
 
         var result = new EvaluationResult(
             evalResult,
@@ -152,15 +167,9 @@ public sealed class Compilation {
     public BelteDiagnosticQueue Emit(string outputPath, bool logTime = false) {
         var timer = logTime ? Stopwatch.StartNew() : null;
         var builder = GetDiagnostics();
+        var program = boundProgram;
 
-        if (logTime) {
-            timer.Stop();
-            builder.Push(new BelteDiagnostic(
-                DiagnosticSeverity.Debug,
-                $"Compiled in {timer.ElapsedMilliseconds} ms"
-            ));
-            timer.Restart();
-        }
+        Log(logTime, timer, builder, $"Compiled in {timer.ElapsedMilliseconds} ms");
 
         if (builder.AnyErrors())
             return builder;
@@ -173,13 +182,8 @@ public sealed class Compilation {
         else if (options.buildMode == BuildMode.Independent)
             builder.Push(Fatal.Unsupported.IndependentCompilation());
 
-        if (logTime && options.buildMode is BuildMode.Dotnet or BuildMode.CSharpTranspile) {
-            timer.Stop();
-            builder.Push(new BelteDiagnostic(
-                DiagnosticSeverity.Debug,
-                $"Emitted the program in {timer.ElapsedMilliseconds} ms"
-            ));
-        }
+        if (options.buildMode is BuildMode.Dotnet or BuildMode.CSharpTranspile)
+            Log(logTime, timer, builder, $"Emitted the program in {timer.ElapsedMilliseconds} ms");
 
         return builder;
     }
@@ -192,12 +196,12 @@ public sealed class Compilation {
 
 #if DEBUG
         if (options.enableOutput) {
-            CreateCfg(program);
-            CreateBoundProgram(program);
+            EmitCFG();
+            EmitBoundProgram();
         }
 #endif
 
-        Executor.Execute(program, options.arguments);
+        Executor.Execute(boundProgram, options.arguments);
         return builder;
     }
 
@@ -208,16 +212,17 @@ public sealed class Compilation {
     public string EmitToString(out BelteDiagnosticQueue diagnostics, BuildMode? alternateBuildMode = null) {
         var buildMode = alternateBuildMode ?? options.buildMode;
         diagnostics = GetDiagnostics();
+        var program = boundProgram;
 
         if (diagnostics.AnyErrors())
             return null;
 
         if (buildMode == BuildMode.CSharpTranspile) {
-            var content = CSharpEmitter.Emit(program, moduleName, out var emitterDiagnostics);
+            var content = CSharpEmitter.Emit(program, assemblyName, out var emitterDiagnostics);
             diagnostics.Move(emitterDiagnostics);
             return content;
         } else if (buildMode == BuildMode.Dotnet) {
-            var content = ILEmitter.Emit(program, moduleName, references, out var emitterDiagnostics);
+            var content = ILEmitter.Emit(program, assemblyName, options.references, out var emitterDiagnostics);
             diagnostics.Move(emitterDiagnostics);
             return content;
         }
@@ -385,9 +390,8 @@ public sealed class Compilation {
             builder.PushRange(declarationDiagnostics);
         }
 
-        if (includeMethods) {
-            // TODO
-        }
+        if (includeMethods)
+            builder.PushRange(methodDiagnostics);
 
         return builder;
     }
@@ -403,7 +407,19 @@ public sealed class Compilation {
         return builder.ToImmutableAndFree();
     }
 
-    private static void CreateCfg(BoundProgram program) {
+    private void EnsureBoundProgramAndMethodDiagnostics() {
+        if (_lazyBoundProgram is null)
+            CreateBoundProgramAndMethodDiagnostics();
+    }
+
+    private void CreateBoundProgramAndMethodDiagnostics() {
+        var emitting = options.buildMode is not BuildMode.CSharpTranspile;
+        _lazyMethodDiagnostics = new BelteDiagnosticQueue();
+        _lazyBoundProgram = MethodCompiler.CompileMethodBodies(this, _lazyMethodDiagnostics, emitting);
+    }
+
+    private void EmitCFG() {
+        var program = boundProgram;
         var cfgPath = GetProjectPath("cfg.dot");
         var cfgStatement = program.entryPoint is null ? null : program.methodBodies[program.entryPoint];
 
@@ -415,9 +431,38 @@ public sealed class Compilation {
         }
     }
 
+    private void EmitBoundProgram() {
+        var program = boundProgram;
+        var programPath = GetProjectPath("program.blt");
+        var displayText = new DisplayText();
+
+        foreach (var pair in program.methodBodies)
+            CompilationExtensions.EmitTree(pair.Key, displayText, program);
+
+        using var streamWriter = new StreamWriter(programPath);
+        var segments = displayText.Flush();
+
+        foreach (var segment in segments) {
+            if (segment.classification == Classification.Line)
+                streamWriter.WriteLine();
+            else if (segment.classification == Classification.Indent)
+                streamWriter.Write(new string(' ', 4));
+            else
+                streamWriter.Write(segment.text);
+        }
+    }
+
     private static string GetProjectPath(string fileName) {
         var appPath = Environment.GetCommandLineArgs()[0];
         var appDirectory = Path.GetDirectoryName(appPath);
         return Path.Combine(appDirectory, fileName);
+    }
+
+    private static void Log(bool log, Stopwatch timer, BelteDiagnosticQueue diagnostics, string message) {
+        if (log) {
+            timer.Stop();
+            diagnostics.Push(new BelteDiagnostic(DiagnosticSeverity.Debug, message));
+            timer.Restart();
+        }
     }
 }

@@ -217,13 +217,13 @@ done:
     }
 
     private void RegisterDeclaredCorTypes() {
-        if (containingCompilation.keepLookingForCorTypes) {
+        if (Compilation.KeepLookingForCorTypes) {
             foreach (var array in _nameToMembersMap.Values) {
                 foreach (var member in array) {
                     if (member is NamedTypeSymbol type && type.specialType != SpecialType.None) {
                         containingCompilation.RegisterDeclaredSpecialType(type);
 
-                        if (!containingCompilation.keepLookingForCorTypes)
+                        if (!Compilation.KeepLookingForCorTypes)
                             return;
                     }
                 }

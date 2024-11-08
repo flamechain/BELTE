@@ -5,8 +5,6 @@ namespace Buckle.CodeAnalysis.Binding;
 /// Types of bound nodes.
 /// </summary>
 internal enum BoundNodeKind : byte {
-    Invalid,
-
     TernaryExpression,
     BinaryExpression,
     UnaryExpression,
@@ -56,4 +54,6 @@ internal enum BoundNodeKind : byte {
     ParameterEqualsValue,
     GlobalStatement,
     MethodGroup,
+    ConstructorMethodBody,
+    NonConstructorMethodBody,
 }

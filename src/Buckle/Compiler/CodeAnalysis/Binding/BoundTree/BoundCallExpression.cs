@@ -9,7 +9,7 @@ namespace Buckle.CodeAnalysis.Binding;
 internal sealed class BoundCallExpression : BoundExpression {
     internal BoundCallExpression(
         BoundExpression expression,
-        SubstitutedMethodSymbol method,
+        MethodSymbol method,
         ImmutableArray<BoundExpression> arguments) {
         this.expression = expression;
         this.method = method;
@@ -18,11 +18,11 @@ internal sealed class BoundCallExpression : BoundExpression {
 
     internal BoundExpression expression { get; }
 
-    internal SubstitutedMethodSymbol method { get; }
+    internal MethodSymbol method { get; }
 
     internal ImmutableArray<BoundExpression> arguments { get; }
 
     internal override BoundNodeKind kind => BoundNodeKind.CallExpression;
 
-    internal override TypeSymbol type => method.type;
+    internal override TypeSymbol type => method.returnType;
 }

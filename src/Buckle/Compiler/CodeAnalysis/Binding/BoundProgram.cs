@@ -7,10 +7,12 @@ internal sealed class BoundProgram {
     internal BoundProgram(
         ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies,
         ImmutableArray<NamedTypeSymbol> types,
-        MethodSymbol entryPoint) {
+        MethodSymbol entryPoint,
+        BoundProgram previous = null) {
         this.methodBodies = methodBodies;
         this.types = types;
         this.entryPoint = entryPoint;
+        this.previous = previous;
     }
 
     internal ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies { get; }
@@ -18,4 +20,6 @@ internal sealed class BoundProgram {
     internal ImmutableArray<NamedTypeSymbol> types { get; }
 
     internal MethodSymbol entryPoint { get; }
+
+    internal BoundProgram previous { get; }
 }

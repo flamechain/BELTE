@@ -707,7 +707,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     }
 
     private SpecialType MakeSpecialType() {
-        if (declaringCompilation.keepLookingForCorTypes) {
+        if (Compilation.KeepLookingForCorTypes) {
             string emittedName = null;
 
             if (containingSymbol is not null)

@@ -198,23 +198,18 @@ public sealed class Compiler {
     }
 
     private void LogParseTime(Stopwatch timer, int count) {
-        if (state.verboseMode) {
-            timer.Stop();
-            diagnostics.Push(new BelteDiagnostic(
-                DiagnosticSeverity.Debug,
-                $"Loaded {count} syntax tree in {timer.ElapsedMilliseconds} ms"
-            ));
-            timer.Start();
-        }
+        Log(timer, $"Loaded {count} syntax tree in {timer.ElapsedMilliseconds} ms");
     }
 
     private void LogCompilationTime(Stopwatch timer) {
+        Log(timer, $"Total compilation time: {timer.ElapsedMilliseconds} ms");
+    }
+
+    private void Log(Stopwatch timer, string message) {
         if (state.verboseMode) {
             timer.Stop();
-            diagnostics.Push(new BelteDiagnostic(
-                DiagnosticSeverity.Debug,
-                $"Total compilation time: {timer.ElapsedMilliseconds} ms"
-            ));
+            diagnostics.Push(new BelteDiagnostic(DiagnosticSeverity.Debug, message));
+            timer.Start();
         }
     }
 
