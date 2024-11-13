@@ -1,7 +1,6 @@
-
 using System.Collections.Generic;
 
-namespace Buckle;
+namespace Buckle.CodeAnalysis;
 
 internal static class ISetExtensions {
     internal static bool AddAll<T>(this ISet<T> set, IEnumerable<T> values) {

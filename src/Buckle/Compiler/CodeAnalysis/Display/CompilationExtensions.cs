@@ -4,7 +4,6 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
-using static Buckle.Utilities.MethodUtilities;
 
 namespace Buckle.CodeAnalysis.Display;
 
@@ -16,34 +15,17 @@ public static class CompilationExtensions {
     /// Emits the parse tree of the compilation.
     /// </summary>
     /// <param name="text">Out.</param>
-    public static void EmitTree(this Compilation self, DisplayText text) {
-        var entryPoint = self.globalScope.wellKnownMethods[WellKnownMethodNames.EntryPoint];
+    public static void EmitTree(this Compilation compilation, DisplayText text) {
+        var entryPoint = compilation.entryPoint;
 
         if (entryPoint is not null) {
-            EmitTree(self, entryPoint, text);
+            EmitTree(compilation, entryPoint, text);
         } else {
-            var program = self.GetProgram();
+            var program = compilation.boundProgram;
 
             foreach (var pair in program.methodBodies.OrderBy(p => p.Key.name))
-                EmitTree(self, pair.Key, text);
+                EmitTree(compilation, pair.Key, text);
         }
-    }
-
-    /// <summary>
-    /// Emits the parse tree of a single <see cref="MethodSymbol" /> after attempting to find it based on name.
-    /// Note: this only searches for methods, so if the name of another type of <see cref="Symbol" /> is passed it
-    /// will not be found.
-    /// </summary>
-    /// <param name="name">
-    /// The name of the <see cref="MethodSymbol" /> to search for and then print. If not found, throws.
-    /// </param>
-    /// <param name="text">Out.</param>
-    public static void EmitTree(this Compilation self, string name, DisplayText text) {
-        var program = self.GetProgram();
-        var pair = LookupMethodFromParentsFromName(program, name);
-        SymbolDisplay.AppendToDisplayText(text, pair.Item1);
-        text.Write(CreateSpace());
-        DisplayText.DisplayNode(text, pair.Item2);
     }
 
     /// <summary>
@@ -51,14 +33,33 @@ public static class CompilationExtensions {
     /// </summary>
     /// <param name="symbol"><see cref="Symbol" /> to be the root of the <see cref="SyntaxTree" /> displayed.</param>
     /// <param name="text">Out.</param>
-    public static void EmitTree(this Compilation self, ISymbol symbol, DisplayText text) {
-        var program = self.GetProgram();
+    public static void EmitTree(this Compilation compilation, ISymbol symbol, DisplayText text) {
+        var program = compilation.boundProgram;
         EmitTree(symbol, text, program);
     }
 
     internal static void EmitTree(ISymbol symbol, DisplayText text, BoundProgram program) {
-        if (program.diagnostics.AnyErrors())
-            return;
+        if (symbol is MethodSymbol method) {
+            SymbolDisplay.AppendToDisplayText(text, method);
+
+            if (program.TryGetMethodBodyIncludingParents(method, out var body)) {
+                text.Write(CreateSpace());
+                DisplayText.DisplayNode(text, body);
+            } else {
+                text.Write(CreatePunctuation(SyntaxKind.SemicolonToken));
+                text.Write(CreateLine());
+            }
+        } else if (symbol is NamedTypeSymbol namedType) {
+            SymbolDisplay.AppendToDisplayText(text, symbol);
+            WriteTypeMembers(namedType);
+        } else if (symbol is DataContainerSymbol v) {
+            SymbolDisplay.AppendToDisplayText(text, v);
+
+            if (v.type is NamedTypeSymbol s)
+                WriteTypeMembers(s);
+            else
+                text.Write(CreateLine());
+        }
 
         void WriteTypeMembers(NamedTypeSymbol type, bool writeEnding = true) {
             try {
@@ -71,7 +72,7 @@ public static class CompilationExtensions {
 
                 foreach (var field in members.OfType<FieldSymbol>()) {
                     text.Write(CreateLine());
-                    SymbolDisplay.DisplaySymbol(text, field);
+                    SymbolDisplay.AppendToDisplayText(text, field);
                 }
 
                 if (members.OfType<FieldSymbol>().Any())
@@ -79,13 +80,13 @@ public static class CompilationExtensions {
 
                 foreach (var method in members.OfType<MethodSymbol>()) {
                     text.Write(CreateLine());
-                    SymbolDisplay.DisplaySymbol(text, method);
+                    SymbolDisplay.AppendToDisplayText(text, method);
                     text.Write(CreateLine());
                 }
 
                 foreach (var typeMember in members.OfType<TypeSymbol>()) {
                     text.Write(CreateLine());
-                    SymbolDisplay.DisplaySymbol(text, typeMember);
+                    SymbolDisplay.AppendToDisplayText(text, typeMember);
                     text.Write(CreateLine());
                 }
 
@@ -98,31 +99,6 @@ public static class CompilationExtensions {
                     text.Write(CreateLine());
                 }
             }
-        }
-
-        if (symbol is MethodSymbol f) {
-            SymbolDisplay.DisplaySymbol(text, f);
-
-            try {
-                var body = LookupMethodFromParents(program, f);
-                text.Write(CreateSpace());
-                DisplayText.DisplayNode(text, body);
-            } catch (BelteInternalException) {
-                // If the body could not be found, it probably means it is a builtin
-                // In that case only showing the signature is what we want
-                text.Write(CreatePunctuation(SyntaxKind.SemicolonToken));
-                text.Write(CreateLine());
-            }
-        } else if (symbol is NamedTypeSymbol t) {
-            SymbolDisplay.DisplaySymbol(text, symbol);
-            WriteTypeMembers(t);
-        } else if (symbol is VariableSymbol v) {
-            SymbolDisplay.DisplaySymbol(text, v);
-
-            if (v.type.typeSymbol is NamedTypeSymbol s && v.type.dimensions == 0)
-                WriteTypeMembers(s);
-            else
-                text.Write(CreateLine());
         }
     }
 }

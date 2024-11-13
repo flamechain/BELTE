@@ -52,6 +52,8 @@ public sealed class Compilation {
 
     public Compilation previous { get; }
 
+    public MethodSymbol entryPoint => boundProgram.entryPoint;
+
     internal BelteDiagnosticQueue declarationDiagnostics {
         get {
             if (_lazyDeclarationDiagnostics is null)

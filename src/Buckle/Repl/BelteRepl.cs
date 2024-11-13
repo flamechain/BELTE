@@ -603,19 +603,6 @@ public sealed partial class BelteRepl : Repl {
         ISymbol symbol = null;
         var displayText = new DisplayText();
 
-        if (symbols.Length == 0 && signature.StartsWith('<')) {
-            // This will find hidden method symbols not normally exposed to the user
-            // Generated methods should never have overloads, so only the name is checked
-            // (as apposed to the entire signature)
-            try {
-                compilation.EmitTree(name, displayText);
-                WriteDisplayText(displayText);
-                return;
-            } catch (BelteException) {
-                // If the generated method does not actually exist, just ignore and continue
-            }
-        }
-
         if (symbols.Length == 0) {
             if (signature == name)
                 handle.diagnostics.Push(new BelteDiagnostic(Diagnostics.Error.UndefinedSymbol(name)));

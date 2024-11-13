@@ -18,7 +18,7 @@ internal sealed class BoundMethodGroup : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.MethodGroup;
 
-    internal override TypeSymbol type => TypeSymbol.Func;
+    internal override TypeSymbol type => null;
 
     internal string name { get; }
 
