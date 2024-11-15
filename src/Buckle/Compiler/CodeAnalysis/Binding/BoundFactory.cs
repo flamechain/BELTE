@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -13,7 +14,8 @@ internal static partial class BoundFactory {
         if (type is not null)
             return new BoundLiteralExpression(value, type);
 
-        return new BoundLiteralExpression(value);
+        var specialType = LiteralUtilities.AssumeTypeFromLiteral(value);
+        return new BoundLiteralExpression(value, CorLibrary.GetSpecialType(specialType));
     }
 
     internal static BoundBlockStatement Block(params BoundStatement[] statements) {

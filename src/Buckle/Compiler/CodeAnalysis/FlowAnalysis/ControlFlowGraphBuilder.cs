@@ -4,6 +4,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.FlowAnalysis;
 
@@ -122,7 +123,7 @@ internal sealed partial class ControlFlowGraphBuilder {
         if (condition is BoundLiteralExpression literal) {
             var value = (bool)literal.value;
 
-            return new BoundLiteralExpression(!value);
+            return new BoundLiteralExpression(!value, CorLibrary.GetSpecialType(SpecialType.Bool));
         }
 
         var op = BoundUnaryOperator.Bind(SyntaxKind.ExclamationToken, new BoundType(TypeSymbol.Bool));

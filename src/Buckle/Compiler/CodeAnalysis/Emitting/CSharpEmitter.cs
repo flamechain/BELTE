@@ -1116,7 +1116,7 @@ internal sealed class CSharpEmitter {
                 if (templateArgument.constant is null)
                     arguments.Add(templateArgument.expression);
                 else
-                    arguments.Add(new BoundLiteralExpression(templateArgument.constant.value));
+                    arguments.Add(new BoundLiteralExpression(templateArgument.constant.value, someType));
             }
         }
 
