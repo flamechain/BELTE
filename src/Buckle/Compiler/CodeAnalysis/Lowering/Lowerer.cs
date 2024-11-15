@@ -569,7 +569,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return base.RewriteMemberAccessExpression(expression);
     }
 
-    private protected override BoundExpression RewriteIndexExpression(BoundIndexExpression expression) {
+    private protected override BoundExpression RewriteIndexExpression(BoundArrayAccessExpression expression) {
         /*
 
         <operand><openBracket><index>]
@@ -582,9 +582,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (expression.isNullConditional) {
             return RewriteExpression(
                 NullConditional(
-                    @if: HasValue(expression.expression),
+                    @if: HasValue(expression.receiver),
                     @then: Index(
-                        expression.expression,
+                        expression.receiver,
                         expression.index
                     ),
                     @else: Literal(null, expression.type)

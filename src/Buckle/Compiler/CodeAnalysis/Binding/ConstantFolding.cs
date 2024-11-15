@@ -77,8 +77,8 @@ internal static class ConstantFolding {
         var rightValue = rightConstant.value;
         var leftType = op.leftType.typeSymbol;
 
-        leftValue = CastUtilities.Cast(leftValue, op.leftType);
-        rightValue = CastUtilities.Cast(rightValue, op.rightType);
+        leftValue = LiteralUtilities.Cast(leftValue, op.leftType);
+        rightValue = LiteralUtilities.Cast(rightValue, op.rightType);
 
         switch (op.opKind) {
             case BoundBinaryOperatorKind.Addition:
@@ -248,7 +248,7 @@ internal static class ConstantFolding {
                 return null;
 
             try {
-                return new ConstantValue(CastUtilities.Cast(expression.constantValue.value, type));
+                return new ConstantValue(LiteralUtilities.Cast(expression.constantValue.value, type));
             } catch (Exception e) when (e is FormatException || e is InvalidCastException) {
                 return null;
             }
@@ -276,7 +276,7 @@ internal static class ConstantFolding {
     }
 
     /// <summary>
-    /// Folds a <see cref="BoundIndexExpression"/> (if possible).
+    /// Folds a <see cref="BoundArrayAccessExpression"/> (if possible).
     /// </summary>
     /// <param name="expression">The expression being indexed.</param>
     /// <param name="index">The index.</param>

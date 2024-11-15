@@ -733,8 +733,8 @@ internal sealed class CSharpEmitter {
             case BoundNodeKind.CallExpression:
                 EmitCallExpression(indentedTextWriter, (BoundCallExpression)expression);
                 break;
-            case BoundNodeKind.IndexExpression:
-                EmitIndexExpression(indentedTextWriter, (BoundIndexExpression)expression);
+            case BoundNodeKind.ArrayAccessExpression:
+                EmitIndexExpression(indentedTextWriter, (BoundArrayAccessExpression)expression);
                 break;
             case BoundNodeKind.CastExpression:
                 EmitCastExpression(indentedTextWriter, (BoundCastExpression)expression);
@@ -1005,8 +1005,8 @@ internal sealed class CSharpEmitter {
         indentedTextWriter.Write(")");
     }
 
-    private void EmitIndexExpression(IndentedTextWriter indentedTextWriter, BoundIndexExpression expression) {
-        EmitExpression(indentedTextWriter, expression.expression);
+    private void EmitIndexExpression(IndentedTextWriter indentedTextWriter, BoundArrayAccessExpression expression) {
+        EmitExpression(indentedTextWriter, expression.receiver);
         indentedTextWriter.Write("[");
         EmitExpression(indentedTextWriter, expression.index);
 

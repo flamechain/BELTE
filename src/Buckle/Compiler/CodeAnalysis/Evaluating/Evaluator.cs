@@ -365,7 +365,7 @@ internal sealed class Evaluator {
 
                 valueValue = builder;
             } else {
-                valueValue = CastUtilities.CastIgnoringNull(valueValue, toType);
+                valueValue = LiteralUtilities.Cast(valueValue, toType);
             }
 
             return new EvaluatorObject(valueValue);
@@ -391,7 +391,7 @@ internal sealed class Evaluator {
         if (fromType.typeSymbol == toType.typeSymbol)
             return value;
 
-        return CastUtilities.CastIgnoringNull(value, toType);
+        return LiteralUtilities.CastIgnoringNull(value, toType);
     }
 
     private EvaluatorObject EvaluateStatement(
@@ -555,8 +555,8 @@ internal sealed class Evaluator {
                 return EvaluateCallExpression((BoundCallExpression)node, abort);
             case BoundNodeKind.CastExpression:
                 return EvaluateCastExpression((BoundCastExpression)node, abort);
-            case BoundNodeKind.IndexExpression:
-                return EvaluateIndexExpression((BoundIndexExpression)node, abort);
+            case BoundNodeKind.ArrayAccessExpression:
+                return EvaluateIndexExpression((BoundArrayAccessExpression)node, abort);
             case BoundNodeKind.ReferenceExpression:
                 return EvaluateReferenceExpression((BoundReferenceExpression)node, abort);
             case BoundNodeKind.TypeOfExpression:
@@ -726,8 +726,8 @@ internal sealed class Evaluator {
             return EvaluateExpression(node.expression, abort);
     }
 
-    private EvaluatorObject EvaluateIndexExpression(BoundIndexExpression node, ValueWrapper<bool> abort) {
-        var variable = EvaluateExpression(node.expression, abort);
+    private EvaluatorObject EvaluateIndexExpression(BoundArrayAccessExpression node, ValueWrapper<bool> abort) {
+        var variable = EvaluateExpression(node.receiver, abort);
         var index = EvaluateExpression(node.index, abort);
         var array = (EvaluatorObject[])Value(variable);
         var indexValue = (int)Value(index);

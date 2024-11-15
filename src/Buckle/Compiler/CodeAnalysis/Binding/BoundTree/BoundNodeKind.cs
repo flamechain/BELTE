@@ -14,7 +14,7 @@ internal enum BoundNodeKind : byte {
     EmptyExpression,
     ErrorExpression,
     CallExpression,
-    IndexExpression,
+    ArrayAccessExpression,
     CastExpression,
     CompoundAssignmentExpression,
     ReferenceExpression,

@@ -73,7 +73,7 @@ internal static partial class BoundFactory {
         return new BoundMemberAccessExpression(left, right, false, isStaticAccess);
     }
 
-    internal static BoundIndexExpression Index(BoundExpression operand, BoundExpression index) {
+    internal static BoundArrayAccessExpression Index(BoundExpression operand, BoundExpression index) {
         return new BoundIndexExpression(operand, index, false);
     }
 

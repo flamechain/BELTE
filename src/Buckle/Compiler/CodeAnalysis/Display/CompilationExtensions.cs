@@ -2,7 +2,6 @@ using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.Diagnostics;
 using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 
 namespace Buckle.CodeAnalysis.Display;
@@ -40,7 +39,7 @@ public static class CompilationExtensions {
 
     internal static void EmitTree(ISymbol symbol, DisplayText text, BoundProgram program) {
         if (symbol is MethodSymbol method) {
-            SymbolDisplay.AppendToDisplayText(text, method);
+            SymbolDisplay.AppendToDisplayText(text, method, SymbolDisplayFormat.Everything);
 
             if (program.TryGetMethodBodyIncludingParents(method, out var body)) {
                 text.Write(CreateSpace());
@@ -50,10 +49,10 @@ public static class CompilationExtensions {
                 text.Write(CreateLine());
             }
         } else if (symbol is NamedTypeSymbol namedType) {
-            SymbolDisplay.AppendToDisplayText(text, symbol);
+            SymbolDisplay.AppendToDisplayText(text, symbol, SymbolDisplayFormat.Everything);
             WriteTypeMembers(namedType);
         } else if (symbol is DataContainerSymbol v) {
-            SymbolDisplay.AppendToDisplayText(text, v);
+            SymbolDisplay.AppendToDisplayText(text, v, SymbolDisplayFormat.Everything);
 
             if (v.type is NamedTypeSymbol s)
                 WriteTypeMembers(s);
@@ -61,44 +60,23 @@ public static class CompilationExtensions {
                 text.Write(CreateLine());
         }
 
-        void WriteTypeMembers(NamedTypeSymbol type, bool writeEnding = true) {
-            try {
-                var members = type.GetMembersPublic();
+        void WriteTypeMembers(NamedTypeSymbol type) {
+            var members = type.GetMembers();
 
-                text.Write(CreateSpace());
-                text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
-                text.Write(CreateSpace());
-                text.indent++;
+            text.Write(CreateSpace());
+            text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
+            text.Write(CreateSpace());
+            text.indent++;
 
-                foreach (var field in members.OfType<FieldSymbol>()) {
-                    text.Write(CreateLine());
-                    SymbolDisplay.AppendToDisplayText(text, field);
-                }
-
-                if (members.OfType<FieldSymbol>().Any())
-                    text.Write(CreateLine());
-
-                foreach (var method in members.OfType<MethodSymbol>()) {
-                    text.Write(CreateLine());
-                    SymbolDisplay.AppendToDisplayText(text, method);
-                    text.Write(CreateLine());
-                }
-
-                foreach (var typeMember in members.OfType<TypeSymbol>()) {
-                    text.Write(CreateLine());
-                    SymbolDisplay.AppendToDisplayText(text, typeMember);
-                    text.Write(CreateLine());
-                }
-
-                text.indent--;
-                text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
+            foreach (var member in members) {
                 text.Write(CreateLine());
-            } catch (BelteInternalException) {
-                if (writeEnding) {
-                    text.Write(CreatePunctuation(SyntaxKind.SemicolonToken));
-                    text.Write(CreateLine());
-                }
+                SymbolDisplay.AppendToDisplayText(text, member, SymbolDisplayFormat.Everything);
+                text.Write(CreateLine());
             }
+
+            text.indent--;
+            text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
+            text.Write(CreateLine());
         }
     }
 }

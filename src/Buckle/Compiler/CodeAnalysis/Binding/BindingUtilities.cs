@@ -15,8 +15,8 @@ internal static class BindingUtilities {
             return v.variable;
         if (expression is BoundFieldAccessExpression f)
             return f.field;
-        if (expression is BoundIndexExpression i)
-            return GetAssignedVariableSymbol(i.expression);
+        if (expression is BoundArrayAccessExpression i)
+            return GetAssignedVariableSymbol(i.receiver);
 
         throw ExceptionUtilities.Unreachable();
     }

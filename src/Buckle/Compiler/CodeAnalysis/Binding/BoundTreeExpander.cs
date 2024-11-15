@@ -203,8 +203,8 @@ internal abstract class BoundTreeExpander {
                 return ExpandCallExpression((BoundCallExpression)expression, out replacement);
             case BoundNodeKind.CastExpression:
                 return ExpandCastExpression((BoundCastExpression)expression, out replacement);
-            case BoundNodeKind.IndexExpression:
-                return ExpandIndexExpression((BoundIndexExpression)expression, out replacement);
+            case BoundNodeKind.ArrayAccessExpression:
+                return ExpandIndexExpression((BoundArrayAccessExpression)expression, out replacement);
             case BoundNodeKind.CompoundAssignmentExpression:
                 return ExpandCompoundAssignmentExpression(
                     (BoundCompoundAssignmentExpression)expression, out replacement
@@ -399,9 +399,9 @@ internal abstract class BoundTreeExpander {
     }
 
     private protected virtual List<BoundStatement> ExpandIndexExpression(
-        BoundIndexExpression expression,
+        BoundArrayAccessExpression expression,
         out BoundExpression replacement) {
-        var statements = ExpandExpression(expression.expression, out var operandReplacement);
+        var statements = ExpandExpression(expression.receiver, out var operandReplacement);
         statements.AddRange(ExpandExpression(expression.index, out var indexReplacement));
 
         if (statements.Count != 0) {

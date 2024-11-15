@@ -6,12 +6,6 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A bound literal expression, bound from a <see cref="Syntax.LiteralExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundLiteralExpression : BoundExpression {
-    internal BoundLiteralExpression(object value) {
-        type = TypeSymbol.Assume(value);
-        constantValue = new ConstantValue(value);
-    }
-
-    /// <param name="type">Forces a <see cref="TypeSymbol" /> on a value instead of implying.</param>
     internal BoundLiteralExpression(object value, TypeSymbol type) {
         this.type = type;
         constantValue = new ConstantValue(value);

@@ -916,7 +916,7 @@ internal sealed partial class ILEmitter {
             case BoundNodeKind.CallExpression:
                 EmitCallExpression(iLProcessor, (BoundCallExpression)expression);
                 break;
-            case BoundNodeKind.IndexExpression:
+            case BoundNodeKind.ArrayAccessExpression:
                 // EmitIndexExpression(indentedTextWriter, (BoundIndexExpression)expression);
                 break;
             case BoundNodeKind.CastExpression:
@@ -1362,7 +1362,7 @@ internal sealed partial class ILEmitter {
 
         EmitExpression(iLProcessor, expression.right);
 
-        if (expression.left is BoundIndexExpression) {
+        if (expression.left is BoundArrayAccessExpression) {
             iLProcessor.Emit(OpCodes.Stelem_Any);
         } else if (expression.left is BoundMemberAccessExpression ma) {
             iLProcessor.Emit(OpCodes.Stfld, GetFieldReference(ma));

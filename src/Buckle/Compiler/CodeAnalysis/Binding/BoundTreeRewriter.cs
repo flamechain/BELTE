@@ -207,8 +207,8 @@ internal abstract class BoundTreeRewriter {
                 return RewriteCallExpression((BoundCallExpression)expression);
             case BoundNodeKind.CastExpression:
                 return RewriteCastExpression((BoundCastExpression)expression);
-            case BoundNodeKind.IndexExpression:
-                return RewriteIndexExpression((BoundIndexExpression)expression);
+            case BoundNodeKind.ArrayAccessExpression:
+                return RewriteIndexExpression((BoundArrayAccessExpression)expression);
             case BoundNodeKind.CompoundAssignmentExpression:
                 return RewriteCompoundAssignmentExpression((BoundCompoundAssignmentExpression)expression);
             case BoundNodeKind.ReferenceExpression:
@@ -333,13 +333,13 @@ internal abstract class BoundTreeRewriter {
         return expression;
     }
 
-    private protected virtual BoundExpression RewriteIndexExpression(BoundIndexExpression expression) {
+    private protected virtual BoundExpression RewriteIndexExpression(BoundArrayAccessExpression expression) {
         var index = RewriteExpression(expression.index);
 
         if (index == expression.index)
             return expression;
 
-        return new BoundIndexExpression(expression.expression, index, expression.isNullConditional);
+        return new BoundIndexExpression(expression.receiver, index, expression.isNullConditional);
     }
 
     private protected virtual BoundExpression RewriteInitializerListExpression(BoundInitializerListExpression expression) {
