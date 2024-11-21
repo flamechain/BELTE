@@ -569,7 +569,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return base.RewriteMemberAccessExpression(expression);
     }
 
-    private protected override BoundExpression RewriteIndexExpression(BoundArrayAccessExpression expression) {
+    private protected override BoundExpression RewriteArrayAccessExpression(BoundArrayAccessExpression expression) {
         /*
 
         <operand><openBracket><index>]
@@ -592,7 +592,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             );
         }
 
-        return base.RewriteIndexExpression(expression);
+        return base.RewriteArrayAccessExpression(expression);
     }
 
     private protected override BoundExpression RewritePrefixExpression(BoundPrefixExpression expression) {

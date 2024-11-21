@@ -153,7 +153,7 @@ internal abstract class BoundTreeRewriter {
             return statement;
 
         return new BoundLocalDeclarationStatement(
-            new BoundDataContainerDeclaration(statement.declaration.variable, initializer)
+            new BoundDataContainerDeclaration(statement.declaration.dataContainer, initializer)
         );
     }
 
@@ -177,7 +177,7 @@ internal abstract class BoundTreeRewriter {
         if (builder is null)
             return statement;
 
-        return new BoundBlockStatement(builder.ToImmutableAndFree());
+        return new BoundBlockStatement(builder.ToImmutableAndFree(), statement.locals, statement.localFunctions);
     }
 
     internal virtual BoundExpression RewriteExpression(BoundExpression expression) {
@@ -208,7 +208,7 @@ internal abstract class BoundTreeRewriter {
             case BoundNodeKind.CastExpression:
                 return RewriteCastExpression((BoundCastExpression)expression);
             case BoundNodeKind.ArrayAccessExpression:
-                return RewriteIndexExpression((BoundArrayAccessExpression)expression);
+                return RewriteArrayAccessExpression((BoundArrayAccessExpression)expression);
             case BoundNodeKind.CompoundAssignmentExpression:
                 return RewriteCompoundAssignmentExpression((BoundCompoundAssignmentExpression)expression);
             case BoundNodeKind.ReferenceExpression:
@@ -219,8 +219,10 @@ internal abstract class BoundTreeRewriter {
                 return RewriteTernaryExpression((BoundTernaryExpression)expression);
             case BoundNodeKind.ObjectCreationExpression:
                 return RewriteObjectCreationExpression((BoundObjectCreationExpression)expression);
-            case BoundNodeKind.MemberAccessExpression:
-                return RewriteMemberAccessExpression((BoundMemberAccessExpression)expression);
+            case BoundNodeKind.ArrayCreationExpression:
+                return RewriteArrayCreationExpression((BoundArrayCreationExpression)expression);
+            case BoundNodeKind.FieldAccessExpression:
+                return RewriteFieldAccessExpression((BoundFieldAccessExpression)expression);
             case BoundNodeKind.PrefixExpression:
                 return RewritePrefixExpression((BoundPrefixExpression)expression);
             case BoundNodeKind.PostfixExpression:
@@ -231,14 +233,14 @@ internal abstract class BoundTreeRewriter {
                 return RewriteBaseExpression((BoundBaseExpression)expression);
             case BoundNodeKind.ThrowExpression:
                 return RewriteThrowExpression((BoundThrowExpression)expression);
-            case BoundNodeKind.Type:
-                return RewriteType((BoundType)expression);
+            case BoundNodeKind.TypeExpression:
+                return RewriteTypeExpression((BoundTypeExpression)expression);
             default:
                 throw new BelteInternalException($"RewriteExpression: unexpected expression type '{expression.kind}'");
         }
     }
 
-    private protected virtual BoundExpression RewriteType(BoundType expression) {
+    private protected virtual BoundExpression RewriteTypeExpression(BoundTypeExpression expression) {
         return expression;
     }
 
@@ -262,10 +264,8 @@ internal abstract class BoundTreeRewriter {
     private protected virtual BoundExpression RewriteConstantExpression(BoundExpression expression) {
         if (expression.constantValue.value is ImmutableArray<ConstantValue>)
             return new BoundInitializerListExpression(expression.constantValue, expression.type);
-        else if (expression is not BoundTypeWrapper)
-            return new BoundLiteralExpression(expression.constantValue.value, expression.type);
         else
-            return expression;
+            return new BoundLiteralExpression(expression.constantValue.value, expression.type);
     }
 
     private protected virtual BoundExpression RewritePrefixExpression(BoundPrefixExpression expression) {
@@ -286,32 +286,36 @@ internal abstract class BoundTreeRewriter {
         return new BoundPostfixExpression(operand, expression.op, expression.isOwnStatement);
     }
 
-    private protected virtual BoundExpression RewriteMemberAccessExpression(BoundMemberAccessExpression expression) {
-        var left = RewriteExpression(expression.left);
-        var right = RewriteExpression(expression.right);
+    private protected virtual BoundExpression RewriteFieldAccessExpression(BoundFieldAccessExpression expression) {
+        var receiver = RewriteExpression(expression.receiver);
 
-        if (left == expression.left && right == expression.right)
+        if (receiver == expression.receiver)
             return expression;
 
-        return new BoundMemberAccessExpression(
-            left,
-            right,
-            expression.isNullConditional,
-            expression.isStaticAccess
+        return new BoundFieldAccessExpression(
+            receiver,
+            expression.field,
+            expression.type,
+            expression.constantValue
         );
     }
 
     private protected virtual BoundExpression RewriteObjectCreationExpression(BoundObjectCreationExpression expression) {
-        if (expression.viaConstructor) {
-            var arguments = RewriteArguments(expression.arguments);
+        var arguments = RewriteArguments(expression.arguments);
 
-            if (!arguments.HasValue)
-                return expression;
-
-            return new BoundObjectCreationExpression(expression.type, expression.constructor, arguments.Value);
-        } else {
+        if (!arguments.HasValue)
             return expression;
-        }
+
+        return new BoundObjectCreationExpression(expression.type, expression.constructor, arguments.Value);
+    }
+
+    private protected virtual BoundExpression RewriteArrayCreationExpression(BoundArrayCreationExpression expression) {
+        var sizes = RewriteArguments(expression.sizes);
+
+        if (!sizes.HasValue)
+            return expression;
+
+        return new BoundArrayCreationExpression(expression.type, sizes.Value);
     }
 
     private protected virtual BoundExpression RewriteTernaryExpression(BoundTernaryExpression expression) {
@@ -333,13 +337,14 @@ internal abstract class BoundTreeRewriter {
         return expression;
     }
 
-    private protected virtual BoundExpression RewriteIndexExpression(BoundArrayAccessExpression expression) {
+    private protected virtual BoundExpression RewriteArrayAccessExpression(BoundArrayAccessExpression expression) {
+        var receiver = RewriteExpression(expression.receiver);
         var index = RewriteExpression(expression.index);
 
-        if (index == expression.index)
+        if (receiver == expression.receiver && index == expression.index)
             return expression;
 
-        return new BoundIndexExpression(expression.receiver, index, expression.isNullConditional);
+        return new BoundArrayAccessExpression(receiver, index, expression.type);
     }
 
     private protected virtual BoundExpression RewriteInitializerListExpression(BoundInitializerListExpression expression) {
@@ -389,7 +394,7 @@ internal abstract class BoundTreeRewriter {
         if (rewrote == expression.operand)
             return expression;
 
-        return new BoundCastExpression(expression.type, rewrote);
+        return new BoundCastExpression(expression.type, rewrote, expression.conversionKind, expression.constantValue);
     }
 
     private protected virtual BoundExpression RewriteCallExpression(BoundCallExpression expression) {
@@ -399,7 +404,7 @@ internal abstract class BoundTreeRewriter {
         if (!arguments.HasValue)
             return expression;
 
-        return new BoundCallExpression(rewrote, expression.method, arguments.Value, expression.templateArguments);
+        return new BoundCallExpression(rewrote, expression.method, arguments.Value);
     }
 
     private protected virtual BoundExpression RewriteErrorExpression(BoundErrorExpression expression) {
@@ -435,7 +440,7 @@ internal abstract class BoundTreeRewriter {
         if (left == expression.left && right == expression.right)
             return expression;
 
-        return new BoundAssignmentExpression(left, right);
+        return new BoundAssignmentExpression(left, right, expression.type);
     }
 
     private protected virtual BoundExpression RewriteUnaryExpression(BoundUnaryExpression expression) {

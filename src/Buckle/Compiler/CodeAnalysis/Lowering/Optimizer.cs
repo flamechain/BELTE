@@ -107,7 +107,7 @@ internal sealed class Optimizer : BoundTreeRewriter {
         return base.RewriteAssignmentExpression(expression);
     }
 
-    private protected override BoundExpression RewriteIndexExpression(BoundArrayAccessExpression expression) {
+    private protected override BoundExpression RewriteArrayAccessExpression(BoundArrayAccessExpression expression) {
         /*
 
         <expression>[<index>]
@@ -118,7 +118,7 @@ internal sealed class Optimizer : BoundTreeRewriter {
 
         */
         if (expression.index.constantValue is null || expression.receiver is not BoundInitializerListExpression i)
-            return base.RewriteIndexExpression(expression);
+            return base.RewriteArrayAccessExpression(expression);
 
         var index = (int)expression.index.constantValue.value;
         return RewriteExpression(i.items[index]);
