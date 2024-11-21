@@ -41,6 +41,10 @@ internal partial class Binder {
 
     internal virtual SyntaxNode scopeDesignator => null;
 
+    internal virtual bool isLocalFunctionsScopeBinder => false;
+
+    internal virtual bool isLabelsScopeBinder => false;
+
     internal virtual Symbol containingMember => next.containingMember;
 
     internal virtual SynthesizedLabelSymbol breakLabel => next.breakLabel;
@@ -286,6 +290,10 @@ internal partial class Binder {
     #endregion
 
     #region Expressions
+
+    internal BoundExpression BindExpression(ExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+
+    }
 
     internal BoundExpression BindDataContainerInitializerValue(
         EqualsValueClauseSyntax initializer,

@@ -15,6 +15,16 @@ internal static class ArrayBuilderExtensions {
         return e;
     }
 
+    internal static bool TryPop<T>(this ArrayBuilder<T> builder, out T result) {
+        if (builder.Count > 0) {
+            result = builder.Pop();
+            return true;
+        }
+
+        result = default;
+        return false;
+    }
+
     internal static T Peek<T>(this ArrayBuilder<T> builder) {
         return builder[^1];
     }

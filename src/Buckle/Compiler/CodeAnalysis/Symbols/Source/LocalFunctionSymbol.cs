@@ -80,6 +80,8 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
 
     internal LocalFunctionStatementSyntax syntax => (LocalFunctionStatementSyntax)syntaxReference.node;
 
+    internal SyntaxToken identifier => syntax.identifier;
+
     internal override Accessibility declaredAccessibility => ModifierHelpers.EffectiveAccessibility(_modifiers);
 
     internal override bool isStatic => (_modifiers & DeclarationModifiers.Static) != 0;

@@ -96,8 +96,6 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
             case SyntaxKind.ExpressionStatement:
             case SyntaxKind.IfStatement:
             case SyntaxKind.ReturnStatement:
-                // TODO Should throws be statements instead of expressions?
-                // case SyntaxKind.ThrowStatement:
                 embeddedScopeDesignator = statement;
                 return new EmbeddedStatementBinder(enclosing, statement);
             default:

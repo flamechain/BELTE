@@ -59,7 +59,7 @@ internal sealed partial class BinderFactory {
                 if (_inScript) {
                     // TODO
                 } else {
-                    var globalNamespace = _compilation.globalNamespace;
+                    var globalNamespace = _compilation.globalNamespaceInternal;
                     result = new InContainerBinder(globalNamespace, result);
                 }
 

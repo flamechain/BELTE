@@ -97,7 +97,21 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
         SyntaxToken identifierToken,
         DataContainerDeclarationKind declarationKind,
         EqualsValueClauseSyntax initializer,
-        Binder initializerBinder = null) {
+        Binder initializerBinder = null,
+        Binder nodeBinder = null,
+        SyntaxNode nodeToBind = null) {
+        if (nodeBinder is not null) {
+            return new LocalSymbolWithEnclosingContext(
+                containingSymbol,
+                scopeBinder,
+                nodeBinder,
+                typeSyntax,
+                identifierToken,
+                declarationKind,
+                nodeToBind
+            );
+        }
+
         return MakeDataContainer(
             containingSymbol,
             scopeBinder,
@@ -222,5 +236,45 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
 
     public sealed override int GetHashCode() {
         return Hash.Combine(identifierToken.GetHashCode(), containingSymbol.GetHashCode());
+    }
+
+    private sealed class LocalSymbolWithEnclosingContext : SourceDataContainerSymbol {
+        private readonly Binder _nodeBinder;
+        private readonly SyntaxNode _nodeToBind;
+
+        internal LocalSymbolWithEnclosingContext(
+            Symbol containingSymbol,
+            Binder scopeBinder,
+            Binder nodeBinder,
+            TypeSyntax typeSyntax,
+            SyntaxToken identifierToken,
+            DataContainerDeclarationKind declarationKind,
+            SyntaxNode nodeToBind)
+            : base(containingSymbol, scopeBinder, allowRefKind: false, typeSyntax, identifierToken, declarationKind) {
+            _nodeBinder = nodeBinder;
+            _nodeToBind = nodeToBind;
+        }
+
+        private protected override TypeWithAnnotations InferTypeOfImplicit(BelteDiagnosticQueue diagnostics) {
+            switch (_nodeToBind.kind) {
+                case SyntaxKind.ArgumentList:
+                    switch (_nodeToBind.parent) {
+                        case ConstructorInitializerSyntax ctorInitializer:
+                            _nodeBinder.BindConstructorInitializer(ctorInitializer, diagnostics);
+                            break;
+                        default:
+                            throw ExceptionUtilities.UnexpectedValue(_nodeToBind.parent);
+                    }
+                    break;
+                default:
+                    _nodeBinder.BindExpression((ExpressionSyntax)_nodeToBind, diagnostics);
+                    break;
+            }
+
+            if (_type is null)
+                SetTypeWithAnnotations(new TypeWithAnnotations(_nodeBinder.CreateErrorType("var")));
+
+            return _type;
+        }
     }
 }

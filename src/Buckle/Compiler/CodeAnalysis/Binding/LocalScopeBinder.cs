@@ -112,7 +112,79 @@ internal class LocalScopeBinder : Binder {
         Binder enclosingBinder,
         StatementSyntax statement,
         ArrayBuilder<DataContainerSymbol> locals) {
-        // TODO
+        var innerStatement = statement;
+
+        switch (innerStatement.kind) {
+            case SyntaxKind.LocalDeclarationStatement: {
+                    var localDeclarationBinder = enclosingBinder.GetBinder(innerStatement) ?? enclosingBinder;
+                    var decl = (LocalDeclarationStatementSyntax)innerStatement;
+
+                    decl.declaration.type.VisitRankSpecifiers((rankSpecifier, args) => {
+                        FindExpressionVariablesInRankSpecifier(rankSpecifier.size, args);
+                    }, (localScopeBinder: this, locals, localDeclarationBinder));
+
+                    DataContainerDeclarationKind kind;
+                    if (decl.isConst) {
+                        kind = DataContainerDeclarationKind.Constant;
+                    } else if (decl.isConstExpr) {
+                        kind = DataContainerDeclarationKind.ConstantExpression;
+                    } else {
+                        kind = DataContainerDeclarationKind.Variable;
+                    }
+
+                    var localSymbol = MakeLocal(decl.declaration, kind, localDeclarationBinder);
+                    locals.Add(localSymbol);
+
+                    ExpressionVariableFinder.FindExpressionVariables(
+                        this,
+                        locals,
+                        decl.declaration,
+                        localDeclarationBinder
+                    );
+                }
+                break;
+            case SyntaxKind.LocalFunctionStatement: {
+                    var localFunctionDeclarationBinder = enclosingBinder.GetBinder(innerStatement) ?? enclosingBinder;
+                    var decl = (LocalFunctionStatementSyntax)innerStatement;
+
+                    foreach (var parameter in decl.parameterList.parameters) {
+                        parameter.type?.VisitRankSpecifiers((rankSpecifier, args) => {
+                            FindExpressionVariablesInRankSpecifier(rankSpecifier.size, args);
+                        }, (localScopeBinder: this, locals, localDeclarationBinder: localFunctionDeclarationBinder));
+                    }
+
+                    foreach (var constraintClause in decl.constraintClauseList.constraintClauses) {
+                        constraintClause.extendConstraint?.type.VisitRankSpecifiers((rankSpecifier, args) => {
+                            FindExpressionVariablesInRankSpecifier(rankSpecifier.size, args);
+                        }, (localScopeBinder: this, locals, localDeclarationBinder: localFunctionDeclarationBinder));
+                    }
+                }
+                break;
+            case SyntaxKind.ExpressionStatement:
+            case SyntaxKind.IfStatement:
+            case SyntaxKind.ReturnStatement:
+                ExpressionVariableFinder.FindExpressionVariables(
+                    this,
+                    locals,
+                    innerStatement,
+                    enclosingBinder.GetBinder(innerStatement) ?? enclosingBinder
+                );
+
+                break;
+            default:
+                break;
+        }
+
+        static void FindExpressionVariablesInRankSpecifier(
+            ExpressionSyntax expression,
+            (LocalScopeBinder localScopeBinder, ArrayBuilder<DataContainerSymbol> locals, Binder localDeclarationBinder) args) {
+            ExpressionVariableFinder.FindExpressionVariables(
+                args.localScopeBinder,
+                args.locals,
+                expression,
+                args.localDeclarationBinder
+            );
+        }
     }
 
     private protected ImmutableArray<LocalFunctionSymbol> BuildLocalFunctions(SyntaxList<StatementSyntax> statements) {
