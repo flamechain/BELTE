@@ -447,7 +447,7 @@ internal sealed partial class ILEmitter {
     }
 
     private FieldReference GetFieldReference(BoundMemberAccessExpression expression) {
-        var member = (expression.right as BoundVariableExpression).variable;
+        var member = (expression.right as BoundDataContainerExpression).variable;
         return new FieldReference(
             GetSafeName(member.name), GetType(expression.type), GetType(expression.type)
         );
@@ -904,8 +904,8 @@ internal sealed partial class ILEmitter {
             case BoundNodeKind.BinaryExpression:
                 EmitBinaryExpression(iLProcessor, (BoundBinaryExpression)expression);
                 break;
-            case BoundNodeKind.VariableExpression:
-                EmitVariableExpression(iLProcessor, (BoundVariableExpression)expression);
+            case BoundNodeKind.DataContainerExpression:
+                EmitVariableExpression(iLProcessor, (BoundDataContainerExpression)expression);
                 break;
             case BoundNodeKind.AssignmentExpression:
                 EmitAssignmentExpression(iLProcessor, (BoundAssignmentExpression)expression);
@@ -1296,7 +1296,7 @@ internal sealed partial class ILEmitter {
         }
     }
 
-    private void EmitVariableExpression(ILProcessor iLProcessor, BoundVariableExpression expression) {
+    private void EmitVariableExpression(ILProcessor iLProcessor, BoundDataContainerExpression expression) {
         /*
 
         <variable>
@@ -1347,7 +1347,7 @@ internal sealed partial class ILEmitter {
         */
         var isNullable = false;
 
-        if (expression.left is BoundVariableExpression ve) {
+        if (expression.left is BoundDataContainerExpression ve) {
             if (ve.variable.type.isNullable &&
                 ve.variable.type.typeSymbol is not StructSymbol &&
                 ve.variable.type.dimensions < 1) {
@@ -1366,7 +1366,7 @@ internal sealed partial class ILEmitter {
             iLProcessor.Emit(OpCodes.Stelem_Any);
         } else if (expression.left is BoundMemberAccessExpression ma) {
             iLProcessor.Emit(OpCodes.Stfld, GetFieldReference(ma));
-        } else if (expression.left is BoundVariableExpression bve) {
+        } else if (expression.left is BoundDataContainerExpression bve) {
             if (expression.left.type.typeSymbol is StructSymbol)
                 iLProcessor.Emit(OpCodes.Stloc_S, _locals[bve.variable]);
             else if (!isNullable)

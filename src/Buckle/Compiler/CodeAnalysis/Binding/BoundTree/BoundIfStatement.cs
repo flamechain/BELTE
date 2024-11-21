@@ -2,7 +2,8 @@
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound if statement, bound from a <see cref="Syntax.IfStatementSyntax" />.
+/// Bound from a <see cref="Syntax.IfStatementSyntax" />.
+/// Doesn't survive lowering.
 /// </summary>
 internal sealed class BoundIfStatement : BoundStatement {
     internal BoundIfStatement(BoundExpression condition, BoundStatement then, BoundStatement elseStatement) {
@@ -11,11 +12,11 @@ internal sealed class BoundIfStatement : BoundStatement {
         this.elseStatement = elseStatement;
     }
 
+    internal override BoundNodeKind kind => BoundNodeKind.IfStatement;
+
     internal BoundExpression condition { get; }
 
     internal BoundStatement then { get; }
 
     internal BoundStatement elseStatement { get; }
-
-    internal override BoundNodeKind kind => BoundNodeKind.IfStatement;
 }

@@ -1,19 +1,27 @@
+using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound for statement, bound from a <see cref="Syntax.ForStatementSyntax" />.
+/// Bound from a <see cref="Syntax.ForStatementSyntax" />.
+/// Doesn't survive lowering.
 /// </summary>
 internal sealed class BoundForStatement : BoundLoopStatement {
     internal BoundForStatement(
-        BoundStatement initializer, BoundExpression condition, BoundExpression step,
-        BoundStatement body, BoundLabel breakLabel, BoundLabel continueLabel)
+        BoundStatement initializer,
+        BoundExpression condition,
+        BoundExpression step,
+        BoundStatement body,
+        SynthesizedLabelSymbol breakLabel,
+        SynthesizedLabelSymbol continueLabel)
         : base(breakLabel, continueLabel) {
         this.initializer = initializer;
         this.condition = condition;
         this.step = step;
         this.body = body;
     }
+
+    internal override BoundNodeKind kind => BoundNodeKind.ForStatement;
 
     internal BoundStatement initializer { get; }
 
@@ -22,6 +30,4 @@ internal sealed class BoundForStatement : BoundLoopStatement {
     internal BoundExpression step { get; }
 
     internal BoundStatement body { get; }
-
-    internal override BoundNodeKind kind => BoundNodeKind.ForStatement;
 }

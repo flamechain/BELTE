@@ -3,7 +3,8 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound conditional access expression, bound from a <see cref="Syntax.MemberAccessExpressionSyntax" />.
+/// Bound from a <see cref="Syntax.MemberAccessExpressionSyntax" />.
+/// Doesn't survive lowering.
 /// </summary>
 internal sealed class BoundConditionalAccessExpression : BoundExpression {
     internal BoundConditionalAccessExpression(
@@ -13,13 +14,14 @@ internal sealed class BoundConditionalAccessExpression : BoundExpression {
         this.type = type;
         this.receiver = receiver;
         this.accessExpression = accessExpression;
+        constantValue = accessExpression.constantValue;
     }
 
     internal override BoundNodeKind kind => BoundNodeKind.ConditionalAccessExpression;
 
     internal override TypeSymbol type { get; }
 
-    internal override ConstantValue constantValue => accessExpression.constantValue;
+    internal override ConstantValue constantValue { get; }
 
     internal BoundExpression receiver { get; }
 

@@ -58,7 +58,7 @@ internal abstract class BoundTreeExpander {
 
         if (statements.Count > 0) {
             statements.Add(new BoundLocalDeclarationStatement(
-                new BoundVariableDeclaration(statement.declaration.variable, replacement)
+                new BoundDataContainerDeclaration(statement.declaration.variable, replacement)
             ));
 
             return statements;
@@ -187,8 +187,8 @@ internal abstract class BoundTreeExpander {
                 return ExpandInitializerDictionaryExpression(
                     (BoundInitializerDictionaryExpression)expression, out replacement
                 );
-            case BoundNodeKind.VariableExpression:
-                return ExpandVariableExpression((BoundVariableExpression)expression, out replacement);
+            case BoundNodeKind.DataContainerExpression:
+                return ExpandVariableExpression((BoundDataContainerExpression)expression, out replacement);
             case BoundNodeKind.AssignmentExpression:
                 return ExpandAssignmentExpression((BoundAssignmentExpression)expression, out replacement);
             case BoundNodeKind.UnaryExpression:
@@ -314,7 +314,7 @@ internal abstract class BoundTreeExpander {
     }
 
     private protected virtual List<BoundStatement> ExpandVariableExpression(
-        BoundVariableExpression expression,
+        BoundDataContainerExpression expression,
         out BoundExpression replacement) {
         replacement = expression;
         return new List<BoundStatement>() { };

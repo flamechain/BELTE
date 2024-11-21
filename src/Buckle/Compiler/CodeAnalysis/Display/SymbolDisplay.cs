@@ -107,6 +107,16 @@ public static class SymbolDisplay {
         }
     }
 
+    internal static void DisplayTypeWithAnnotations(
+        DisplayText text,
+        TypeWithAnnotations type,
+        SymbolDisplayFormat format) {
+        DisplayType(text, type.type, format);
+
+        if (type.isNullable)
+            text.Write(CreatePunctuation(SyntaxKind.QuestionToken));
+    }
+
     private static void DisplayContainedNames(DisplayText text, ISymbol symbol, SymbolDisplayFormat format) {
         if ((format.qualificationStyle & SymbolDisplayQualificationStyle.IncludeGlobalNamespace) != 0) {
             text.Write(CreateType("global"));
@@ -193,16 +203,6 @@ public static class SymbolDisplay {
 
             DisplayText.DisplayConstant(text, parameter.explicitDefaultConstantValue);
         }
-    }
-
-    private static void DisplayTypeWithAnnotations(
-        DisplayText text,
-        TypeWithAnnotations type,
-        SymbolDisplayFormat format) {
-        DisplayType(text, type.type, format);
-
-        if (type.isNullable)
-            text.Write(CreatePunctuation(SyntaxKind.QuestionToken));
     }
 
     private static void DisplayTemplateParameter(

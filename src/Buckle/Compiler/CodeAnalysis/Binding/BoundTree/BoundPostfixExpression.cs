@@ -3,15 +3,20 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound postfix expression. Bound from a <see cref="Syntax.PostfixExpressionSyntax" />.
-/// Always gets rewritten by the <see cref="Lowering.Lowerer" /> into a <see cref="BoundAssignmentExpression" />.
+/// Bound from a <see cref="Syntax.PostfixExpressionSyntax" />.
+/// Doesn't survive lowering unless the operator was overloaded.
 /// </summary>
 internal sealed class BoundPostfixExpression : BoundExpression {
     internal BoundPostfixExpression(BoundExpression operand, BoundPostfixOperator op, bool isOwnStatement) {
         this.operand = operand;
         this.op = op;
         this.isOwnStatement = isOwnStatement;
+        type = op.type;
     }
+
+    internal override BoundNodeKind kind => BoundNodeKind.PostfixExpression;
+
+    internal override TypeSymbol type { get; }
 
     internal BoundExpression operand { get; }
 
@@ -22,8 +27,4 @@ internal sealed class BoundPostfixExpression : BoundExpression {
     /// do less.
     /// </summary>
     internal bool isOwnStatement { get; }
-
-    internal override TypeSymbol type => op.type;
-
-    internal override BoundNodeKind kind => BoundNodeKind.PostfixExpression;
 }

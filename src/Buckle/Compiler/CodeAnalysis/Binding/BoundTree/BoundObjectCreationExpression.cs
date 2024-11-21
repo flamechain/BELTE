@@ -4,7 +4,7 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound object creation expression, bound from a <see cref="Syntax.ObjectCreationExpressionSyntax" />.
+/// Bound from a <see cref="Syntax.ObjectCreationExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundObjectCreationExpression : BoundExpression {
     internal BoundObjectCreationExpression(

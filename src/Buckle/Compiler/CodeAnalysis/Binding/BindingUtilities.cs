@@ -11,7 +11,7 @@ internal static class BindingUtilities {
     /// Gets the root-most <see cref="VariableSymbol"/> from an assignment right hand.
     /// </summary>
     internal static DataContainerSymbol GetAssignedVariableSymbol(BoundExpression expression) {
-        if (expression is BoundVariableExpression v)
+        if (expression is BoundDataContainerExpression v)
             return v.variable;
         if (expression is BoundFieldAccessExpression f)
             return f.field;

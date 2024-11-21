@@ -198,12 +198,13 @@ internal sealed class Expander : BoundTreeExpander {
         return statements;
     }
 
-    private DataContainerSymbol GenerateTempLocal(BoundType type) {
+    private DataContainerSymbol GenerateTempLocal(TypeWithAnnotations type, Symbol container) {
         string name;
+
         do {
             name = $"temp{_tempCount++}";
         } while (_localNames.Contains(name));
 
-        return new LocalVariableSymbol(name, type, null, DeclarationModifiers.None);
+        return new SynthesizedDataContainerSymbol(container, type, name);
     }
 }

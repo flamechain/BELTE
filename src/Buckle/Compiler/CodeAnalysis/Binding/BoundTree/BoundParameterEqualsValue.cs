@@ -3,9 +3,12 @@ using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
+/// <summary>
+/// Bound from a <see cref="Syntax.AssignmentExpressionSyntax" /> or <see cref="Syntax.ParameterSyntax" />.
+/// </summary>
 internal sealed class BoundParameterEqualsValue : BoundEqualsValue {
     internal BoundParameterEqualsValue(
-        Symbol parameter,
+        ParameterSymbol parameter,
         ImmutableArray<DataContainerSymbol> locals,
         BoundExpression value)
         : base(locals, value) {
@@ -14,5 +17,5 @@ internal sealed class BoundParameterEqualsValue : BoundEqualsValue {
 
     internal override BoundNodeKind kind => BoundNodeKind.ParameterEqualsValue;
 
-    internal Symbol parameter { get; }
+    internal ParameterSymbol parameter { get; }
 }

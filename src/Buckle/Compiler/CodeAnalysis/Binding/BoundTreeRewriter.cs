@@ -153,7 +153,7 @@ internal abstract class BoundTreeRewriter {
             return statement;
 
         return new BoundLocalDeclarationStatement(
-            new BoundVariableDeclaration(statement.declaration.variable, initializer)
+            new BoundDataContainerDeclaration(statement.declaration.variable, initializer)
         );
     }
 
@@ -191,8 +191,8 @@ internal abstract class BoundTreeRewriter {
                 return RewriteInitializerListExpression((BoundInitializerListExpression)expression);
             case BoundNodeKind.InitializerDictionaryExpression:
                 return RewriteInitializerDictionaryExpression((BoundInitializerDictionaryExpression)expression);
-            case BoundNodeKind.VariableExpression:
-                return RewriteVariableExpression((BoundVariableExpression)expression);
+            case BoundNodeKind.DataContainerExpression:
+                return RewriteVariableExpression((BoundDataContainerExpression)expression);
             case BoundNodeKind.AssignmentExpression:
                 return RewriteAssignmentExpression((BoundAssignmentExpression)expression);
             case BoundNodeKind.UnaryExpression:
@@ -424,7 +424,7 @@ internal abstract class BoundTreeRewriter {
         return expression;
     }
 
-    private protected virtual BoundExpression RewriteVariableExpression(BoundVariableExpression expression) {
+    private protected virtual BoundExpression RewriteVariableExpression(BoundDataContainerExpression expression) {
         return expression;
     }
 

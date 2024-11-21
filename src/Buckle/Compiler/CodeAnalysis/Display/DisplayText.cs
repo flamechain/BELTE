@@ -104,11 +104,8 @@ public sealed class DisplayText {
         }
 
         switch (node.kind) {
-            case BoundNodeKind.VariableDeclaration:
-                DisplayVariableDeclaration(text, (BoundVariableDeclaration)node);
-                break;
             case BoundNodeKind.NopStatement:
-                DisplayNopStatement(text, (BoundNopStatement)node);
+                DisplayNopStatement(text);
                 break;
             case BoundNodeKind.BlockStatement:
                 DisplayBlockStatement(text, (BoundBlockStatement)node);
@@ -149,6 +146,15 @@ public sealed class DisplayText {
             case BoundNodeKind.TypeExpression:
                 DisplayTypeExpression(text, (BoundTypeExpression)node);
                 break;
+            case BoundNodeKind.BreakStatement:
+                DisplayBreakStatement(text);
+                break;
+            case BoundNodeKind.ContinueStatement:
+                DisplayContinueStatement(text);
+                break;
+            case BoundNodeKind.GlobalStatement:
+                DisplayGlobalStatement(text, (BoundGlobalStatement)node);
+                break;
             case BoundNodeKind.TernaryExpression:
                 DisplayTernaryExpression(text, (BoundTernaryExpression)node);
                 break;
@@ -167,8 +173,8 @@ public sealed class DisplayText {
             case BoundNodeKind.BinaryExpression:
                 DisplayBinaryExpression(text, (BoundBinaryExpression)node);
                 break;
-            case BoundNodeKind.VariableExpression:
-                DisplayVariableExpression(text, (BoundVariableExpression)node);
+            case BoundNodeKind.DataContainerExpression:
+                DisplayDataContainer(text, (BoundDataContainerExpression)node);
                 break;
             case BoundNodeKind.AssignmentExpression:
                 DisplayAssignmentExpression(text, (BoundAssignmentExpression)node);
@@ -183,7 +189,7 @@ public sealed class DisplayText {
                 DisplayPostfixExpression(text, (BoundPostfixExpression)node);
                 break;
             case BoundNodeKind.EmptyExpression:
-                DisplayEmptyExpression(text, (BoundEmptyExpression)node);
+                DisplayEmptyExpression(text);
                 break;
             case BoundNodeKind.ErrorExpression:
                 DisplayErrorExpression(text, (BoundErrorExpression)node);
@@ -206,14 +212,23 @@ public sealed class DisplayText {
             case BoundNodeKind.FieldAccessExpression:
                 DisplayFieldAccessExpression(text, (BoundFieldAccessExpression)node);
                 break;
+            case BoundNodeKind.ConditionalAccessExpression:
+                DisplayConditionalAccessExpression(text, (BoundConditionalAccessExpression)node);
+                break;
             case BoundNodeKind.ThisExpression:
-                DisplayThisExpression(text, (BoundThisExpression)node);
+                DisplayThisExpression(text);
                 break;
             case BoundNodeKind.BaseExpression:
-                DisplayBaseExpression(text, (BoundBaseExpression)node);
+                DisplayBaseExpression(text);
                 break;
             case BoundNodeKind.ThrowExpression:
                 DisplayThrowExpression(text, (BoundThrowExpression)node);
+                break;
+            case BoundNodeKind.DataContainerDeclaration:
+                DisplayDataContainerDeclaration(text, (BoundDataContainerDeclaration)node);
+                break;
+            case BoundNodeKind.FieldEqualsValue:
+                DisplayFieldEqualsValue(text, (BoundFieldEqualsValue)node);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
@@ -252,10 +267,6 @@ public sealed class DisplayText {
         var text = new DisplayText();
         DisplayLiteralExpressionCore(text, value);
         return text.ToString();
-    }
-
-    private static void DisplayLiteralExpression(DisplayText text, BoundLiteralExpression node) {
-        DisplayLiteralExpressionCore(text, node.value);
     }
 
     private static void DisplayLiteralExpressionCore(DisplayText text, object value) {
@@ -338,7 +349,21 @@ public sealed class DisplayText {
         SymbolDisplay.DisplayType(text, node.type);
     }
 
-    private static void DisplayNopStatement(DisplayText text, BoundNopStatement _) {
+    private static void DisplayBreakStatement(DisplayText text) {
+        text.Write(CreateKeyword(SyntaxKind.BreakKeyword));
+        text.Write(CreateLine());
+    }
+
+    private static void DisplayContinueStatement(DisplayText text) {
+        text.Write(CreateKeyword(SyntaxKind.ContinueKeyword));
+        text.Write(CreateLine());
+    }
+
+    private static void DisplayGlobalStatement(DisplayText text, BoundGlobalStatement node) {
+        DisplayNode(text, node.statement);
+    }
+
+    private static void DisplayNopStatement(DisplayText text) {
         text.Write(CreateKeyword("nop"));
         text.Write(CreateLine());
     }
@@ -512,10 +537,17 @@ public sealed class DisplayText {
         DisplayNode(text, node.declaration);
     }
 
-    private static void DisplayVariableDeclaration(DisplayText text, BoundVariableDeclaration node) {
-        DisplayNode(text, node.variable.type);
+    private static void DisplayDataContainerDeclaration(DisplayText text, BoundDataContainerDeclaration node) {
+        var dataContainer = node.dataContainer;
+
+        SymbolDisplay.DisplayTypeWithAnnotations(
+            text,
+            dataContainer.typeWithAnnotations,
+            SymbolDisplayFormat.Everything
+        );
+
         text.Write(CreateSpace());
-        text.Write(CreateIdentifier(node.variable.name));
+        text.Write(CreateIdentifier(dataContainer.name));
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.EqualsToken));
         text.Write(CreateSpace());
@@ -531,17 +563,39 @@ public sealed class DisplayText {
         text.Write(CreateLine());
     }
 
-    private static void DisplayFieldAccessExpression(DisplayText text, BoundFieldAccessExpression node) {
+    private static void DisplayFieldAccessExpression(
+        DisplayText text,
+        BoundFieldAccessExpression node,
+        bool conditional = false) {
         DisplayNode(text, node.receiver);
-        text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
+        text.Write(CreatePunctuation(conditional ? SyntaxKind.QuestionPeriodToken : SyntaxKind.PeriodToken));
         SymbolDisplay.AppendToDisplayText(text, node.field, SymbolDisplayFormat.Everything);
     }
 
-    private static void DisplayArrayAccessExpression(DisplayText text, BoundArrayAccessExpression node) {
+    private static void DisplayArrayAccessExpression(
+        DisplayText text,
+        BoundArrayAccessExpression node,
+        bool conditional = false) {
         DisplayNode(text, node.receiver);
-        text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
+        text.Write(CreatePunctuation(conditional ? SyntaxKind.QuestionOpenBracketToken : SyntaxKind.OpenBracketToken));
         DisplayNode(text, node.index);
         text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+    }
+
+    private static void DisplayConditionalAccessExpression(DisplayText text, BoundConditionalAccessExpression node) {
+        DisplayNode(text, node.receiver);
+        var accessExpression = node.accessExpression;
+
+        switch (accessExpression) {
+            case BoundArrayAccessExpression a:
+                DisplayArrayAccessExpression(text, a, true);
+                break;
+            case BoundFieldAccessExpression f:
+                DisplayFieldAccessExpression(text, f, true);
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(accessExpression.kind);
+        }
     }
 
     private static void DisplayObjectCreationExpression(DisplayText text, BoundObjectCreationExpression node) {
@@ -574,11 +628,11 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
     }
 
-    private static void DisplayThisExpression(DisplayText text, BoundThisExpression _) {
+    private static void DisplayThisExpression(DisplayText text) {
         text.Write(CreateKeyword(SyntaxKind.ThisKeyword));
     }
 
-    private static void DisplayBaseExpression(DisplayText text, BoundBaseExpression _) {
+    private static void DisplayBaseExpression(DisplayText text) {
         text.Write(CreateKeyword(SyntaxKind.BaseKeyword));
     }
 
@@ -669,12 +723,15 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
     }
 
-    private static void DisplayErrorExpression(DisplayText text, BoundErrorExpression _) {
-        // This has no connection to SyntaxKind.QuestionToken, so the string literal is used here
-        text.Write(CreateKeyword("?"));
+    private static void DisplayErrorExpression(DisplayText text, BoundErrorExpression node) {
+        text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
+        text.Write(CreateKeyword(SyntaxKind.QuestionToken));
+        text.Write(CreateSpace());
+        SymbolDisplay.DisplayType(text, node.type, SymbolDisplayFormat.Everything);
+        text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
     }
 
-    private static void DisplayEmptyExpression(DisplayText _, BoundEmptyExpression _1) { }
+    private static void DisplayEmptyExpression(DisplayText _) { }
 
     private static void DisplayAssignmentExpression(DisplayText text, BoundAssignmentExpression node) {
         DisplayNode(text, node.left);
@@ -702,8 +759,8 @@ public sealed class DisplayText {
         DisplayNode(text, node.operand);
     }
 
-    private static void DisplayVariableExpression(DisplayText text, BoundVariableExpression node) {
-        SymbolDisplay.AppendToDisplayText(text, node.variable, SymbolDisplayFormat.Everything);
+    private static void DisplayDataContainer(DisplayText text, BoundDataContainerExpression node) {
+        SymbolDisplay.AppendToDisplayText(text, node.dataContainer, SymbolDisplayFormat.Everything);
     }
 
     private static void DisplayBinaryExpression(DisplayText text, BoundBinaryExpression node) {
@@ -719,5 +776,14 @@ public sealed class DisplayText {
     private static void DisplayUnaryExpression(DisplayText text, BoundUnaryExpression node) {
         text.Write(CreatePunctuation(node.op.kind));
         DisplayNode(text, node.operand);
+    }
+
+    private static void DisplayFieldEqualsValue(DisplayText text, BoundFieldEqualsValue node) {
+        SymbolDisplay.AppendToDisplayText(text, node.field, SymbolDisplayFormat.Everything);
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.EqualsToken));
+        text.Write(CreateSpace());
+        DisplayNode(text, node.value);
+        text.Write(CreateLine());
     }
 }

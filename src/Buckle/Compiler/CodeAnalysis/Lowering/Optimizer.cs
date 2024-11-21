@@ -97,7 +97,7 @@ internal sealed class Optimizer : BoundTreeRewriter {
         var left = expression.left;
         var right = expression.right is BoundReferenceExpression r ? r.expression : expression.right;
         // TODO Expand this to cover more cases
-        var canSimplify = left is BoundVariableExpression && right is BoundVariableExpression;
+        var canSimplify = left is BoundDataContainerExpression && right is BoundDataContainerExpression;
 
         if (canSimplify &&
             BindingUtilities.GetAssignedVariableSymbol(left) == BindingUtilities.GetAssignedVariableSymbol(right)) {

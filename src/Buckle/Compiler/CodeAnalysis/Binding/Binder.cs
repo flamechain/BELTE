@@ -330,22 +330,24 @@ internal partial class Binder {
             BindValueKind.RValue
         );
 
+        var isTemplate = parameter is TemplateParameterSymbol;
+
         var parameterType = parameter is ParameterSymbol p
             ? p.type
             : (parameter as TemplateParameterSymbol).underlyingType.type;
 
-        var result = new BoundParameterEqualsValue(
-            parameter,
-            defaultValueBinder.GetDeclaredLocalsForScope(defaultValueSyntax),
-            defaultValueBinder.GenerateConversionForAssignment(
-                parameterType,
-                valueBeforeConversion,
-                diagnostics,
-                ConversionForAssignmentFlags.DefaultParameter
-            )
+        var locals = defaultValueBinder.GetDeclaredLocalsForScope(defaultValueSyntax);
+        var value = defaultValueBinder.GenerateConversionForAssignment(
+            parameterType,
+            valueBeforeConversion,
+            diagnostics,
+            ConversionForAssignmentFlags.DefaultParameter
         );
 
-        return result;
+        if (isTemplate)
+            return new BoundTemplateParameterEqualsValue((TemplateParameterSymbol)parameter, locals, value);
+        else
+            return new BoundParameterEqualsValue(p, locals, value);
     }
 
     internal BoundFieldEqualsValue BindFieldInitializer(

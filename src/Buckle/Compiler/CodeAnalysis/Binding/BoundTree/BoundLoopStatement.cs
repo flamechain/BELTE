@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -7,12 +8,12 @@ namespace Buckle.CodeAnalysis.Binding;
 /// Uses labels for gotos as the <see cref="Lowering.Lowerer" /> rewrites all control of flow to gotos.
 /// </summary>
 internal abstract class BoundLoopStatement : BoundStatement {
-    private protected BoundLoopStatement(BoundLabel breakLabel, BoundLabel continueLabel) {
+    private protected BoundLoopStatement(SynthesizedLabelSymbol breakLabel, SynthesizedLabelSymbol continueLabel) {
         this.breakLabel = breakLabel;
         this.continueLabel = continueLabel;
     }
 
-    internal BoundLabel breakLabel { get; }
+    internal SynthesizedLabelSymbol breakLabel { get; }
 
-    internal BoundLabel continueLabel { get; }
+    internal SynthesizedLabelSymbol continueLabel { get; }
 }

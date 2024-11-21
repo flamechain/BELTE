@@ -3,8 +3,8 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound empty expression, bound from a <see cref="Syntax.EmptyExpressionSyntax" />.
-/// Converted to NOP statements eventually.
+/// Bound from a <see cref="Syntax.EmptyExpressionSyntax" />.
+/// Converted to NOP statements when emitting.
 /// </summary>
 internal sealed class BoundEmptyExpression : BoundExpression {
     internal BoundEmptyExpression() { }

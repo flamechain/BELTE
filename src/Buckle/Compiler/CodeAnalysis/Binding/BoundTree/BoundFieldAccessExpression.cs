@@ -3,7 +3,7 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound field access expression, bound from a <see cref="Syntax.MemberAccessExpressionSyntax" />.
+/// Bound from a <see cref="Syntax.MemberAccessExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundFieldAccessExpression : BoundExpression {
     internal BoundFieldAccessExpression(

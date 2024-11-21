@@ -721,8 +721,8 @@ internal sealed class CSharpEmitter {
             case BoundNodeKind.BinaryExpression:
                 EmitBinaryExpression(indentedTextWriter, (BoundBinaryExpression)expression);
                 break;
-            case BoundNodeKind.VariableExpression:
-                EmitVariableExpression(indentedTextWriter, (BoundVariableExpression)expression);
+            case BoundNodeKind.DataContainerExpression:
+                EmitVariableExpression(indentedTextWriter, (BoundDataContainerExpression)expression);
                 break;
             case BoundNodeKind.AssignmentExpression:
                 EmitAssignmentExpression(indentedTextWriter, (BoundAssignmentExpression)expression);
@@ -818,7 +818,7 @@ internal sealed class CSharpEmitter {
         indentedTextWriter.Write(")");
     }
 
-    private void EmitVariableExpression(IndentedTextWriter indentedTextWriter, BoundVariableExpression expression) {
+    private void EmitVariableExpression(IndentedTextWriter indentedTextWriter, BoundDataContainerExpression expression) {
         indentedTextWriter.Write(GetSafeName(expression.variable.name));
     }
 
@@ -1130,7 +1130,7 @@ internal sealed class CSharpEmitter {
     private void EmitMemberAccessExpression(
         IndentedTextWriter indentedTextWriter, BoundMemberAccessExpression expression) {
         EmitExpression(indentedTextWriter, expression.left);
-        if (expression.right is BoundVariableExpression v)
+        if (expression.right is BoundDataContainerExpression v)
             indentedTextWriter.Write($".{GetSafeName(v.variable.name)}");
         else if (expression.right is BoundType t)
             indentedTextWriter.Write($".{GetEquivalentType(t)}");

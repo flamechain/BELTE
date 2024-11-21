@@ -9,7 +9,7 @@ internal enum BoundNodeKind : byte {
     BinaryExpression,
     UnaryExpression,
     LiteralExpression,
-    VariableExpression,
+    DataContainerExpression,
     AssignmentExpression,
     EmptyExpression,
     ErrorExpression,
@@ -32,6 +32,7 @@ internal enum BoundNodeKind : byte {
     InitializerListExpression,
     InitializerDictionaryExpression,
     TypeExpression,
+    ParameterExpression,
 
     BlockStatement,
     ExpressionStatement,
@@ -49,9 +50,10 @@ internal enum BoundNodeKind : byte {
     BreakStatement,
     ContinueStatement,
 
-    VariableDeclaration,
+    DataContainerDeclaration,
     FieldEqualsValue,
     ParameterEqualsValue,
+    TemplateParameterEqualsValue,
     GlobalStatement,
     MethodGroup,
     ConstructorMethodBody,

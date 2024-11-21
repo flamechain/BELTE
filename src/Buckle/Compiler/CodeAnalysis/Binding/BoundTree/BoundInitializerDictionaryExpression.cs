@@ -4,7 +4,8 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound initializer dictionary expression, bound from a <see cref="Syntax.InitializerDictionaryExpressionSyntax" />.
+/// Bound from a <see cref="Syntax.InitializerDictionaryExpressionSyntax" />.
+/// Doesn't survive compilation.
 /// </summary>
 internal sealed class BoundInitializerDictionaryExpression : BoundExpression {
     internal BoundInitializerDictionaryExpression(
@@ -14,11 +15,11 @@ internal sealed class BoundInitializerDictionaryExpression : BoundExpression {
         this.type = type;
     }
 
-    internal ImmutableArray<(BoundExpression, BoundExpression)> items { get; }
-
     internal override BoundNodeKind kind => BoundNodeKind.InitializerDictionaryExpression;
 
     internal override TypeSymbol type { get; }
 
     internal override ConstantValue constantValue { get; }
+
+    internal ImmutableArray<(BoundExpression, BoundExpression)> items { get; }
 }

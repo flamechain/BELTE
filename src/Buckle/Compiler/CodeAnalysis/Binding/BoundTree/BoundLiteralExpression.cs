@@ -3,7 +3,7 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound literal expression, bound from a <see cref="Syntax.LiteralExpressionSyntax" />.
+/// Bound from a <see cref="Syntax.LiteralExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundLiteralExpression : BoundExpression {
     internal BoundLiteralExpression(object value, TypeSymbol type) {

@@ -1,10 +1,9 @@
-
 using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound reference expression, bound from a <see cref="Syntax.ReferenceExpressionSyntax" />.
+/// Bound from a <see cref="Syntax.ReferenceExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundReferenceExpression : BoundExpression {
     internal BoundReferenceExpression(BoundExpression expression, TypeSymbol type) {
@@ -12,10 +11,9 @@ internal sealed class BoundReferenceExpression : BoundExpression {
         this.type = type;
     }
 
-    internal BoundExpression expression { get; }
+    internal override BoundNodeKind kind => BoundNodeKind.ReferenceExpression;
 
     internal override TypeSymbol type { get; }
 
-    internal override BoundNodeKind kind => BoundNodeKind.ReferenceExpression;
-
+    internal BoundExpression expression { get; }
 }

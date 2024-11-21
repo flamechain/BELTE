@@ -20,7 +20,18 @@ internal sealed class SynthesizedDataContainerSymbol : DataContainerSymbol {
         _syntax = syntax;
     }
 
-    public override string name => null;
+    internal SynthesizedDataContainerSymbol(
+        Symbol containingSymbol,
+        TypeWithAnnotations type,
+        string name,
+        RefKind refKind = RefKind.None) {
+        this.containingSymbol = containingSymbol;
+        this.refKind = refKind;
+        typeWithAnnotations = type;
+        this.name = name;
+    }
+
+    public override string name { get; }
 
     public override RefKind refKind { get; }
 

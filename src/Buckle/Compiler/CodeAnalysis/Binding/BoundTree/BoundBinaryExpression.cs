@@ -4,7 +4,7 @@ using Buckle.CodeAnalysis.Syntax;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound binary expression, bound from a <see cref="BinaryExpressionSyntax" />.
+/// Bound from a <see cref="BinaryExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundBinaryExpression : BoundExpression {
     internal BoundBinaryExpression(
@@ -14,12 +14,13 @@ internal sealed class BoundBinaryExpression : BoundExpression {
         this.left = left;
         this.op = op;
         this.right = right;
+        type = op.type;
         constantValue = ConstantFolding.FoldBinary(this.left, this.op, this.right);
     }
 
     internal override BoundNodeKind kind => BoundNodeKind.BinaryExpression;
 
-    internal override TypeSymbol type => op.type;
+    internal override TypeSymbol type { get; }
 
     internal override ConstantValue constantValue { get; }
 

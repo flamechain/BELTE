@@ -541,8 +541,8 @@ internal sealed class Evaluator {
                 return new EvaluatorObject(
                     EvaluateInitializerListExpression((BoundInitializerListExpression)node, abort)
                 );
-            case BoundNodeKind.VariableExpression:
-                return EvaluateVariableExpression((BoundVariableExpression)node, abort);
+            case BoundNodeKind.DataContainerExpression:
+                return EvaluateVariableExpression((BoundDataContainerExpression)node, abort);
             case BoundNodeKind.AssignmentExpression:
                 return EvaluateAssignmentExpression((BoundAssignmentExpression)node, abort);
             case BoundNodeKind.UnaryExpression:
@@ -638,7 +638,7 @@ internal sealed class Evaluator {
         if (node.right is BoundType)
             return operand.members[node.right.type.typeSymbol];
 
-        var member = (node.right as BoundVariableExpression).variable;
+        var member = (node.right as BoundDataContainerExpression).variable;
         return operand.members[member];
     }
 
@@ -720,7 +720,7 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateReferenceExpression(BoundReferenceExpression node, ValueWrapper<bool> abort) {
-        if (node.expression is BoundVariableExpression v)
+        if (node.expression is BoundDataContainerExpression v)
             return new EvaluatorObject(v.variable, isExplicitReference: true);
         else
             return EvaluateExpression(node.expression, abort);
@@ -978,7 +978,7 @@ internal sealed class Evaluator {
     }
 
     private static EvaluatorObject EvaluateVariableExpression(
-        BoundVariableExpression expression,
+        BoundDataContainerExpression expression,
         ValueWrapper<bool> _) {
         return new EvaluatorObject(expression.variable);
     }

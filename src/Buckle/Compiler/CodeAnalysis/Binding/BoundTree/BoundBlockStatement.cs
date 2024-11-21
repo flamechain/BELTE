@@ -4,7 +4,8 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound block statement, bound from a <see cref="Syntax.BlockStatementSyntax" />.
+/// Bound from a <see cref="Syntax.BlockStatementSyntax" />.
+/// Contains the local scope.
 /// </summary>
 internal sealed class BoundBlockStatement : BoundStatement {
     internal BoundBlockStatement(
@@ -16,11 +17,11 @@ internal sealed class BoundBlockStatement : BoundStatement {
         this.localFunctions = localFunctions;
     }
 
+    internal override BoundNodeKind kind => BoundNodeKind.BlockStatement;
+
     internal ImmutableArray<BoundStatement> statements { get; }
 
     internal ImmutableArray<DataContainerSymbol> locals { get; }
 
     internal ImmutableArray<LocalFunctionSymbol> localFunctions { get; }
-
-    internal override BoundNodeKind kind => BoundNodeKind.BlockStatement;
 }
