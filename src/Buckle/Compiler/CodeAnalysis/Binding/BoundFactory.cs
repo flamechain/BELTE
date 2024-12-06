@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Libraries;
@@ -19,35 +20,26 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundBlockStatement Block(params BoundStatement[] statements) {
-        return new BoundBlockStatement(ImmutableArray.Create(statements));
-    }
-
-    internal static BoundBlockStatement Block(params ImmutableArray<BoundStatement>[] blocks) {
-        var builder = blocks[0].ToBuilder();
-
-        for (var i = 1; i < blocks.Length; i++)
-            builder.AddRange(blocks[i]);
-
-        return new BoundBlockStatement(builder.ToImmutable());
+        return new BoundBlockStatement(ImmutableArray.Create(statements), [], []);
     }
 
     internal static BoundBlockStatement Block() {
-        return new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty);
+        return new BoundBlockStatement([], [], []);
     }
 
-    internal static BoundLabelStatement Label(BoundLabel label) {
+    internal static BoundLabelStatement Label(LabelSymbol label) {
         return new BoundLabelStatement(label);
     }
 
-    internal static BoundGotoStatement Goto(BoundLabel label) {
+    internal static BoundGotoStatement Goto(LabelSymbol label) {
         return new BoundGotoStatement(label);
     }
 
-    internal static BoundConditionalGotoStatement GotoIf(BoundLabel @goto, BoundExpression @if) {
+    internal static BoundConditionalGotoStatement GotoIf(LabelSymbol @goto, BoundExpression @if) {
         return new BoundConditionalGotoStatement(@goto, @if, true);
     }
 
-    internal static BoundConditionalGotoStatement GotoIfNot(BoundLabel @goto, BoundExpression @ifNot) {
+    internal static BoundConditionalGotoStatement GotoIfNot(LabelSymbol @goto, BoundExpression @ifNot) {
         return new BoundConditionalGotoStatement(@goto, @ifNot, false);
     }
 
@@ -56,16 +48,23 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundWhileStatement While(
-        BoundExpression condition, BoundStatement body, BoundLabel breakLabel, BoundLabel continueLabel) {
+        BoundExpression condition,
+        BoundStatement body,
+        SynthesizedLabelSymbol breakLabel,
+        SynthesizedLabelSymbol continueLabel) {
         return new BoundWhileStatement(condition, body, breakLabel, continueLabel);
     }
 
-    internal static BoundCallExpression Call(SubstitutedMethodSymbol method, params BoundExpression[] arguments) {
+    internal static BoundCallExpression Call(MethodSymbol method, params BoundExpression[] arguments) {
         return new BoundCallExpression(new BoundEmptyExpression(), method, ImmutableArray.Create(arguments));
     }
 
-    internal static BoundCastExpression Cast(TypeSymbol type, BoundExpression expression) {
-        return new BoundCastExpression(type, expression);
+    internal static BoundCastExpression Cast(
+        TypeSymbol type,
+        BoundExpression expression,
+        ConversionKind conversionKind,
+        ConstantValue constant) {
+        return new BoundCastExpression(type, expression, conversionKind, constant);
     }
 
     internal static BoundMemberAccessExpression MemberAccess(
@@ -95,14 +94,12 @@ internal static partial class BoundFactory {
     internal static BoundCompoundAssignmentExpression Increment(BoundExpression operand) {
         var value = new BoundTypeWrapper(BoundType.Int, new ConstantValue(1));
         var op = BoundBinaryOperator.Bind(SyntaxKind.PlusToken, operand.type, value.type);
-
         return new BoundCompoundAssignmentExpression(operand, op, value);
     }
 
     internal static BoundCompoundAssignmentExpression Decrement(BoundExpression operand) {
         var value = new BoundTypeWrapper(BoundType.Int, new ConstantValue(1));
         var op = BoundBinaryOperator.Bind(SyntaxKind.MinusToken, operand.type, value.type);
-
         return new BoundCompoundAssignmentExpression(operand, op, value);
     }
 
@@ -112,7 +109,6 @@ internal static partial class BoundFactory {
 
     internal static BoundUnaryExpression Not(BoundExpression operand) {
         var op = BoundUnaryOperator.Bind(SyntaxKind.ExclamationToken, operand.type);
-
         return new BoundUnaryExpression(op, operand);
     }
 
@@ -122,19 +118,26 @@ internal static partial class BoundFactory {
 
     internal static BoundBinaryExpression Add(BoundExpression left, BoundExpression right) {
         var op = BoundBinaryOperator.Bind(SyntaxKind.PlusToken, left.type, right.type);
-
         return new BoundBinaryExpression(left, op, right);
     }
 
     internal static BoundBinaryExpression Subtract(BoundExpression left, BoundExpression right) {
         var op = BoundBinaryOperator.Bind(SyntaxKind.MinusToken, left.type, right.type);
-
         return new BoundBinaryExpression(left, op, right);
     }
 
     internal static BoundBinaryExpression And(BoundExpression left, BoundExpression right) {
         var op = BoundBinaryOperator.Bind(SyntaxKind.AmpersandAmpersandToken, left.type, right.type);
-
         return new BoundBinaryExpression(left, op, right);
+    }
+
+    internal static BoundExpression Value(BoundExpression expression) {
+        var op = BoundPostfixOperator.Operators.First(o => o.opKind == BoundPostfixOperatorKind.NullAssert);
+        return new BoundPostfixExpression(expression, op, false);
+    }
+
+    internal static BoundExpression HasValue(BoundExpression expression) {
+        var op = BoundBinaryOperator.Operators.First(o => o.opKind == BoundBinaryOperatorKind.Isnt);
+        return new BoundBinaryExpression(expression, op, new BoundLiteralExpression(value: null, expression.type));
     }
 }

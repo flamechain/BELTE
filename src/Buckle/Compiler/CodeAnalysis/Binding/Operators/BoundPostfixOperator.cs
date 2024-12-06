@@ -26,7 +26,7 @@ internal sealed class BoundPostfixOperator {
     /// <summary>
     /// All defined possible operators, and their operand type.
     /// </summary>
-    internal static BoundPostfixOperator[] Operators = {
+    internal static BoundPostfixOperator[] Operators = [
         // integer
         new BoundPostfixOperator(SyntaxKind.PlusPlusToken, BoundPostfixOperatorKind.Increment, TypeSymbol.Int),
         new BoundPostfixOperator(SyntaxKind.MinusMinusToken, BoundPostfixOperatorKind.Decrement, TypeSymbol.Int),
@@ -36,7 +36,7 @@ internal sealed class BoundPostfixOperator {
         new BoundPostfixOperator(SyntaxKind.MinusMinusToken, BoundPostfixOperatorKind.Decrement, TypeSymbol.Decimal),
 
         new BoundPostfixOperator(SyntaxKind.ExclamationToken, BoundPostfixOperatorKind.NullAssert, null),
-    };
+    ];
 
     /// <summary>
     /// Operator token type.

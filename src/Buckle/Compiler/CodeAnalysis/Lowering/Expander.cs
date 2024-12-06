@@ -2,8 +2,9 @@ using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.Libraries.Standard;
-using Microsoft.CodeAnalysis.PooledObjects;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.Utilities;
+using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
@@ -11,28 +12,24 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// Expands expressions to make them simpler to handle by the <see cref="Lowerer" />.
 /// </summary>
 internal sealed class Expander : BoundTreeExpander {
-    private readonly List<string> _localNames = new List<string>();
+    private readonly List<string> _localNames = [];
+    private readonly MethodSymbol _container;
 
     private int _tempCount = 0;
     private int _compoundAssignmentDepth = 0;
     private int _operatorDepth = 0;
 
-    internal bool transpilerMode = false;
+    internal Expander(MethodSymbol container) {
+        _container = container;
+    }
 
-    /// <summary>
-    /// Expands all expression in a <see cref="BoundStatement" />.
-    /// If <param name="statement" /> is not a <see cref="BoundBlockStatement" /> and any expansion occurs, a
-    /// <see cref="BoundBlockStatement" /> will be returned.
-    /// </summary>
-    /// <param name="statement"><see cref="BoundStatement" /> to expand expressions in.</param>
-    /// <returns>Expanded <param name="statement" />.</returns>
     internal BoundStatement Expand(BoundStatement statement) {
         return Simplify(ExpandStatement(statement));
     }
 
     private protected override List<BoundStatement> ExpandLocalDeclarationStatement(
         BoundLocalDeclarationStatement statement) {
-        _localNames.Add(statement.declaration.variable.name);
+        _localNames.Add(statement.declaration.dataContainer.name);
         return base.ExpandLocalDeclarationStatement(statement);
     }
 
@@ -69,10 +66,10 @@ internal sealed class Expander : BoundTreeExpander {
             var tempLocal = GenerateTempLocal(expression.type);
 
             statements.Add(new BoundLocalDeclarationStatement(
-                new BoundVariableDeclaration(tempLocal, callReplacement)
+                new BoundDataContainerDeclaration(tempLocal, callReplacement)
             ));
 
-            replacement = new BoundVariableExpression(tempLocal);
+            replacement = new BoundDataContainerExpression(tempLocal);
 
             return statements;
         }
@@ -83,7 +80,9 @@ internal sealed class Expander : BoundTreeExpander {
     private List<BoundStatement> ExpandCallExpressionInternal(
         BoundCallExpression expression,
         out BoundExpression replacement) {
-        if (transpilerMode && expression.method.containingType == StandardLibrary.Math) {
+        /*
+        TODO What did this do
+        if (_transpilerMode && expression.method.containingType.Equals(StandardLibrary.Math)) {
             var statements = ExpandExpression(expression.expression, out var expressionReplacement);
             var replacementArguments = ArrayBuilder<BoundExpression>.GetInstance();
 
@@ -91,24 +90,23 @@ internal sealed class Expander : BoundTreeExpander {
                 var tempLocal = GenerateTempLocal(argument.type);
                 statements.AddRange(ExpandExpression(argument, out var argumentReplacement));
                 statements.Add(new BoundLocalDeclarationStatement(
-                    new BoundVariableDeclaration(tempLocal, argumentReplacement)
+                    new BoundDataContainerDeclaration(tempLocal, argumentReplacement)
                 ));
 
-                replacementArguments.Add(new BoundVariableExpression(tempLocal));
+                replacementArguments.Add(new BoundDataContainerExpression(tempLocal));
             }
 
             replacement = new BoundCallExpression(
                 expressionReplacement,
                 expression.method,
-                replacementArguments.ToImmutableAndFree(),
-                expression.templateArguments
+                replacementArguments.ToImmutableAndFree()
             );
 
             return statements;
         }
+        */
 
-        var baseStatements = base.ExpandCallExpression(expression, out replacement);
-        return baseStatements;
+        return base.ExpandCallExpression(expression, out replacement);
     }
 
     private protected override List<BoundStatement> ExpandBinaryExpression(
@@ -123,13 +121,13 @@ internal sealed class Expander : BoundTreeExpander {
             var tempLocal = GenerateTempLocal(expression.type);
 
             statements.Add(
-                new BoundLocalDeclarationStatement(new BoundVariableDeclaration(
+                new BoundLocalDeclarationStatement(new BoundDataContainerDeclaration(
                     tempLocal,
                     new BoundBinaryExpression(leftReplacement, expression.op, rightReplacement)
                 ))
             );
 
-            replacement = new BoundVariableExpression(tempLocal);
+            replacement = new BoundDataContainerExpression(tempLocal);
             _operatorDepth--;
             return statements;
         }
@@ -152,13 +150,13 @@ internal sealed class Expander : BoundTreeExpander {
             var tempLocal = GenerateTempLocal(expression.type);
 
             statements.Add(
-                new BoundLocalDeclarationStatement(new BoundVariableDeclaration(
+                new BoundLocalDeclarationStatement(new BoundDataContainerDeclaration(
                     tempLocal,
                     new BoundTernaryExpression(leftReplacement, expression.op, centerReplacement, rightReplacement)
                 ))
             );
 
-            replacement = new BoundVariableExpression(tempLocal);
+            replacement = new BoundDataContainerExpression(tempLocal);
             _operatorDepth--;
             return statements;
         }
@@ -172,10 +170,10 @@ internal sealed class Expander : BoundTreeExpander {
         BoundInitializerDictionaryExpression expression,
         out BoundExpression replacement) {
         // TODO Add a way where if _operatorDepth == 0 a temp local isn't made if this is a variable initializer
-        var dictionaryType = expression.type.typeSymbol as NamedTypeSymbol;
+        var dictionaryType = expression.type as NamedTypeSymbol;
         var tempLocal = GenerateTempLocal(expression.type);
         var statements = new List<BoundStatement>() {
-            new BoundLocalDeclarationStatement(new BoundVariableDeclaration(
+            new BoundLocalDeclarationStatement(new BoundDataContainerDeclaration(
                 tempLocal,
                 new BoundObjectCreationExpression(
                     expression.type,
@@ -187,24 +185,65 @@ internal sealed class Expander : BoundTreeExpander {
 
         foreach (var pair in expression.items) {
             statements.Add(new BoundExpressionStatement(new BoundCallExpression(
-                new BoundVariableExpression(tempLocal),
+                new BoundDataContainerExpression(tempLocal),
                 dictionaryType.GetMembers("Add").Single() as MethodSymbol,
-                [pair.Item1, pair.Item2],
-                []
+                [pair.Item1, pair.Item2]
             )));
         }
 
-        replacement = new BoundVariableExpression(tempLocal);
+        replacement = new BoundDataContainerExpression(tempLocal);
         return statements;
     }
 
-    private DataContainerSymbol GenerateTempLocal(TypeWithAnnotations type, Symbol container) {
+    private protected override List<BoundStatement> ExpandConditionalAccessExpression(
+        BoundConditionalAccessExpression expression,
+        out BoundExpression replacement) {
+        var receiver = expression.receiver;
+        var access = expression.accessExpression;
+        var tempLocal = GenerateTempLocal(receiver.type);
+        var statements = ExpandExpression(receiver, out var receiverReplacement);
+
+        statements.Add(new BoundLocalDeclarationStatement(
+            new BoundDataContainerDeclaration(tempLocal, receiverReplacement))
+        );
+
+        var receiverLocal = new BoundDataContainerExpression(tempLocal);
+        var op = BoundTernaryOperator.Bind(
+            SyntaxKind.QuestionToken,
+            SyntaxKind.ColonToken,
+            SpecialType.Bool,
+            access.type,
+            access.type
+        );
+
+        BoundExpression newAccess;
+
+        if (access is BoundFieldAccessExpression f) {
+            newAccess = new BoundFieldAccessExpression(receiverLocal, f.field, f.type, f.constantValue);
+        } else if (access is BoundArrayAccessExpression a) {
+            statements.AddRange(ExpandExpression(a.index, out var indexReplacement));
+            newAccess = new BoundArrayAccessExpression(receiverLocal, indexReplacement, a.type);
+        } else {
+            throw ExceptionUtilities.Unreachable();
+        }
+
+        replacement = new BoundTernaryExpression(
+            HasValue(receiver),
+            op,
+            newAccess,
+            new BoundLiteralExpression(value: null, access.type)
+        );
+
+        return statements;
+    }
+
+    private SynthesizedDataContainerSymbol GenerateTempLocal(TypeSymbol type) {
         string name;
 
         do {
             name = $"temp{_tempCount++}";
         } while (_localNames.Contains(name));
 
-        return new SynthesizedDataContainerSymbol(container, type, name);
+        return new SynthesizedDataContainerSymbol(_container, new TypeWithAnnotations(type), name);
     }
 }

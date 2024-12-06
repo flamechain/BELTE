@@ -222,6 +222,8 @@ internal abstract class BoundTreeExpander {
                 return ExpandArrayCreationExpression((BoundArrayCreationExpression)expression, out replacement);
             case BoundNodeKind.FieldAccessExpression:
                 return ExpandFieldAccessExpression((BoundFieldAccessExpression)expression, out replacement);
+            case BoundNodeKind.ConditionalAccessExpression:
+                return ExpandConditionalAcessExpression((BoundConditionalAccessExpression)expression, out replacement);
             case BoundNodeKind.PrefixExpression:
                 return ExpandPrefixExpression((BoundPrefixExpression)expression, out replacement);
             case BoundNodeKind.PostfixExpression:
@@ -522,6 +524,21 @@ internal abstract class BoundTreeExpander {
                 expression.constantValue
             );
 
+            return statements;
+        }
+
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandConditionalAccessExpression(
+        BoundConditionalAccessExpression expression,
+        out BoundExpression replacement) {
+        var statements = ExpandExpression(expression.receiver, out var receiverReplacement);
+        statements.AddRange(ExpandExpression(expression.accessExpression, out var accessReplacement));
+
+        if (statements.Count != 0) {
+            replacement = new BoundConditionalAccessExpression(expression.type, receiverReplacement, accessReplacement);
             return statements;
         }
 

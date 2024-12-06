@@ -13,13 +13,11 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// Lowers statements to be simpler and use less language features.
 /// </summary>
 internal sealed class Lowerer : BoundTreeRewriter {
-    private readonly bool _transpilerMode;
-    private Expander _expander;
-
+    private readonly Expander _expander;
     private int _labelCount;
 
-    private Lowerer(bool transpilerMode) {
-        _transpilerMode = transpilerMode;
+    private Lowerer(MethodSymbol container) {
+        _expander = new Expander(container);
     }
 
     /// <summary>
@@ -29,29 +27,15 @@ internal sealed class Lowerer : BoundTreeRewriter {
     /// <param name="statement">Method body.</param>
     /// <returns>Lowered method body (same type).</returns>
     internal static BoundBlockStatement Lower(MethodSymbol method, BoundStatement statement) {
-        var lowerer = new Lowerer(false) {
-            _expander = new Expander() {
-                transpilerMode = transpilerMode
-            }
-        };
+        var lowerer = new Lowerer(method);
 
         var optimizedStatement = Optimizer.Optimize(statement, false);
         var expandedStatement = lowerer._expander.Expand(optimizedStatement);
         var rewrittenStatement = lowerer.RewriteStatement(expandedStatement);
         var block = Flatten(method, rewrittenStatement);
-        var optimizedBlock = Optimizer.Optimize(block, !transpilerMode) as BoundBlockStatement;
+        var optimizedBlock = Optimizer.Optimize(block, true) as BoundBlockStatement;
 
-        if (!transpilerMode)
-            return (optimizedBlock, optimizedBlock);
-
-        var transpilerLowerer = new Lowerer(true) {
-            _expander = lowerer._expander
-        };
-
-        var transpilerStatement = transpilerLowerer.RewriteStatement(expandedStatement);
-        var transpilerOptimizedBlock = Optimizer.Optimize(transpilerStatement, false) as BoundBlockStatement;
-
-        return (optimizedBlock, transpilerOptimizedBlock);
+        return optimizedBlock;
     }
 
     private protected override BoundStatement RewriteIfStatement(BoundIfStatement statement) {
@@ -83,9 +67,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
         end:
 
         */
-        if (_transpilerMode)
-            return base.RewriteIfStatement(statement);
-
         if (statement.elseStatement is null) {
             var endLabel = GenerateLabel();
 
@@ -134,9 +115,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
         break:
 
         */
-        if (_transpilerMode)
-            return base.RewriteWhileStatement(statement);
-
         var continueLabel = statement.continueLabel;
         var breakLabel = statement.breakLabel;
 
@@ -169,9 +147,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
         break:
 
         */
-        if (_transpilerMode)
-            return base.RewriteDoWhileStatement(statement);
-
         var continueLabel = statement.continueLabel;
         var breakLabel = statement.breakLabel;
 
@@ -206,9 +181,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
 
         */
-        if (_transpilerMode)
-            return base.RewriteForStatement(statement);
-
         var continueLabel = statement.continueLabel;
         var breakLabel = statement.breakLabel;
         var condition = statement.condition.kind == BoundNodeKind.EmptyExpression
@@ -290,9 +262,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
 
         if (expression.op.opKind == BoundBinaryOperatorKind.Power) {
-            var powMethod = expression.left.type.isNullable || expression.right.type.isNullable
-                ? StandardLibrary.Math.GetMembersPublic()[46]
-                : StandardLibrary.Math.GetMembersPublic()[47];
+            var powMethod = expression.left.type.IsNullableType() || expression.right.type.IsNullableType()
+                ? StandardLibrary.Math.GetMembers()[46]
+                : StandardLibrary.Math.GetMembers()[47];
 
             return RewriteExpression(
                 Call(powMethod as MethodSymbol, [expression.left, expression.right])
@@ -309,8 +281,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
             );
         }
 
-        if (expression.left.type.isNullable &&
-            expression.right.type.isNullable &&
+        if (expression.left.type.IsNullableType() &&
+            expression.right.type.IsNullableType() &&
             expression.left.constantValue is null &&
             expression.right.constantValue is null) {
             return RewriteExpression(
@@ -329,7 +301,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             );
         }
 
-        if (expression.left.type.isNullable && expression.left.constantValue is null) {
+        if (expression.left.type.IsNullableType() && expression.left.constantValue is null) {
             return RewriteExpression(
                 NullConditional(
                     @if: HasValue(expression.left),
@@ -343,7 +315,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             );
         }
 
-        if (expression.right.type.isNullable && expression.right.constantValue is null) {
+        if (expression.right.type.IsNullableType() && expression.right.constantValue is null) {
             return RewriteExpression(
                 NullConditional(
                     @if: HasValue(expression.right),
@@ -377,7 +349,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (expression.op.opKind == BoundUnaryOperatorKind.NumericalIdentity)
             return RewriteExpression(expression.operand);
 
-        if (expression.operand.type.isNullable) {
+        if (expression.operand.type.IsNullableType()) {
             return RewriteExpression(
                 NullConditional(
                     @if: HasValue(expression.operand),
@@ -411,8 +383,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
         <expression>
 
         */
-        if (expression.operand.type.isNullable && !expression.type.isNullable) {
-            if (BoundType.CopyWith(expression.type, isNullable: true).Equals(expression.operand.type, true))
+        if (expression.operand.type.IsNullableType() && !expression.type.IsNullableType()) {
+            if (expression.type.Equals(expression.operand.type))
                 return RewriteExpression(Value(expression.operand));
 
             return base.RewriteCastExpression(
@@ -423,7 +395,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             );
         }
 
-        if (BoundType.CopyWith(expression.operand.type, isNullable: true).Equals(expression.type, true))
+        if (expression.operand.type.Equals(expression.type))
             return RewriteExpression(expression.operand);
 
         return base.RewriteCastExpression(expression);
@@ -458,10 +430,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var method = expression.method;
         var parameters = ArrayBuilder<ParameterSymbol>.GetInstance();
 
-        if (method.name == "Value" && !expression.arguments[0].type.isNullable)
+        if (method.name == "Value" && !expression.arguments[0].type.IsNullableType())
             return RewriteExpression(expression.arguments[0]);
-        else if (method.name == "HasValue" && !expression.arguments[0].type.isNullable)
-            return new BoundLiteralExpression(true);
+        else if (method.name == "HasValue" && !expression.arguments[0].type.IsNullableType())
+            return new BoundLiteralExpression(true, expression.type);
 
         var parametersChanged = false;
 
@@ -523,9 +495,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
         (<left> = <left> <op> <right>)
 
         */
-        if (_transpilerMode)
-            return base.RewriteCompoundAssignmentExpression(expression);
-
         return RewriteExpression(
             Assignment(
                 expression.left,
@@ -536,63 +505,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 )
             )
         );
-    }
-
-    private protected override BoundExpression RewriteMemberAccessExpression(BoundMemberAccessExpression expression) {
-        /*
-
-        <operand><op><member>
-
-        ----> <op> is '?.'
-
-        (HasValue(<operand>) ? <operand>.<member> : null)
-
-        ----> is static access
-
-        <member>
-
-        */
-        if (expression.isNullConditional) {
-            return RewriteExpression(
-                NullConditional(
-                    @if: HasValue(expression.left),
-                    @then: MemberAccess(
-                        expression.left,
-                        expression.right,
-                        expression.isStaticAccess
-                    ),
-                    @else: Literal(null, expression.type)
-                )
-            );
-        }
-
-        return base.RewriteMemberAccessExpression(expression);
-    }
-
-    private protected override BoundExpression RewriteArrayAccessExpression(BoundArrayAccessExpression expression) {
-        /*
-
-        <operand><openBracket><index>]
-
-        ----> <openBracket> is '?['
-
-        (HasValue(<operand>) ? <operand>[<index>] : null)
-
-        */
-        if (expression.isNullConditional) {
-            return RewriteExpression(
-                NullConditional(
-                    @if: HasValue(expression.receiver),
-                    @then: Index(
-                        expression.receiver,
-                        expression.index
-                    ),
-                    @else: Literal(null, expression.type)
-                )
-            );
-        }
-
-        return base.RewriteArrayAccessExpression(expression);
     }
 
     private protected override BoundExpression RewritePrefixExpression(BoundPrefixExpression expression) {
@@ -609,9 +521,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
         (<operand> -= 1)
 
         */
-        if (_transpilerMode)
-            return base.RewritePrefixExpression(expression);
-
         if (expression.op.opKind == BoundPrefixOperatorKind.Increment)
             return RewriteExpression(Increment(expression.operand));
         else
@@ -622,10 +531,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
         /*
 
         <operand><op>
-
-        ----> <op> is '!'
-
-        (Value(<operand>))
 
         ----> <op> is '++' and <isOwnStatement>
 
@@ -644,13 +549,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
         ((<operand> -= 1) + 1)
 
         */
-
-        if (expression.op.opKind == BoundPostfixOperatorKind.NullAssert)
-            return RewriteExpression(Value(expression.operand));
-
-        if (_transpilerMode)
-            return base.RewritePostfixExpression(expression);
-
         var assignment = expression.op.opKind == BoundPostfixOperatorKind.Increment
             ? Increment(expression.operand)
             : Decrement(expression.operand);
@@ -666,38 +564,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
     }
 
-    private BoundExpression Value(BoundExpression expression) {
-        if (expression.type.typeSymbol == TypeSymbol.Bool)
-            return Call(BuiltinMethods.ValueBool, expression);
-        if (expression.type.typeSymbol == TypeSymbol.Decimal)
-            return Call(BuiltinMethods.ValueDecimal, expression);
-        if (expression.type.typeSymbol == TypeSymbol.Int)
-            return Call(BuiltinMethods.ValueInt, expression);
-        if (expression.type.typeSymbol == TypeSymbol.String)
-            return Call(BuiltinMethods.ValueString, expression);
-        if (expression.type.typeSymbol == TypeSymbol.Char)
-            return Call(BuiltinMethods.ValueChar, expression);
-
-        return Call(BuiltinMethods.ValueAny, expression);
-    }
-
-    private BoundExpression HasValue(BoundExpression expression) {
-        if (expression.type.typeSymbol == TypeSymbol.Bool)
-            return Call(BuiltinMethods.HasValueBool, expression);
-        if (expression.type.typeSymbol == TypeSymbol.Decimal)
-            return Call(BuiltinMethods.HasValueDecimal, expression);
-        if (expression.type.typeSymbol == TypeSymbol.Int)
-            return Call(BuiltinMethods.HasValueInt, expression);
-        if (expression.type.typeSymbol == TypeSymbol.String)
-            return Call(BuiltinMethods.HasValueString, expression);
-        if (expression.type.typeSymbol == TypeSymbol.Char)
-            return Call(BuiltinMethods.HasValueChar, expression);
-
-        return Call(BuiltinMethods.HasValueAny, expression);
-    }
-
     private static BoundBlockStatement Flatten(MethodSymbol method, BoundStatement statement) {
-        var builder = ArrayBuilder<BoundStatement>.GetInstance();
+        var statementsBuilder = ArrayBuilder<BoundStatement>.GetInstance();
+        var localsBuilder = ArrayBuilder<DataContainerSymbol>.GetInstance();
+        var functionsBuilder = ArrayBuilder<LocalFunctionSymbol>.GetInstance();
+
         var stack = new Stack<BoundStatement>();
         stack.Push(statement);
 
@@ -705,19 +576,26 @@ internal sealed class Lowerer : BoundTreeRewriter {
             var current = stack.Pop();
 
             if (current is BoundBlockStatement block) {
+                localsBuilder.AddRange(block.locals);
+                functionsBuilder.AddRange(block.localFunctions);
+
                 foreach (var s in block.statements.Reverse())
                     stack.Push(s);
             } else {
-                builder.Add(current);
+                statementsBuilder.Add(current);
             }
         }
 
-        if (method.type.typeSymbol == TypeSymbol.Void) {
-            if (builder.Count == 0 || CanFallThrough(builder.Last()))
-                builder.Add(new BoundReturnStatement(null));
+        if (method.returnsVoid) {
+            if (statementsBuilder.Count == 0 || CanFallThrough(statementsBuilder.Last()))
+                statementsBuilder.Add(new BoundReturnStatement(null));
         }
 
-        return new BoundBlockStatement(builder.ToImmutableAndFree());
+        return new BoundBlockStatement(
+            statementsBuilder.ToImmutableAndFree(),
+            localsBuilder.ToImmutableAndFree(),
+            functionsBuilder.ToImmutableAndFree()
+        );
     }
 
     private static bool CanFallThrough(BoundStatement boundStatement) {
@@ -725,9 +603,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             boundStatement.kind != BoundNodeKind.GotoStatement;
     }
 
-    private BoundLabel GenerateLabel() {
-        var name = $"Label{++_labelCount}";
-
-        return new BoundLabel(name);
+    private SynthesizedLabelSymbol GenerateLabel() {
+        return new SynthesizedLabelSymbol($"Label{++_labelCount}");
     }
 }
