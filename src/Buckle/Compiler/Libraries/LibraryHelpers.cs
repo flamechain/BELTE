@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Utilities;
@@ -9,9 +10,19 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.Libraries;
 
 internal static class LibraryHelpers {
-    internal static SynthesizedFieldSymbol ConstExprField(string name, SpecialType specialType, object constantValue) {
-        var type = CorLibrary.GetSpecialType(specialType);
-        return new SynthesizedFieldSymbol(null, type, name, true, false, true, false, true, constantValue);
+    private static SpecialOrKnownType.Boxed _lazyStringList;
+
+    internal static SpecialOrKnownType StringList {
+        get {
+            if (_lazyStringList is null)
+                Interlocked.CompareExchange(ref _lazyStringList, GenerateStringList(), null);
+
+            return _lazyStringList.type;
+        }
+    }
+
+    internal static SynthesizedFieldSymbol ConstExprField(string name, SpecialOrKnownType type, object constantValue) {
+        return new SynthesizedFieldSymbol(null, type.knownType, name, true, false, true, false, true, constantValue);
     }
 
     internal static SynthesizedFinishedNamedTypeSymbol StaticClass(string name, ImmutableArray<Symbol> members) {
@@ -60,20 +71,20 @@ internal static class LibraryHelpers {
         return new SynthesizedFinishedNamedTypeSymbol(namedType, null, builder.ToImmutableAndFree());
     }
 
-    internal static SynthesizedFinishedMethodSymbol StaticMethod(string name, SpecialType type) {
+    internal static SynthesizedFinishedMethodSymbol StaticMethod(string name, SpecialOrKnownType type) {
         return Method(name, type, false, [], DeclarationModifiers.Static);
     }
 
     internal static SynthesizedFinishedMethodSymbol StaticMethod(
         string name,
-        SpecialType type,
-        IEnumerable<(string name, SpecialType type)> parameters) {
+        SpecialOrKnownType type,
+        IEnumerable<(string name, SpecialOrKnownType type)> parameters) {
         return Method(
             name,
             type,
             false,
-            parameters.Select<(string name, SpecialType type),
-                              (string, SpecialType, bool, object, RefKind)>(
+            parameters.Select<(string name, SpecialOrKnownType type),
+                              (string, SpecialOrKnownType, bool, object, RefKind)>(
                 p => (p.name, p.type, false, null, RefKind.None)
             ),
             DeclarationModifiers.Static
@@ -82,14 +93,48 @@ internal static class LibraryHelpers {
 
     internal static SynthesizedFinishedMethodSymbol StaticMethod(
         string name,
-        SpecialType type,
-        IEnumerable<(string name, SpecialType type, bool isNullable)> parameters) {
+        SpecialOrKnownType type,
+        bool isNullable,
+        IEnumerable<(string name, SpecialOrKnownType type)> parameters) {
+        return Method(
+            name,
+            type,
+            isNullable,
+            parameters.Select<(string name, SpecialOrKnownType type),
+                              (string, SpecialOrKnownType, bool, object, RefKind)>(
+                p => (p.name, p.type, false, null, RefKind.None)
+            ),
+            DeclarationModifiers.Static
+        );
+    }
+
+    internal static SynthesizedFinishedMethodSymbol StaticMethod(
+        string name,
+        SpecialOrKnownType type,
+        IEnumerable<(string name, SpecialOrKnownType type, bool isNullable)> parameters) {
         return Method(
             name,
             type,
             false,
-            parameters.Select<(string name, SpecialType type, bool isNullable),
-                              (string, SpecialType, bool, object, RefKind)>(
+            parameters.Select<(string name, SpecialOrKnownType type, bool isNullable),
+                              (string, SpecialOrKnownType, bool, object, RefKind)>(
+                p => (p.name, p.type, p.isNullable, null, RefKind.None)
+            ),
+            DeclarationModifiers.Static
+        );
+    }
+
+    internal static SynthesizedFinishedMethodSymbol StaticMethod(
+        string name,
+        SpecialOrKnownType type,
+        bool isNullable,
+        IEnumerable<(string name, SpecialOrKnownType type, bool isNullable)> parameters) {
+        return Method(
+            name,
+            type,
+            isNullable,
+            parameters.Select<(string name, SpecialOrKnownType type, bool isNullable),
+                              (string, SpecialOrKnownType, bool, object, RefKind)>(
                 p => (p.name, p.type, p.isNullable, null, RefKind.None)
             ),
             DeclarationModifiers.Static
@@ -98,15 +143,15 @@ internal static class LibraryHelpers {
 
     internal static SynthesizedFinishedMethodSymbol Method(
         string name,
-        SpecialType type,
+        SpecialOrKnownType type,
         bool isNullable,
-        IEnumerable<(string name, SpecialType type, bool isNullable, object defaultValue)> parameters) {
+        IEnumerable<(string name, SpecialOrKnownType type, bool isNullable, object defaultValue)> parameters) {
         return Method(
             name,
             type,
             isNullable,
-            parameters.Select<(string name, SpecialType type, bool isNullable, object defaultValue),
-                              (string, SpecialType, bool, object, RefKind)>(
+            parameters.Select<(string name, SpecialOrKnownType type, bool isNullable, object defaultValue),
+                              (string, SpecialOrKnownType, bool, object, RefKind)>(
                 p => (p.name, p.type, p.isNullable, p.defaultValue, RefKind.None)
             ),
             DeclarationModifiers.None
@@ -115,14 +160,14 @@ internal static class LibraryHelpers {
 
     internal static SynthesizedFinishedMethodSymbol Method(
         string name,
-        SpecialType type,
-        IEnumerable<(string name, SpecialType type, object defaultValue)> parameters) {
+        SpecialOrKnownType type,
+        IEnumerable<(string name, SpecialOrKnownType type, object defaultValue)> parameters) {
         return Method(
             name,
             type,
             false,
-            parameters.Select<(string name, SpecialType type, object defaultValue),
-                              (string, SpecialType, bool, object, RefKind)>(
+            parameters.Select<(string name, SpecialOrKnownType type, object defaultValue),
+                              (string, SpecialOrKnownType, bool, object, RefKind)>(
                 p => (p.name, p.type, false, p.defaultValue, RefKind.None)
             ),
             DeclarationModifiers.None
@@ -131,14 +176,14 @@ internal static class LibraryHelpers {
 
     internal static SynthesizedFinishedMethodSymbol Method(
         string name,
-        SpecialType type,
-        IEnumerable<(string name, SpecialType type, bool isNullable)> parameters) {
+        SpecialOrKnownType type,
+        IEnumerable<(string name, SpecialOrKnownType type, bool isNullable)> parameters) {
         return Method(
             name,
             type,
             false,
-            parameters.Select<(string name, SpecialType type, bool isNullable),
-                              (string, SpecialType, bool, object, RefKind)>(
+            parameters.Select<(string name, SpecialOrKnownType type, bool isNullable),
+                              (string, SpecialOrKnownType, bool, object, RefKind)>(
                 p => (p.name, p.type, p.isNullable, null, RefKind.None)
             ),
             DeclarationModifiers.None
@@ -147,15 +192,15 @@ internal static class LibraryHelpers {
 
     internal static SynthesizedFinishedMethodSymbol Method(
         string name,
-        SpecialType type,
+        SpecialOrKnownType type,
         bool isNullable,
-        IEnumerable<(string name, SpecialType type, bool isNullable)> parameters) {
+        IEnumerable<(string name, SpecialOrKnownType type, bool isNullable)> parameters) {
         return Method(
             name,
             type,
             isNullable,
-            parameters.Select<(string name, SpecialType type, bool isNullable),
-                              (string, SpecialType, bool, object, RefKind)>(
+            parameters.Select<(string name, SpecialOrKnownType type, bool isNullable),
+                              (string, SpecialOrKnownType, bool, object, RefKind)>(
                 p => (p.name, p.type, p.isNullable, null, RefKind.None)
             ),
             DeclarationModifiers.None
@@ -164,14 +209,14 @@ internal static class LibraryHelpers {
 
     internal static SynthesizedFinishedMethodSymbol Method(
         string name,
-        SpecialType type,
-        IEnumerable<(string name, SpecialType type)> parameters) {
+        SpecialOrKnownType type,
+        IEnumerable<(string name, SpecialOrKnownType type)> parameters) {
         return Method(
             name,
             type,
             false,
-            parameters.Select<(string name, SpecialType type),
-                              (string, SpecialType, bool, object, RefKind)>(
+            parameters.Select<(string name, SpecialOrKnownType type),
+                              (string, SpecialOrKnownType, bool, object, RefKind)>(
                 p => (p.name, p.type, false, null, RefKind.None)
             ),
             DeclarationModifiers.None
@@ -180,12 +225,11 @@ internal static class LibraryHelpers {
 
     internal static SynthesizedFinishedMethodSymbol Method(
         string name,
-        SpecialType type,
+        SpecialOrKnownType type,
         bool isNullable,
-        IEnumerable<(string name, SpecialType type, bool isNullable, object defaultValue, RefKind refKind)> parameters,
+        IEnumerable<(string name, SpecialOrKnownType type, bool isNullable, object defaultValue, RefKind refKind)> parameters,
         DeclarationModifiers modifiers) {
-        var returnType = CorLibrary.GetSpecialType(type);
-        var returnTypeWithAnnotations = new TypeWithAnnotations(returnType, isNullable);
+        var returnTypeWithAnnotations = new TypeWithAnnotations(type.knownType, isNullable);
         var method = new SynthesizedSimpleOrdinaryMethodSymbol(
             name,
             returnTypeWithAnnotations,
@@ -197,8 +241,7 @@ internal static class LibraryHelpers {
         var i = 0;
 
         foreach (var parameter in parameters) {
-            var parameterType = CorLibrary.GetSpecialType(parameter.type);
-            var parameterTypeWithAnnotations = new TypeWithAnnotations(parameterType, parameter.isNullable);
+            var parameterTypeWithAnnotations = new TypeWithAnnotations(parameter.type.knownType, parameter.isNullable);
             var constantValue = parameter.defaultValue is null ? null : new ConstantValue(parameter.defaultValue);
 
             var synthesizedParameter = SynthesizedParameterSymbol.Create(
@@ -214,5 +257,12 @@ internal static class LibraryHelpers {
         }
 
         return new SynthesizedFinishedMethodSymbol(method, null, builder.ToImmutableAndFree());
+    }
+
+    private static SpecialOrKnownType.Boxed GenerateStringList() {
+        return new SpecialOrKnownType.Boxed(new ConstructedNamedTypeSymbol(
+            CorLibrary.GetSpecialType(SpecialType.List),
+            [new TypeOrConstant(CorLibrary.GetSpecialType(SpecialType.String))]
+        ));
     }
 }
