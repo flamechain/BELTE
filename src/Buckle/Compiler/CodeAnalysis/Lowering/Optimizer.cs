@@ -97,12 +97,12 @@ internal sealed class Optimizer : BoundTreeRewriter {
         var left = expression.left;
         var right = expression.right is BoundReferenceExpression r ? r.expression : expression.right;
         // TODO Expand this to cover more cases
-        var canSimplify = left is BoundDataContainerExpression && right is BoundDataContainerExpression;
+        var canSimplify = left is BoundDataContainerExpression ld &&
+            right is BoundDataContainerExpression rd &&
+            ld.dataContainer.Equals(rd.dataContainer);
 
-        if (canSimplify &&
-            BindingUtilities.GetAssignedVariableSymbol(left) == BindingUtilities.GetAssignedVariableSymbol(right)) {
+        if (canSimplify)
             return new BoundEmptyExpression();
-        }
 
         return base.RewriteAssignmentExpression(expression);
     }
@@ -134,26 +134,32 @@ internal sealed class Optimizer : BoundTreeRewriter {
         <length of constant list>
 
         */
-        if (expression.method == BuiltinMethods.Length && expression.arguments[0].constantValue is not null) {
-            var constantList = expression.arguments[0].constantValue.value as ImmutableArray<ConstantValue>?;
+        var method = expression.method;
+        var arguments = expression.arguments;
 
-            if (constantList.HasValue)
-                return RewriteLiteralExpression(new BoundLiteralExpression(constantList.Value.Length));
+        if (method == BuiltinMethods.Length && arguments[0].constantValue is not null) {
+            var constantList = arguments[0].constantValue.value as ImmutableArray<ConstantValue>?;
+
+            if (constantList.HasValue) {
+                return RewriteLiteralExpression(
+                    new BoundLiteralExpression(constantList.Value.Length, method.returnType)
+                );
+            }
         }
 
         return base.RewriteCallExpression(expression);
     }
 
-    private static BoundBlockStatement RemoveDeadCode(BoundBlockStatement statement) {
-        var controlFlow = ControlFlowGraph.Create(statement);
+    private static BoundBlockStatement RemoveDeadCode(BoundBlockStatement block) {
+        var controlFlow = ControlFlowGraph.Create(block);
         var reachableStatements = new HashSet<BoundStatement>(controlFlow.blocks.SelectMany(b => b.statements));
 
-        var builder = statement.statements.ToBuilder();
+        var builder = block.statements.ToBuilder();
         for (var i = builder.Count - 1; i >= 0; i--) {
             if (!reachableStatements.Contains(builder[i]))
                 builder.RemoveAt(i);
         }
 
-        return new BoundBlockStatement(builder.ToImmutable());
+        return new BoundBlockStatement(builder.ToImmutable(), block.locals, block.localFunctions);
     }
 }

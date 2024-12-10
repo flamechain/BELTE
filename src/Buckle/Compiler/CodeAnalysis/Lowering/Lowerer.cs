@@ -383,20 +383,26 @@ internal sealed class Lowerer : BoundTreeRewriter {
         <expression>
 
         */
-        if (expression.operand.type.IsNullableType() && !expression.type.IsNullableType()) {
-            if (expression.type.Equals(expression.operand.type))
-                return RewriteExpression(Value(expression.operand));
+        var operand = expression.operand;
+        var type = expression.type;
+        var operandType = operand.type;
+
+        if (operandType.IsNullableType() && !type.IsNullableType()) {
+            if (type.Equals(operandType))
+                return RewriteExpression(Value(operand));
 
             return base.RewriteCastExpression(
                 Cast(
-                    expression.type,
-                    Value(expression.operand)
+                    type,
+                    Value(operand),
+                    ConversionKind.ExplicitNullable,
+                    operand.constantValue
                 )
             );
         }
 
-        if (expression.operand.type.Equals(expression.type))
-            return RewriteExpression(expression.operand);
+        if (operandType.Equals(type))
+            return RewriteExpression(operand);
 
         return base.RewriteCastExpression(expression);
     }
@@ -428,13 +434,14 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         */
         var method = expression.method;
-        var parameters = ArrayBuilder<ParameterSymbol>.GetInstance();
+        // var parameters = ArrayBuilder<ParameterSymbol>.GetInstance();
 
         if (method.name == "Value" && !expression.arguments[0].type.IsNullableType())
             return RewriteExpression(expression.arguments[0]);
         else if (method.name == "HasValue" && !expression.arguments[0].type.IsNullableType())
             return new BoundLiteralExpression(true, expression.type);
 
+        /*
         var parametersChanged = false;
 
         foreach (var oldParameter in method.parameters) {
@@ -447,6 +454,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 continue;
             }
 
+            TODO Check if we even need this
             var parameter = new ParameterSymbol(
                 name, oldParameter.type, oldParameter.ordinal, oldParameter.defaultValue
             );
@@ -454,6 +462,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             parametersChanged = true;
             parameters.Add(parameter);
         }
+        */
 
         ArrayBuilder<BoundExpression> builder = null;
 
@@ -473,15 +482,13 @@ internal sealed class Lowerer : BoundTreeRewriter {
             builder?.Add(newArgument);
         }
 
-        var newMethod = parametersChanged
-            ? method.UpdateParameters(parameters.ToImmutableAndFree())
-            : method;
+        // var newMethod = parametersChanged
+        //     ? method.UpdateParameters(parameters.ToImmutableAndFree())
+        //     : method;
 
         var arguments = builder is null ? expression.arguments : builder.ToImmutableAndFree();
 
-        return base.RewriteCallExpression(
-            new BoundCallExpression(expression.expression, newMethod, arguments, expression.templateArguments)
-        );
+        return base.RewriteCallExpression(new BoundCallExpression(expression.expression, method, arguments));
     }
 
     private protected override BoundExpression RewriteCompoundAssignmentExpression(
