@@ -4,6 +4,8 @@ namespace Buckle.CodeAnalysis.Binding;
 
 [Flags]
 internal enum UnaryOperatorKind : int {
+    Error = 0x00000000,
+
     TypeMask = 0x000000FF,
 
     Int = 0x00000001,
@@ -14,7 +16,9 @@ internal enum UnaryOperatorKind : int {
     _String = 0x00000006,
     _Type = 0x00000007,
     _NullableNull = 0x00000008,
-    UserDefined = 0x00000009,
+    Any = 0x00000009,
+    // TODO Add Any operators
+    UserDefined = 0x0000000A,
 
     OpMask = 0x0000FF00,
 
