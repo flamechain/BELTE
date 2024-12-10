@@ -55,29 +55,27 @@ internal sealed class Optimizer : BoundTreeRewriter {
         return base.RewriteConditionalGotoStatement(statement);
     }
 
-    private protected override BoundExpression RewriteTernaryExpression(BoundTernaryExpression expression) {
+    private protected override BoundExpression RewriteConditionalExpression(BoundConditionalExpression expression) {
         /*
 
         <left> <op> <center> <op> <right>
 
-        ----> <op> is '?:' and <left> is constant true
+        ----> <left> is constant true
 
         (<center>)
 
-        ----> <op> is '?:' and <left> is constant false
+        ----> <left> is constant false
 
        (<right>)
 
         */
-        if (expression.op.opKind == BoundTernaryOperatorKind.Conditional) {
-            if (ConstantValue.IsNotNull(expression.left.constantValue) && (bool)expression.left.constantValue.value)
-                return RewriteExpression(expression.center);
+        if (ConstantValue.IsNotNull(expression.left.constantValue) && (bool)expression.left.constantValue.value)
+            return RewriteExpression(expression.center);
 
-            if (ConstantValue.IsNotNull(expression.left.constantValue) && !(bool)expression.left.constantValue.value)
-                return RewriteExpression(expression.right);
-        }
+        if (ConstantValue.IsNotNull(expression.left.constantValue) && !(bool)expression.left.constantValue.value)
+            return RewriteExpression(expression.right);
 
-        return base.RewriteTernaryExpression(expression);
+        return base.RewriteConditionalExpression(expression);
     }
 
     private protected override BoundExpression RewriteAssignmentExpression(BoundAssignmentExpression expression) {

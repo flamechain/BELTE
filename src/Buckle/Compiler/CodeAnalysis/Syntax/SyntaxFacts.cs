@@ -357,7 +357,7 @@ internal static class SyntaxFacts {
     internal static string GetOperatorMemberName(OperatorDeclarationSyntax syntax) {
         var parameterCount = syntax.parameterList.parameters.Count;
 
-        return syntax.operatorToken switch {
+        return syntax.operatorToken.kind switch {
             SyntaxKind.AsteriskAsteriskToken => WellKnownMemberNames.PowerOperatorName,
             SyntaxKind.AsteriskToken => WellKnownMemberNames.MultiplyOperatorName,
             SyntaxKind.SlashToken => WellKnownMemberNames.DivideOperatorName,

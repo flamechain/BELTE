@@ -20,7 +20,7 @@ public sealed class DisplayText {
     private bool _writeIndent = true;
 
     public DisplayText() {
-        segments = new List<DisplayTextSegment>();
+        segments = [];
         indent = 0;
     }
 
@@ -155,9 +155,6 @@ public sealed class DisplayText {
             case BoundNodeKind.GlobalStatement:
                 DisplayGlobalStatement(text, (BoundGlobalStatement)node);
                 break;
-            case BoundNodeKind.TernaryExpression:
-                DisplayTernaryExpression(text, (BoundTernaryExpression)node);
-                break;
             case BoundNodeKind.ArrayAccessExpression:
                 DisplayArrayAccessExpression(text, (BoundArrayAccessExpression)node);
                 break;
@@ -181,12 +178,6 @@ public sealed class DisplayText {
                 break;
             case BoundNodeKind.CompoundAssignmentExpression:
                 DisplayCompoundAssignmentExpression(text, (BoundCompoundAssignmentExpression)node);
-                break;
-            case BoundNodeKind.PrefixExpression:
-                DisplayPrefixExpression(text, (BoundPrefixExpression)node);
-                break;
-            case BoundNodeKind.PostfixExpression:
-                DisplayPostfixExpression(text, (BoundPostfixExpression)node);
                 break;
             case BoundNodeKind.EmptyExpression:
                 DisplayEmptyExpression(text);
@@ -223,6 +214,21 @@ public sealed class DisplayText {
                 break;
             case BoundNodeKind.ThrowExpression:
                 DisplayThrowExpression(text, (BoundThrowExpression)node);
+                break;
+            case BoundNodeKind.AsExpression:
+                DisplayAsExpression(text, (BoundAsExpression)node);
+                break;
+            case BoundNodeKind.IsExpression:
+                DisplayIsExpression(text, (BoundIsExpression)node);
+                break;
+            case BoundNodeKind.IsntExpression:
+                DisplayIsntExpression(text, (BoundIsntExpression)node);
+                break;
+            case BoundNodeKind.NullCoalescingExpression:
+                DisplayNullCoalescingExpression(text, (BoundNullCoalescingExpression)node);
+                break;
+            case BoundNodeKind.ConditionalExpression:
+                DisplayConditionalExpression(text, (BoundConditionalExpression)node);
                 break;
             case BoundNodeKind.DataContainerDeclaration:
                 DisplayDataContainerDeclaration(text, (BoundDataContainerDeclaration)node);
@@ -642,15 +648,15 @@ public sealed class DisplayText {
         DisplayNode(text, node.exception);
     }
 
-    private static void DisplayTernaryExpression(DisplayText text, BoundTernaryExpression node) {
+    private static void DisplayConditionalExpression(DisplayText text, BoundConditionalExpression node) {
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
         DisplayNode(text, node.left);
         text.Write(CreateSpace());
-        text.Write(CreatePunctuation(node.op.leftOpKind));
+        text.Write(CreatePunctuation(SyntaxKind.QuestionToken));
         text.Write(CreateSpace());
         DisplayNode(text, node.center);
         text.Write(CreateSpace());
-        text.Write(CreatePunctuation(node.op.rightOpKind));
+        text.Write(CreatePunctuation(SyntaxKind.ColonToken));
         text.Write(CreateSpace());
         DisplayNode(text, node.right);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
@@ -749,28 +755,42 @@ public sealed class DisplayText {
         DisplayNode(text, node.right);
     }
 
-    private static void DisplayPostfixExpression(DisplayText text, BoundPostfixExpression node) {
-        DisplayNode(text, node.operand);
-        text.Write(CreatePunctuation(node.op.kind));
+    private static void DisplayBinaryAdjacentExpression(
+        DisplayText text,
+        BoundExpression left,
+        BoundExpression right,
+        SyntaxKind op) {
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        DisplayNode(text, left);
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(op));
+        text.Write(CreateSpace());
+        DisplayNode(text, right);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 
-    private static void DisplayPrefixExpression(DisplayText text, BoundPrefixExpression node) {
-        text.Write(CreatePunctuation(node.op.kind));
-        DisplayNode(text, node.operand);
+    private static void DisplayBinaryExpression(DisplayText text, BoundBinaryExpression node) {
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, node.op);
+    }
+
+    private static void DisplayIsExpression(DisplayText text, BoundIsExpression node) {
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.IsKeyword);
+    }
+
+    private static void DisplayIsntExpression(DisplayText text, BoundIsntExpression node) {
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.IsntKeyword);
+    }
+
+    private static void DisplayAsExpression(DisplayText text, BoundAsExpression node) {
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.AsKeyword);
+    }
+
+    private static void DisplayNullCoalescingExpression(DisplayText text, BoundNullCoalescingExpression node) {
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.QuestionQuestionToken);
     }
 
     private static void DisplayDataContainer(DisplayText text, BoundDataContainerExpression node) {
         SymbolDisplay.AppendToDisplayText(text, node.dataContainer, SymbolDisplayFormat.Everything);
-    }
-
-    private static void DisplayBinaryExpression(DisplayText text, BoundBinaryExpression node) {
-        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
-        DisplayNode(text, node.left);
-        text.Write(CreateSpace());
-        text.Write(CreatePunctuation(node.op.kind));
-        text.Write(CreateSpace());
-        DisplayNode(text, node.right);
-        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 
     private static void DisplayUnaryExpression(DisplayText text, BoundUnaryExpression node) {

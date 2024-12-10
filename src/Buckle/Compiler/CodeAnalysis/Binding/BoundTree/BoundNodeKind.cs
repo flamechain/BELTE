@@ -5,7 +5,7 @@ namespace Buckle.CodeAnalysis.Binding;
 /// Types of bound nodes.
 /// </summary>
 internal enum BoundNodeKind : byte {
-    TernaryExpression,
+    ConditionalExpression,
     BinaryExpression,
     UnaryExpression,
     LiteralExpression,
@@ -23,8 +23,6 @@ internal enum BoundNodeKind : byte {
     ArrayCreationExpression,
     FieldAccessExpression,
     ConditionalAccessExpression,
-    PrefixExpression,
-    PostfixExpression,
     ThisExpression,
     BaseExpression,
     ExtendExpression,
@@ -33,6 +31,10 @@ internal enum BoundNodeKind : byte {
     InitializerDictionaryExpression,
     TypeExpression,
     ParameterExpression,
+    IsExpression,
+    IsntExpression,
+    AsExpression,
+    NullCoalescingExpression,
 
     BlockStatement,
     ExpressionStatement,

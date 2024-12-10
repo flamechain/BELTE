@@ -137,8 +137,8 @@ internal sealed class Expander : BoundTreeExpander {
         return baseStatements;
     }
 
-    private protected override List<BoundStatement> ExpandTernaryExpression(
-        BoundTernaryExpression expression,
+    private protected override List<BoundStatement> ExpandConditionalExpression(
+        BoundConditionalExpression expression,
         out BoundExpression replacement) {
         _operatorDepth++;
 
@@ -152,7 +152,12 @@ internal sealed class Expander : BoundTreeExpander {
             statements.Add(
                 new BoundLocalDeclarationStatement(new BoundDataContainerDeclaration(
                     tempLocal,
-                    new BoundTernaryExpression(leftReplacement, expression.op, centerReplacement, rightReplacement)
+                    new BoundConditionalExpression(
+                        leftReplacement,
+                        centerReplacement,
+                        rightReplacement,
+                        expression.type
+                    )
                 ))
             );
 
@@ -161,7 +166,7 @@ internal sealed class Expander : BoundTreeExpander {
             return statements;
         }
 
-        var baseStatements = base.ExpandTernaryExpression(expression, out replacement);
+        var baseStatements = base.ExpandConditionalExpression(expression, out replacement);
         _operatorDepth--;
         return baseStatements;
     }
@@ -208,13 +213,6 @@ internal sealed class Expander : BoundTreeExpander {
         );
 
         var receiverLocal = new BoundDataContainerExpression(tempLocal);
-        var op = BoundTernaryOperator.Bind(
-            SyntaxKind.QuestionToken,
-            SyntaxKind.ColonToken,
-            SpecialType.Bool,
-            access.type,
-            access.type
-        );
 
         BoundExpression newAccess;
 
@@ -227,11 +225,11 @@ internal sealed class Expander : BoundTreeExpander {
             throw ExceptionUtilities.Unreachable();
         }
 
-        replacement = new BoundTernaryExpression(
+        replacement = new BoundConditionalExpression(
             HasValue(receiver),
-            op,
             newAccess,
-            new BoundLiteralExpression(value: null, access.type)
+            new BoundLiteralExpression(value: null, access.type),
+            access.type
         );
 
         return statements;

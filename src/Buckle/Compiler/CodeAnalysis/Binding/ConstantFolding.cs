@@ -42,34 +42,8 @@ internal static class ConstantFolding {
             }
         }
 
-        if (op.opKind == BoundBinaryOperatorKind.NullCoalescing) {
-            if (leftConstant is not null && leftConstant.value is not null)
-                return new ConstantValue(leftConstant.value);
-
-            if (leftConstant is not null && leftConstant.value is null && rightConstant is not null)
-                return new ConstantValue(rightConstant.value);
-        }
-
-        if (op.opKind == BoundBinaryOperatorKind.Is) {
-            if (ConstantValue.IsNull(leftConstant) && ConstantValue.IsNull(rightConstant))
-                return new ConstantValue(true);
-
-            if (ConstantValue.IsNotNull(leftConstant) && ConstantValue.IsNull(rightConstant))
-                return new ConstantValue(false);
-        }
-
-        if (op.opKind == BoundBinaryOperatorKind.Isnt) {
-            if (ConstantValue.IsNull(leftConstant) && ConstantValue.IsNull(rightConstant))
-                return new ConstantValue(false);
-
-            if (ConstantValue.IsNotNull(leftConstant) && ConstantValue.IsNull(rightConstant))
-                return new ConstantValue(true);
-        }
-
-        if ((ConstantValue.IsNull(leftConstant) || ConstantValue.IsNull(rightConstant)) &&
-            op.opKind != BoundBinaryOperatorKind.Is && op.opKind != BoundBinaryOperatorKind.Isnt) {
+        if (ConstantValue.IsNull(leftConstant) || ConstantValue.IsNull(rightConstant))
             return new ConstantValue(null);
-        }
 
         if (leftConstant is null || rightConstant is null)
             return null;
@@ -173,6 +147,46 @@ internal static class ConstantFolding {
         }
     }
 
+    internal static ConstantValue FoldNullCoalescing(BoundExpression left, BoundExpression right) {
+        var leftConstant = left.constantValue;
+        var rightConstant = right.constantValue;
+
+        if (leftConstant is not null && leftConstant.value is not null)
+            return new ConstantValue(leftConstant.value);
+
+        if (leftConstant is not null && leftConstant.value is null && rightConstant is not null)
+            return new ConstantValue(rightConstant.value);
+
+        return null;
+    }
+
+    internal static ConstantValue FoldIs(BoundExpression left, BoundExpression right) {
+        // TODO Should be able to expand this to cover some `is object` or `is primitive` expressions to
+        var leftConstant = left.constantValue;
+        var rightConstant = right.constantValue;
+
+        if (ConstantValue.IsNull(leftConstant) && ConstantValue.IsNull(rightConstant))
+            return new ConstantValue(true);
+
+        if (ConstantValue.IsNotNull(leftConstant) && ConstantValue.IsNull(rightConstant))
+            return new ConstantValue(false);
+
+        return null;
+    }
+
+    internal static ConstantValue FoldIsnt(BoundExpression left, BoundExpression right) {
+        var leftConstant = left.constantValue;
+        var rightConstant = right.constantValue;
+
+        if (ConstantValue.IsNull(leftConstant) && ConstantValue.IsNull(rightConstant))
+            return new ConstantValue(false);
+
+        if (ConstantValue.IsNotNull(leftConstant) && ConstantValue.IsNull(rightConstant))
+            return new ConstantValue(true);
+
+        return null;
+    }
+
     /// <summary>
     /// Folds a <see cref="BoundUnaryExpression" /> (if possible).
     /// </summary>
@@ -211,30 +225,26 @@ internal static class ConstantFolding {
     }
 
     /// <summary>
-    /// Folds a <see cref="BoundTernaryExpression" /> (if possible).
+    /// Folds a <see cref="BoundConditionalOperatorExpression" /> (if possible).
     /// </summary>
     /// <param name="left">Left operand.</param>
-    /// <param name="op">Operator.</param>
     /// <param name="center">Center operand.</param>
     /// <param name="right">Right operand.</param>
     /// <returns><see cref="ConstantValue" />, returns null if folding is not possible.</returns>
-    internal static ConstantValue FoldTernary(
+    internal static ConstantValue FoldConditional(
         BoundExpression left,
-        BoundTernaryOperator op,
         BoundExpression center,
         BoundExpression right) {
-        if (op.opKind == BoundTernaryOperatorKind.Conditional) {
-            if (ConstantValue.IsNotNull(left.constantValue) &&
-                (bool)left.constantValue.value &&
-                center.constantValue is not null) {
-                return new ConstantValue(center.constantValue.value);
-            }
+        if (ConstantValue.IsNotNull(left.constantValue) &&
+            (bool)left.constantValue.value &&
+            center.constantValue is not null) {
+            return new ConstantValue(center.constantValue.value);
+        }
 
-            if (ConstantValue.IsNotNull(left.constantValue) &&
-                !(bool)left.constantValue.value &&
-                right.constantValue is not null) {
-                return new ConstantValue(right.constantValue.value);
-            }
+        if (ConstantValue.IsNotNull(left.constantValue) &&
+            !(bool)left.constantValue.value &&
+            right.constantValue is not null) {
+            return new ConstantValue(right.constantValue.value);
         }
 
         return null;

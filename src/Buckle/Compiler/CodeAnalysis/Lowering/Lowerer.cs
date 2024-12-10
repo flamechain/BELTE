@@ -211,22 +211,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         <left> <op> <right>
 
-        ----> <op> is 'as'
-
-        <left> <op> <right>
-
-        ----> <op> is 'is' and <right> is 'null'
-
-        (!HasValue(<left>))
-
-        ----> <op> is 'isnt' and <right> is 'null'
-
-        (HasValue(<left>))
-
-        ----> <op> is '??'
-
-        (HasValue(<left>) ? Value(<left>) : <right>)
-
         ----> <op> is '**'
 
         (Math.Pow(<left>, <right>))
@@ -244,23 +228,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
         (<right> isnt null ? <left> <op> Value(<right>) : null)
 
         */
-        if (expression.op.opKind == BoundBinaryOperatorKind.As)
-            return base.RewriteBinaryExpression(expression);
-
-        if (expression.op.opKind == BoundBinaryOperatorKind.Is) {
-            if (ConstantValue.IsNull(expression.right.constantValue))
-                return RewriteExpression(Not(HasValue(expression.left)));
-            else
-                return base.RewriteBinaryExpression(expression);
-        }
-
-        if (expression.op.opKind == BoundBinaryOperatorKind.Isnt) {
-            if (ConstantValue.IsNull(expression.right.constantValue))
-                return RewriteExpression(HasValue(expression.left));
-            else
-                return base.RewriteBinaryExpression(expression);
-        }
-
         if (expression.op.opKind == BoundBinaryOperatorKind.Power) {
             var powMethod = expression.left.type.IsNullableType() || expression.right.type.IsNullableType()
                 ? StandardLibrary.Math.GetMembers()[46]
@@ -268,16 +235,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
             return RewriteExpression(
                 Call(powMethod as MethodSymbol, [expression.left, expression.right])
-            );
-        }
-
-        if (expression.op.opKind == BoundBinaryOperatorKind.NullCoalescing) {
-            return RewriteExpression(
-                NullConditional(
-                    @if: HasValue(expression.left),
-                    @then: Value(expression.left),
-                    @else: expression.right
-                )
             );
         }
 
@@ -332,6 +289,26 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return base.RewriteBinaryExpression(expression);
     }
 
+    private protected override BoundExpression RewriteNullCoalescingExpression(
+        BoundNullCoalescingExpression expression) {
+        /*
+
+        <left> ?? <right>
+
+        ---->
+
+        (HasValue(<left>) ? Value(<left>) : <right>)
+
+        */
+        return RewriteExpression(
+            NullConditional(
+                @if: HasValue(expression.left),
+                @then: Value(expression.left),
+                @else: expression.right
+            )
+        );
+    }
+
     private protected override BoundExpression RewriteUnaryExpression(BoundUnaryExpression expression) {
         /*
 
@@ -345,9 +322,55 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         (HasValue(<operand>) ? <op> Value(<operand>) : null)
 
+        ----> <op> is '++'
+
+        (<operand> += 1)
+
+        ----> <op> is '--'
+
+        (<operand> -= 1)
+
+        ----> <op> is '++' and <isOwnStatement>
+
+        (<operand> += 1)
+
+        ----> <op> is '++'
+
+        ((<operand> += 1) - 1)
+
+        ----> <op> is '--' and <isOwnStatement>
+
+        (<operand> -= 1)
+
+        ----> <op> is '--'
+
+        ((<operand> -= 1) + 1)
+
         */
         if (expression.op.opKind == BoundUnaryOperatorKind.NumericalIdentity)
             return RewriteExpression(expression.operand);
+
+        if (expression.op.opKind == BoundPrefixOperatorKind.Increment)
+            return RewriteExpression(Increment(expression.operand));
+        else if (expression.op.opKind == BoundPrefixOperatorKind.Decrement)
+            return RewriteExpression(Decrement(expression.operand));
+
+        if (expression.op.opKind == BoundPostfixOperatorKind.Increment ||
+            expression.op.opKind == BoundPostfixOperatorKind.Decrement) {
+            var assignment = expression.op.opKind == BoundPostfixOperatorKind.Increment
+                ? Increment(expression.operand)
+                : Decrement(expression.operand);
+
+            if (expression.isOwnStatement) {
+                return RewriteExpression(assignment);
+            } else {
+                var reversal = expression.op.opKind == BoundPostfixOperatorKind.Increment
+                    ? Subtract(assignment, Literal(1))
+                    : Add(assignment, Literal(1));
+
+                return RewriteExpression(reversal);
+            }
+        }
 
         if (expression.operand.type.IsNullableType()) {
             return RewriteExpression(
@@ -512,63 +535,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 )
             )
         );
-    }
-
-    private protected override BoundExpression RewritePrefixExpression(BoundPrefixExpression expression) {
-        /*
-
-        <op><operand>
-
-        ----> <op> is '++'
-
-        (<operand> += 1)
-
-        ----> <op> is '--'
-
-        (<operand> -= 1)
-
-        */
-        if (expression.op.opKind == BoundPrefixOperatorKind.Increment)
-            return RewriteExpression(Increment(expression.operand));
-        else
-            return RewriteExpression(Decrement(expression.operand));
-    }
-
-    private protected override BoundExpression RewritePostfixExpression(BoundPostfixExpression expression) {
-        /*
-
-        <operand><op>
-
-        ----> <op> is '++' and <isOwnStatement>
-
-        (<operand> += 1)
-
-        ----> <op> is '++'
-
-        ((<operand> += 1) - 1)
-
-        ----> <op> is '--' and <isOwnStatement>
-
-        (<operand> -= 1)
-
-        ----> <op> is '--'
-
-        ((<operand> -= 1) + 1)
-
-        */
-        var assignment = expression.op.opKind == BoundPostfixOperatorKind.Increment
-            ? Increment(expression.operand)
-            : Decrement(expression.operand);
-
-        if (expression.isOwnStatement) {
-            return RewriteExpression(assignment);
-        } else {
-            var reversal = expression.op.opKind == BoundPostfixOperatorKind.Increment
-                ? Subtract(assignment, Literal(1))
-                : Add(assignment, Literal(1));
-
-            return RewriteExpression(reversal);
-        }
     }
 
     private static BoundBlockStatement Flatten(MethodSymbol method, BoundStatement statement) {

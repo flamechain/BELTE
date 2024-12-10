@@ -199,6 +199,14 @@ internal abstract class BoundTreeRewriter {
                 return RewriteUnaryExpression((BoundUnaryExpression)expression);
             case BoundNodeKind.BinaryExpression:
                 return RewriteBinaryExpression((BoundBinaryExpression)expression);
+            case BoundNodeKind.AsExpression:
+                return RewriteAsExpression((BoundAsExpression)expression);
+            case BoundNodeKind.IsExpression:
+                return RewriteIsExpression((BoundIsExpression)expression);
+            case BoundNodeKind.IsntExpression:
+                return RewriteIsntExpression((BoundIsntExpression)expression);
+            case BoundNodeKind.NullCoalescingExpression:
+                return RewriteNullCoalescingExpression((BoundNullCoalescingExpression)expression);
             case BoundNodeKind.EmptyExpression:
                 return RewriteEmptyExpression((BoundEmptyExpression)expression);
             case BoundNodeKind.ErrorExpression:
@@ -215,18 +223,14 @@ internal abstract class BoundTreeRewriter {
                 return RewriteReferenceExpression((BoundReferenceExpression)expression);
             case BoundNodeKind.TypeOfExpression:
                 return RewriteTypeOfExpression((BoundTypeOfExpression)expression);
-            case BoundNodeKind.TernaryExpression:
-                return RewriteTernaryExpression((BoundTernaryExpression)expression);
+            case BoundNodeKind.ConditionalExpression:
+                return RewriteConditionalExpression((BoundConditionalExpression)expression);
             case BoundNodeKind.ObjectCreationExpression:
                 return RewriteObjectCreationExpression((BoundObjectCreationExpression)expression);
             case BoundNodeKind.ArrayCreationExpression:
                 return RewriteArrayCreationExpression((BoundArrayCreationExpression)expression);
             case BoundNodeKind.FieldAccessExpression:
                 return RewriteFieldAccessExpression((BoundFieldAccessExpression)expression);
-            case BoundNodeKind.PrefixExpression:
-                return RewritePrefixExpression((BoundPrefixExpression)expression);
-            case BoundNodeKind.PostfixExpression:
-                return RewritePostfixExpression((BoundPostfixExpression)expression);
             case BoundNodeKind.ThisExpression:
                 return RewriteThisExpression((BoundThisExpression)expression);
             case BoundNodeKind.BaseExpression:
@@ -268,24 +272,6 @@ internal abstract class BoundTreeRewriter {
             return new BoundLiteralExpression(expression.constantValue.value, expression.type);
     }
 
-    private protected virtual BoundExpression RewritePrefixExpression(BoundPrefixExpression expression) {
-        var operand = RewriteExpression(expression.operand);
-
-        if (operand == expression.operand)
-            return expression;
-
-        return new BoundPrefixExpression(expression.op, operand);
-    }
-
-    private protected virtual BoundExpression RewritePostfixExpression(BoundPostfixExpression expression) {
-        var operand = RewriteExpression(expression.operand);
-
-        if (operand == expression.operand)
-            return expression;
-
-        return new BoundPostfixExpression(operand, expression.op, expression.isOwnStatement);
-    }
-
     private protected virtual BoundExpression RewriteFieldAccessExpression(BoundFieldAccessExpression expression) {
         var receiver = RewriteExpression(expression.receiver);
 
@@ -318,7 +304,7 @@ internal abstract class BoundTreeRewriter {
         return new BoundArrayCreationExpression(expression.type, sizes.Value);
     }
 
-    private protected virtual BoundExpression RewriteTernaryExpression(BoundTernaryExpression expression) {
+    private protected virtual BoundExpression RewriteConditionalExpression(BoundConditionalExpression expression) {
         var left = RewriteExpression(expression.left);
         var center = RewriteExpression(expression.center);
         var right = RewriteExpression(expression.right);
@@ -326,7 +312,7 @@ internal abstract class BoundTreeRewriter {
         if (left == expression.left && center == expression.center && right == expression.right)
             return expression;
 
-        return new BoundTernaryExpression(left, expression.op, center, right);
+        return new BoundConditionalExpression(left, center, right, expression.type);
     }
 
     private protected virtual BoundExpression RewriteTypeOfExpression(BoundTypeOfExpression expression) {
@@ -423,6 +409,47 @@ internal abstract class BoundTreeRewriter {
             return expression;
 
         return new BoundBinaryExpression(left, expression.op, right);
+    }
+
+    private protected virtual BoundExpression RewriteAsExpression(BoundAsExpression expression) {
+        var left = RewriteExpression(expression.left);
+        var right = RewriteExpression(expression.right);
+
+        if (left == expression.left && right == expression.right)
+            return expression;
+
+        return new BoundAsExpression(left, right, expression.type);
+    }
+
+    private protected virtual BoundExpression RewriteIsExpression(BoundIsExpression expression) {
+        var left = RewriteExpression(expression.left);
+        var right = RewriteExpression(expression.right);
+
+        if (left == expression.left && right == expression.right)
+            return expression;
+
+        return new BoundIsExpression(left, right, expression.type);
+    }
+
+    private protected virtual BoundExpression RewriteIsntExpression(BoundIsntExpression expression) {
+        var left = RewriteExpression(expression.left);
+        var right = RewriteExpression(expression.right);
+
+        if (left == expression.left && right == expression.right)
+            return expression;
+
+        return new BoundIsntExpression(left, right, expression.type);
+    }
+
+    private protected virtual BoundExpression RewriteNullCoalescingExpression(
+        BoundNullCoalescingExpression expression) {
+        var left = RewriteExpression(expression.left);
+        var right = RewriteExpression(expression.right);
+
+        if (left == expression.left && right == expression.right)
+            return expression;
+
+        return new BoundNullCoalescingExpression(left, right, expression.type);
     }
 
     private protected virtual BoundExpression RewriteLiteralExpression(BoundLiteralExpression expression) {
