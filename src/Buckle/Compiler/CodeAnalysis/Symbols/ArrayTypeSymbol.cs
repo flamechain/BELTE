@@ -2,6 +2,7 @@ using System;
 using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Libraries;
 using Buckle.Utilities;
 
@@ -69,6 +70,8 @@ internal abstract partial class ArrayTypeSymbol : TypeSymbol {
     internal TypeWithAnnotations elementTypeWithAnnotations { get; }
 
     internal TypeSymbol elementType => elementTypeWithAnnotations.type;
+
+    internal override TextLocation location => null;
 
     internal override NamedTypeSymbol baseType { get; }
 

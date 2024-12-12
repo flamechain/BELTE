@@ -9,13 +9,14 @@ namespace Buckle.CodeAnalysis.Binding;
 internal sealed class BoundBinaryExpression : BoundExpression {
     internal BoundBinaryExpression(
         BoundExpression left,
-        BoundBinaryOperator op,
-        BoundExpression right) {
+        BoundExpression right,
+        BinaryOperatorKind opKind,
+        TypeSymbol type) {
         this.left = left;
-        this.op = op;
         this.right = right;
-        type = op.type;
-        constantValue = ConstantFolding.FoldBinary(this.left, this.op, this.right);
+        this.opKind = opKind;
+        this.type = type;
+        constantValue = ConstantFolding.FoldBinary(left, right, opKind, type);
     }
 
     internal override BoundNodeKind kind => BoundNodeKind.BinaryExpression;
@@ -26,7 +27,7 @@ internal sealed class BoundBinaryExpression : BoundExpression {
 
     internal BoundExpression left { get; }
 
-    internal BoundBinaryOperator op { get; }
+    internal BinaryOperatorKind opKind { get; }
 
     internal BoundExpression right { get; }
 }

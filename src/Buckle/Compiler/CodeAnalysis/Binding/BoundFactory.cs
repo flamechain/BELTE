@@ -1,7 +1,5 @@
 using System.Collections.Immutable;
-using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.CodeAnalysis.Syntax;
 using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -21,10 +19,6 @@ internal static partial class BoundFactory {
 
     internal static BoundBlockStatement Block(params BoundStatement[] statements) {
         return new BoundBlockStatement(ImmutableArray.Create(statements), [], []);
-    }
-
-    internal static BoundBlockStatement Block() {
-        return new BoundBlockStatement([], [], []);
     }
 
     internal static BoundLabelStatement Label(LabelSymbol label) {
@@ -67,77 +61,58 @@ internal static partial class BoundFactory {
         return new BoundCastExpression(type, expression, conversionKind, constant);
     }
 
-    internal static BoundMemberAccessExpression MemberAccess(
-        BoundExpression left,
-        BoundExpression right,
-        bool isStaticAccess = false) {
-        return new BoundMemberAccessExpression(left, right, false, isStaticAccess);
+    internal static BoundConditionalExpression Conditional(
+        BoundExpression @if,
+        BoundExpression @then,
+        BoundExpression @else,
+        TypeSymbol type) {
+        return new BoundConditionalExpression(@if, @then, @else, type);
     }
 
-    internal static BoundArrayAccessExpression Index(BoundExpression operand, BoundExpression index) {
-        return new BoundIndexExpression(operand, index, false);
-    }
-
-    internal static BoundTernaryExpression NullConditional(
-        BoundExpression @if, BoundExpression @then, BoundExpression @else) {
-        var op = BoundTernaryOperator.Bind(
-            SyntaxKind.QuestionToken, SyntaxKind.ColonToken, @if.type, @then.type, @else.type
-        );
-
-        return new BoundTernaryExpression(@if, op, @then, @else);
-    }
-
-    internal static BoundAssignmentExpression Assignment(BoundExpression left, BoundExpression right) {
-        return new BoundAssignmentExpression(left, right);
+    internal static BoundAssignmentExpression Assignment(BoundExpression left, BoundExpression right, TypeSymbol type) {
+        return new BoundAssignmentExpression(left, right, type);
     }
 
     internal static BoundCompoundAssignmentExpression Increment(BoundExpression operand) {
-        var value = new BoundTypeWrapper(BoundType.Int, new ConstantValue(1));
-        var op = BoundBinaryOperator.Bind(SyntaxKind.PlusToken, operand.type, value.type);
-        return new BoundCompoundAssignmentExpression(operand, op, value);
+        var opKind = BinaryOperatorEasyOut.OpKind(BinaryOperatorKind.Addition, operand.type, operand.type);
+        return new BoundCompoundAssignmentExpression(operand, Literal(1, operand.type), opKind, operand.type);
     }
 
     internal static BoundCompoundAssignmentExpression Decrement(BoundExpression operand) {
-        var value = new BoundTypeWrapper(BoundType.Int, new ConstantValue(1));
-        var op = BoundBinaryOperator.Bind(SyntaxKind.MinusToken, operand.type, value.type);
-        return new BoundCompoundAssignmentExpression(operand, op, value);
+        var opKind = BinaryOperatorEasyOut.OpKind(BinaryOperatorKind.Subtraction, operand.type, operand.type);
+        return new BoundCompoundAssignmentExpression(operand, Literal(1, operand.type), opKind, operand.type);
     }
 
-    internal static BoundUnaryExpression Unary(BoundUnaryOperator op, BoundExpression operand) {
-        return new BoundUnaryExpression(op, operand);
+    internal static BoundUnaryExpression Unary(UnaryOperatorKind opKind, BoundExpression operand, TypeSymbol type) {
+        return new BoundUnaryExpression(operand, opKind, type);
     }
 
-    internal static BoundUnaryExpression Not(BoundExpression operand) {
-        var op = BoundUnaryOperator.Bind(SyntaxKind.ExclamationToken, operand.type);
-        return new BoundUnaryExpression(op, operand);
-    }
-
-    internal static BoundBinaryExpression Binary(BoundExpression left, BoundBinaryOperator op, BoundExpression right) {
-        return new BoundBinaryExpression(left, op, right);
-    }
-
-    internal static BoundBinaryExpression Add(BoundExpression left, BoundExpression right) {
-        var op = BoundBinaryOperator.Bind(SyntaxKind.PlusToken, left.type, right.type);
-        return new BoundBinaryExpression(left, op, right);
-    }
-
-    internal static BoundBinaryExpression Subtract(BoundExpression left, BoundExpression right) {
-        var op = BoundBinaryOperator.Bind(SyntaxKind.MinusToken, left.type, right.type);
-        return new BoundBinaryExpression(left, op, right);
+    internal static BoundBinaryExpression Binary(
+        BoundExpression left,
+        BinaryOperatorKind opKind,
+        BoundExpression right,
+        TypeSymbol type) {
+        return new BoundBinaryExpression(left, right, opKind, type);
     }
 
     internal static BoundBinaryExpression And(BoundExpression left, BoundExpression right) {
-        var op = BoundBinaryOperator.Bind(SyntaxKind.AmpersandAmpersandToken, left.type, right.type);
-        return new BoundBinaryExpression(left, op, right);
+        return new BoundBinaryExpression(
+            left,
+            right,
+            BinaryOperatorKind.BoolConditionalAnd,
+            CorLibrary.GetSpecialType(SpecialType.Bool)
+        );
     }
 
-    internal static BoundExpression Value(BoundExpression expression) {
-        var op = BoundPostfixOperator.Operators.First(o => o.opKind == BoundPostfixOperatorKind.NullAssert);
-        return new BoundPostfixExpression(expression, op, false);
+    internal static BoundNullAssertExpression Value(BoundExpression expression, TypeSymbol type) {
+        return new BoundNullAssertExpression(expression, type);
     }
 
-    internal static BoundExpression HasValue(BoundExpression expression) {
-        var op = BoundBinaryOperator.Operators.First(o => o.opKind == BoundBinaryOperatorKind.Isnt);
-        return new BoundBinaryExpression(expression, op, new BoundLiteralExpression(value: null, expression.type));
+    internal static BoundIsntExpression HasValue(BoundExpression expression) {
+        return new BoundIsntExpression(
+            expression,
+            Literal(null, expression.type),
+            CorLibrary.GetSpecialType(SpecialType.Bool)
+        );
     }
 }

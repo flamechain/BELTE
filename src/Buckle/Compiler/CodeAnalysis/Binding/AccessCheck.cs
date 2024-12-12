@@ -4,37 +4,40 @@ using Buckle.Utilities;
 namespace Buckle.CodeAnalysis.Binding;
 
 internal static class AccessCheck {
-    internal static bool IsSymbolAccessible(Symbol symbol, NamedTypeSymbol within, TypeSymbol throughType = null) {
-        return IsSymbolAccessibleCore(symbol, within, throughType, out _, within.declaringCompilation);
+    internal static bool IsSymbolAccessible(Symbol symbol, Symbol within, TypeSymbol throughType = null) {
+        return IsSymbolAccessibleCore(symbol, within, throughType, out _);
     }
 
     internal static bool IsSymbolAccessible(
         Symbol symbol,
-        NamedTypeSymbol within,
+        Symbol within,
         TypeSymbol throughType,
-        out bool failedThroughTypeCheck,
-        ConsList<TypeSymbol> basesBeingResolved = null) {
+        out bool failedThroughTypeCheck) {
         return IsSymbolAccessibleCore(
             symbol,
             within,
             throughType,
-            out failedThroughTypeCheck,
-            within.declaringCompilation,
-            basesBeingResolved
+            out failedThroughTypeCheck
         );
     }
 
     private static bool IsSymbolAccessibleCore(
         Symbol symbol,
-        NamedTypeSymbol within,
+        Symbol within,
         TypeSymbol throughType,
-        out bool failedThroughTypeCheck,
-        Compilation compilation,
-        ConsList<TypeSymbol> basesBeingResolved = null) {
+        out bool failedThroughTypeCheck) {
         failedThroughTypeCheck = false;
 
         switch (symbol.kind) {
+            case SymbolKind.ArrayType:
+                return IsSymbolAccessibleCore(
+                    ((ArrayTypeSymbol)symbol).elementType,
+                    within,
+                    null,
+                    out failedThroughTypeCheck
+                );
             case SymbolKind.NamedType:
+                return IsNamedTypeAccessible((NamedTypeSymbol)symbol, within);
             case SymbolKind.Local:
             case SymbolKind.Global:
             case SymbolKind.TemplateParameter:
@@ -51,8 +54,7 @@ internal static class AccessCheck {
                     symbol.declaredAccessibility,
                     within,
                     throughType,
-                    out failedThroughTypeCheck,
-                    compilation
+                    out failedThroughTypeCheck
                 );
             default:
                 throw ExceptionUtilities.UnexpectedValue(symbol.kind);
@@ -159,8 +161,39 @@ internal static class AccessCheck {
         return false;
     }
 
-    private static bool IsNamedTypeAccessible(NamedTypeSymbol type, Symbol within) {
-        return type.containingType is null
-            || IsMemberAccessible(type.containingType, type.declaredAccessibility, within, null, out _);
+    private static bool IsNamedTypeAccessible(
+        NamedTypeSymbol type,
+        Symbol within) {
+        if (!type.isDefinition) {
+            foreach (var templateArgument in type.templateArguments) {
+                if (templateArgument.isType &&
+                    !IsSymbolAccessibleCore(templateArgument.type.type, within, null, out _)) {
+                    return false;
+                }
+            }
+        }
+
+        var containingType = type.containingType;
+
+        return containingType is null
+            ? IsNonNestedTypeAccessible(type.containingNamespace, type.declaredAccessibility, within)
+            : IsMemberAccessible(containingType, type.declaredAccessibility, within, null, out _);
+    }
+
+    private static bool IsNonNestedTypeAccessible(
+        NamespaceSymbol containingNamespace,
+        Accessibility declaredAccessibility,
+        Symbol within) {
+        switch (declaredAccessibility) {
+            case Accessibility.NotApplicable:
+            case Accessibility.Public:
+                return true;
+            case Accessibility.Private:
+            case Accessibility.Protected:
+                return false;
+            // When internal is added, the namespace will become relevant
+            default:
+                throw ExceptionUtilities.UnexpectedValue(declaredAccessibility);
+        }
     }
 }

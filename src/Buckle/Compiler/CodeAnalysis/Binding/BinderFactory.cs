@@ -22,7 +22,7 @@ internal sealed partial class BinderFactory {
         _binderFactoryVisitorPool = binderFactoryVisitorPool ?? BinderFactoryVisitorPool;
         // 50 is most likely more than ever needed before collected
         _binderCache = new ConcurrentCache<BinderCacheKey, Binder>(50);
-        _endBinder = new EndBinder(compilation);
+        _endBinder = new EndBinder(compilation, syntaxTree.text);
     }
 
     internal SyntaxTree syntaxTree { get; }

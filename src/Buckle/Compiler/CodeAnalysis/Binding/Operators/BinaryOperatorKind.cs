@@ -38,6 +38,7 @@ internal enum BinaryOperatorKind : int {
     And = 0x00001E00,
     Or = 0x00001F00,
     Xor = 0x00002000,
+    Power = 0x00002100,
 
     Conditional = UnaryOperatorKind._Conditional,
 
@@ -47,7 +48,7 @@ internal enum BinaryOperatorKind : int {
 
     IntAddition = Int | Addition,
     DecimalAddition = Decimal | Addition,
-    StringConcatination = String | Addition,
+    StringConcatenation = String | Addition,
     UserDefinedAddition = UserDefined | Addition,
 
     IntSubtraction = Int | Subtraction,
@@ -126,4 +127,8 @@ internal enum BinaryOperatorKind : int {
     IntXor = Int | Xor,
     BoolXor = Bool | Xor,
     UserDefinedXor = UserDefined | Xor,
+
+    IntPower = Int | Power,
+    DecimalPower = Decimal | Power,
+    UserDefinedPower = UserDefined | Power,
 }

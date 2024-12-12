@@ -7,11 +7,11 @@ namespace Buckle.CodeAnalysis.Binding;
 /// Bound from a <see cref="UnaryExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundUnaryExpression : BoundExpression {
-    internal BoundUnaryExpression(BoundUnaryOperator op, BoundExpression operand) {
-        this.op = op;
+    internal BoundUnaryExpression(BoundExpression operand, UnaryOperatorKind opKind, TypeSymbol type) {
         this.operand = operand;
-        type = op.type;
-        constantValue = ConstantFolding.FoldUnary(this.op, this.operand);
+        this.opKind = opKind;
+        this.type = type;
+        constantValue = ConstantFolding.FoldUnary(operand, opKind, type);
     }
 
     internal override BoundNodeKind kind => BoundNodeKind.UnaryExpression;
@@ -20,7 +20,7 @@ internal sealed class BoundUnaryExpression : BoundExpression {
 
     internal override ConstantValue constantValue { get; }
 
-    internal BoundUnaryOperator op { get; }
+    internal UnaryOperatorKind opKind { get; }
 
     internal BoundExpression operand { get; }
 }

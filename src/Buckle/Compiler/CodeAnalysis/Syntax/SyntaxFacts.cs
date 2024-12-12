@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
@@ -313,7 +314,32 @@ internal static class SyntaxFacts {
                 => SyntaxKind.GreaterThanGreaterThanGreaterThanToken,
             SyntaxKind.PercentEqualsToken => SyntaxKind.PercentToken,
             SyntaxKind.QuestionQuestionEqualsToken => SyntaxKind.QuestionQuestionToken,
-            _ => throw new BelteInternalException($"GetBinaryOperatorOfAssignmentOperator: unexpected syntax '{type}'"),
+            _ => throw ExceptionUtilities.UnexpectedValue(type)
+        };
+    }
+
+    /// <summary>
+    /// Gets compound assignment operator type of binary operator type (e.g. + -> +=).
+    /// </summary>
+    /// <param name="type"><see cref="SyntaxKind" />.</param>
+    /// <returns>Compound assignment operator type.</returns>
+    internal static SyntaxKind GetAssignmentOperatorOfBinaryOperator(SyntaxKind type) {
+        return type switch {
+            SyntaxKind.PlusToken => SyntaxKind.PlusEqualsToken,
+            SyntaxKind.MinusToken => SyntaxKind.MinusEqualsToken,
+            SyntaxKind.AsteriskToken => SyntaxKind.AsteriskEqualsToken,
+            SyntaxKind.SlashToken => SyntaxKind.SlashEqualsToken,
+            SyntaxKind.AmpersandToken => SyntaxKind.AmpersandEqualsToken,
+            SyntaxKind.PipeToken => SyntaxKind.PipeEqualsToken,
+            SyntaxKind.CaretToken => SyntaxKind.CaretEqualsToken,
+            SyntaxKind.AsteriskAsteriskToken => SyntaxKind.AsteriskAsteriskEqualsToken,
+            SyntaxKind.LessThanLessThanToken => SyntaxKind.LessThanLessThanEqualsToken,
+            SyntaxKind.GreaterThanGreaterThanToken => SyntaxKind.GreaterThanGreaterThanEqualsToken,
+            SyntaxKind.GreaterThanGreaterThanGreaterThanToken
+                => SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken,
+            SyntaxKind.PercentToken => SyntaxKind.PercentEqualsToken,
+            SyntaxKind.QuestionQuestionToken => SyntaxKind.QuestionQuestionEqualsToken,
+            _ => throw ExceptionUtilities.UnexpectedValue(type)
         };
     }
 

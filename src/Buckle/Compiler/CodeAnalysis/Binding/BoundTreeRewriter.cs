@@ -373,7 +373,7 @@ internal abstract class BoundTreeRewriter {
         if (left == expression.left && right == expression.right)
             return expression;
 
-        return new BoundCompoundAssignmentExpression(left, expression.op, right);
+        return new BoundCompoundAssignmentExpression(left, right, expression.opKind, expression.type);
     }
 
     private protected virtual BoundExpression RewriteCastExpression(BoundCastExpression expression) {
@@ -410,7 +410,7 @@ internal abstract class BoundTreeRewriter {
         if (left == expression.left && right == expression.right)
             return expression;
 
-        return new BoundBinaryExpression(left, expression.op, right);
+        return new BoundBinaryExpression(left, right, expression.opKind, expression.type);
     }
 
     private protected virtual BoundExpression RewriteAsExpression(BoundAsExpression expression) {
@@ -478,7 +478,7 @@ internal abstract class BoundTreeRewriter {
         if (operand == expression.operand)
             return expression;
 
-        return new BoundUnaryExpression(expression.op, operand);
+        return new BoundUnaryExpression(operand, expression.opKind, expression.type);
     }
 
     private protected virtual BoundExpression RewriteNullAssertExpression(BoundNullAssertExpression expression) {

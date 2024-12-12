@@ -282,7 +282,13 @@ internal abstract class BoundTreeExpander {
         statements.AddRange(ExpandExpression(expression.right, out var rightReplacement));
 
         if (statements.Count != 0) {
-            replacement = new BoundBinaryExpression(leftReplacement, expression.op, rightReplacement);
+            replacement = new BoundBinaryExpression(
+                leftReplacement,
+                rightReplacement,
+                expression.opKind,
+                expression.type
+            );
+
             return statements;
         }
 
@@ -412,7 +418,7 @@ internal abstract class BoundTreeExpander {
         var statements = ExpandExpression(expression.operand, out var operandReplacement);
 
         if (statements.Count != 0) {
-            replacement = new BoundUnaryExpression(expression.op, operandReplacement);
+            replacement = new BoundUnaryExpression(operandReplacement, expression.opKind, expression.type);
             return statements;
         }
 
@@ -520,7 +526,13 @@ internal abstract class BoundTreeExpander {
         statements.AddRange(ExpandExpression(expression.right, out var rightReplacement));
 
         if (statements.Count != 0) {
-            replacement = new BoundCompoundAssignmentExpression(leftReplacement, expression.op, rightReplacement);
+            replacement = new BoundCompoundAssignmentExpression(
+                leftReplacement,
+                rightReplacement,
+                expression.opKind,
+                expression.type
+            );
+
             return statements;
         }
 

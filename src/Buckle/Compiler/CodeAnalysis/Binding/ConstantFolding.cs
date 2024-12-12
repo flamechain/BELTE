@@ -10,32 +10,26 @@ namespace Buckle.CodeAnalysis.Binding;
 /// Folds/evaluates simple BoundExpressions during compile time.
 /// </summary>
 internal static class ConstantFolding {
-    /// <summary>
-    /// Folds a <see cref="BoundBinaryExpression" /> (if possible).
-    /// </summary>
-    /// <param name="left">Left side operand.</param>
-    /// <param name="op">Operator.</param>
-    /// <param name="right">Right side operand.</param>
-    /// <returns><see cref="ConstantValue" />, returns null if folding is not possible.</returns>
     internal static ConstantValue FoldBinary(
         BoundExpression left,
-        BoundBinaryOperator op,
-        BoundExpression right) {
+        BoundExpression right,
+        BinaryOperatorKind opKind,
+        TypeSymbol type) {
         var leftConstant = left.constantValue;
         var rightConstant = right.constantValue;
 
-        if (op is null)
+        if (opKind == BinaryOperatorKind.Error)
             return null;
 
         // With and/or operators allow one side to be null
-        if (op.opKind == BoundBinaryOperatorKind.ConditionalAnd) {
+        if (opKind == BinaryOperatorKind.ConditionalAnd) {
             if ((leftConstant is not null && leftConstant.value is not null && !(bool)leftConstant.value) ||
                 (rightConstant is not null && rightConstant.value is not null && !(bool)rightConstant.value)) {
                 return new ConstantValue(false);
             }
         }
 
-        if (op.opKind == BoundBinaryOperatorKind.ConditionalOr) {
+        if (opKind == BinaryOperatorKind.ConditionalOr) {
             if ((leftConstant is not null && leftConstant.value is not null && (bool)leftConstant.value) ||
                 (rightConstant is not null && rightConstant.value is not null && (bool)rightConstant.value)) {
                 return new ConstantValue(true);
@@ -50,31 +44,31 @@ internal static class ConstantFolding {
 
         var leftValue = leftConstant.value;
         var rightValue = rightConstant.value;
-        var leftSpecialType = op.leftType.specialType;
+        var specialType = type.specialType;
 
-        leftValue = LiteralUtilities.Cast(leftValue, op.leftType);
-        rightValue = LiteralUtilities.Cast(rightValue, op.rightType);
+        leftValue = LiteralUtilities.Cast(leftValue, type);
+        rightValue = LiteralUtilities.Cast(rightValue, type);
 
-        switch (op.opKind) {
-            case BoundBinaryOperatorKind.Addition:
-                if (leftSpecialType == SpecialType.Int)
+        switch (opKind) {
+            case BinaryOperatorKind.Addition:
+                if (specialType == SpecialType.Int)
                     return new ConstantValue((int)leftValue + (int)rightValue);
-                else if (leftSpecialType == SpecialType.String)
+                else if (specialType == SpecialType.String)
                     return new ConstantValue((string)leftValue + (string)rightValue);
                 else
                     return new ConstantValue((double)leftValue + (double)rightValue);
-            case BoundBinaryOperatorKind.Subtraction:
-                if (leftSpecialType == SpecialType.Int)
+            case BinaryOperatorKind.Subtraction:
+                if (specialType == SpecialType.Int)
                     return new ConstantValue((int)leftValue - (int)rightValue);
                 else
                     return new ConstantValue((double)leftValue - (double)rightValue);
-            case BoundBinaryOperatorKind.Multiplication:
-                if (leftSpecialType == SpecialType.Int)
+            case BinaryOperatorKind.Multiplication:
+                if (specialType == SpecialType.Int)
                     return new ConstantValue((int)leftValue * (int)rightValue);
                 else
                     return new ConstantValue((double)leftValue * (double)rightValue);
-            case BoundBinaryOperatorKind.Division:
-                if (leftSpecialType == SpecialType.Int) {
+            case BinaryOperatorKind.Division:
+                if (specialType == SpecialType.Int) {
                     if ((int)rightValue != 0)
                         return new ConstantValue((int)leftValue / (int)rightValue);
                 } else {
@@ -83,67 +77,67 @@ internal static class ConstantFolding {
                 }
 
                 return null;
-            case BoundBinaryOperatorKind.Power:
-                if (leftSpecialType == SpecialType.Int)
+            case BinaryOperatorKind.Power:
+                if (specialType == SpecialType.Int)
                     return new ConstantValue((int)Math.Pow((int)leftValue, (int)rightValue));
                 else
                     return new ConstantValue((double)Math.Pow((double)leftValue, (double)rightValue));
-            case BoundBinaryOperatorKind.ConditionalAnd:
+            case BinaryOperatorKind.ConditionalAnd:
                 return new ConstantValue((bool)leftValue && (bool)rightValue);
-            case BoundBinaryOperatorKind.ConditionalOr:
+            case BinaryOperatorKind.ConditionalOr:
                 return new ConstantValue((bool)leftValue || (bool)rightValue);
-            case BoundBinaryOperatorKind.EqualityEquals:
+            case BinaryOperatorKind.Equal:
                 return new ConstantValue(Equals(leftValue, rightValue));
-            case BoundBinaryOperatorKind.EqualityNotEquals:
+            case BinaryOperatorKind.NotEqual:
                 return new ConstantValue(!Equals(leftValue, rightValue));
-            case BoundBinaryOperatorKind.LessThan:
-                if (leftSpecialType == SpecialType.Int)
+            case BinaryOperatorKind.LessThan:
+                if (specialType == SpecialType.Int)
                     return new ConstantValue((int)leftValue < (int)rightValue);
                 else
                     return new ConstantValue((double)leftValue < (double)rightValue);
-            case BoundBinaryOperatorKind.GreaterThan:
-                if (leftSpecialType == SpecialType.Int)
+            case BinaryOperatorKind.GreaterThan:
+                if (specialType == SpecialType.Int)
                     return new ConstantValue((int)leftValue > (int)rightValue);
                 else
                     return new ConstantValue((double)leftValue > (double)rightValue);
-            case BoundBinaryOperatorKind.LessOrEqual:
-                if (leftSpecialType == SpecialType.Int)
+            case BinaryOperatorKind.LessThanOrEqual:
+                if (specialType == SpecialType.Int)
                     return new ConstantValue((int)leftValue <= (int)rightValue);
                 else
                     return new ConstantValue((double)leftValue <= (double)rightValue);
-            case BoundBinaryOperatorKind.GreatOrEqual:
-                if (leftSpecialType == SpecialType.Int)
+            case BinaryOperatorKind.GreaterThanOrEqual:
+                if (specialType == SpecialType.Int)
                     return new ConstantValue((int)leftValue >= (int)rightValue);
                 else
                     return new ConstantValue((double)leftValue >= (double)rightValue);
-            case BoundBinaryOperatorKind.LogicalAnd:
-                if (leftSpecialType == SpecialType.Int)
+            case BinaryOperatorKind.And:
+                if (specialType == SpecialType.Int)
                     return new ConstantValue((int)leftValue & (int)rightValue);
                 else
                     return new ConstantValue((bool)leftValue & (bool)rightValue);
-            case BoundBinaryOperatorKind.LogicalOr:
-                if (leftSpecialType == SpecialType.Int)
+            case BinaryOperatorKind.Or:
+                if (specialType == SpecialType.Int)
                     return new ConstantValue((int)leftValue | (int)rightValue);
                 else
                     return new ConstantValue((bool)leftValue | (bool)rightValue);
-            case BoundBinaryOperatorKind.LogicalXor:
-                if (leftSpecialType == SpecialType.Int)
+            case BinaryOperatorKind.Xor:
+                if (specialType == SpecialType.Int)
                     return new ConstantValue((int)leftValue ^ (int)rightValue);
                 else
                     return new ConstantValue((bool)leftValue ^ (bool)rightValue);
-            case BoundBinaryOperatorKind.LeftShift:
+            case BinaryOperatorKind.LeftShift:
                 return new ConstantValue((int)leftValue << (int)rightValue);
-            case BoundBinaryOperatorKind.RightShift:
+            case BinaryOperatorKind.RightShift:
                 return new ConstantValue((int)leftValue >> (int)rightValue);
-            case BoundBinaryOperatorKind.UnsignedRightShift:
+            case BinaryOperatorKind.UnsignedRightShift:
                 return new ConstantValue((int)leftValue >>> (int)rightValue);
-            case BoundBinaryOperatorKind.Modulo:
-                if (leftSpecialType == SpecialType.Int)
+            case BinaryOperatorKind.Modulo:
+                if (specialType == SpecialType.Int)
                     return new ConstantValue((int)leftValue % (int)rightValue);
                 else
                     return new ConstantValue((double)leftValue % (double)rightValue);
             default:
-                throw ExceptionUtilities.UnexpectedValue(op.opKind);
+                throw ExceptionUtilities.UnexpectedValue(opKind);
         }
     }
 
@@ -194,16 +188,10 @@ internal static class ConstantFolding {
         return null;
     }
 
-    /// <summary>
-    /// Folds a <see cref="BoundUnaryExpression" /> (if possible).
-    /// </summary>
-    /// <param name="op">Operator.</param>
-    /// <param name="operand">Operand.</param>
-    /// <returns><see cref="ConstantValue" />, returns null if folding is not possible.</returns>
-    internal static ConstantValue FoldUnary(BoundUnaryOperator op, BoundExpression operand) {
+    internal static ConstantValue FoldUnary(BoundExpression operand, UnaryOperatorKind opKind, TypeSymbol type) {
         var operandSpecialType = operand.type.specialType;
 
-        if (operand.constantValue is null || op is null)
+        if (operand.constantValue is null || opKind == UnaryOperatorKind.Error)
             return null;
 
         var value = operand.constantValue.value;
@@ -211,23 +199,23 @@ internal static class ConstantFolding {
         if (value is null)
             return new ConstantValue(null);
 
-        switch (op.opKind) {
-            case BoundUnaryOperatorKind.NumericalIdentity:
+        switch (opKind) {
+            case UnaryOperatorKind.UnaryPlus:
                 if (operandSpecialType == SpecialType.Int)
                     return new ConstantValue((int)operand.constantValue.value);
                 else
                     return new ConstantValue((double)operand.constantValue.value);
-            case BoundUnaryOperatorKind.NumericalNegation:
+            case UnaryOperatorKind.UnaryMinus:
                 if (operandSpecialType == SpecialType.Int)
                     return new ConstantValue(-(int)operand.constantValue.value);
                 else
                     return new ConstantValue(-(double)operand.constantValue.value);
-            case BoundUnaryOperatorKind.BooleanNegation:
+            case UnaryOperatorKind.LogicalNegation:
                 return new ConstantValue(!(bool)operand.constantValue.value);
-            case BoundUnaryOperatorKind.BitwiseCompliment:
+            case UnaryOperatorKind.BitwiseComplement:
                 return new ConstantValue(~(int)operand.constantValue.value);
             default:
-                throw ExceptionUtilities.UnexpectedValue(op.opKind);
+                throw ExceptionUtilities.UnexpectedValue(opKind);
         }
     }
 

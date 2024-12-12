@@ -750,14 +750,6 @@ public sealed class DisplayText {
         DisplayNode(text, node.right);
     }
 
-    private static void DisplayCompoundAssignmentExpression(DisplayText text, BoundCompoundAssignmentExpression node) {
-        DisplayNode(text, node.left);
-        text.Write(CreateSpace());
-        text.Write(CreatePunctuation(node.op.kind));
-        text.Write(CreateSpace());
-        DisplayNode(text, node.right);
-    }
-
     private static void DisplayBinaryAdjacentExpression(
         DisplayText text,
         BoundExpression left,
@@ -773,7 +765,12 @@ public sealed class DisplayText {
     }
 
     private static void DisplayBinaryExpression(DisplayText text, BoundBinaryExpression node) {
-        DisplayBinaryAdjacentExpression(text, node.left, node.right, node.op.kind);
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, node.opKind.ToSyntaxKind());
+    }
+
+    private static void DisplayCompoundAssignmentExpression(DisplayText text, BoundCompoundAssignmentExpression node) {
+        var opKind = SyntaxFacts.GetAssignmentOperatorOfBinaryOperator(node.opKind.ToSyntaxKind());
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, opKind);
     }
 
     private static void DisplayIsExpression(DisplayText text, BoundIsExpression node) {
@@ -797,7 +794,7 @@ public sealed class DisplayText {
     }
 
     private static void DisplayUnaryExpression(DisplayText text, BoundUnaryExpression node) {
-        text.Write(CreatePunctuation(node.op.kind));
+        text.Write(CreatePunctuation(node.opKind.ToSyntaxKind()));
         DisplayNode(text, node.operand);
     }
 

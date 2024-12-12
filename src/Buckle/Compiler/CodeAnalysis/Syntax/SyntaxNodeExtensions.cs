@@ -1,5 +1,6 @@
 using System;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Diagnostics;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -75,5 +76,15 @@ internal static class SyntaxNodeExtensions {
     internal static RefKind GetRefKind(this TypeSyntax syntax) {
         syntax.SkipRef(out var refKind);
         return refKind;
+    }
+
+    internal static ExpressionSyntax UnwrapRefExpression(this ExpressionSyntax syntax, out RefKind refKind) {
+        if (syntax is not ReferenceExpressionSyntax { expression: var expression }) {
+            refKind = RefKind.None;
+            return syntax;
+        }
+
+        refKind = RefKind.Ref;
+        return expression;
     }
 }

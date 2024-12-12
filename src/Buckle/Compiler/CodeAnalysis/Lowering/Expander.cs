@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.CodeAnalysis.Syntax;
 using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
@@ -44,7 +43,12 @@ internal sealed class Expander : BoundTreeExpander {
 
             statements.Add(
                 new BoundExpressionStatement(
-                    new BoundCompoundAssignmentExpression(leftReplacement, expression.op, rightReplacement)
+                    new BoundCompoundAssignmentExpression(
+                        leftReplacement,
+                        rightReplacement,
+                        expression.opKind,
+                        expression.type
+                    )
                 )
             );
 
@@ -123,7 +127,7 @@ internal sealed class Expander : BoundTreeExpander {
             statements.Add(
                 new BoundLocalDeclarationStatement(new BoundDataContainerDeclaration(
                     tempLocal,
-                    new BoundBinaryExpression(leftReplacement, expression.op, rightReplacement)
+                    new BoundBinaryExpression(leftReplacement, rightReplacement, expression.opKind, expression.type)
                 ))
             );
 

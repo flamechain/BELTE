@@ -228,7 +228,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         (<right> isnt null ? <left> <op> Value(<right>) : null)
 
         */
-        if (expression.op.opKind == BoundBinaryOperatorKind.Power) {
+        if (expression.opKind == BinaryOperatorKind.Power) {
             var powMethod = expression.left.type.IsNullableType() || expression.right.type.IsNullableType()
                 ? StandardLibrary.Math.GetMembers()[46]
                 : StandardLibrary.Math.GetMembers()[47];
@@ -243,45 +243,51 @@ internal sealed class Lowerer : BoundTreeRewriter {
             expression.left.constantValue is null &&
             expression.right.constantValue is null) {
             return RewriteExpression(
-                NullConditional(
+                Conditional(
                     @if: And(
                         HasValue(expression.left),
                         HasValue(expression.right)
                     ),
                     @then: Binary(
-                        Value(expression.left),
-                        expression.op,
-                        Value(expression.right)
+                        Value(expression.left, expression.left.type.GetNullableUnderlyingType()),
+                        expression.opKind,
+                        Value(expression.right, expression.right.type.GetNullableUnderlyingType()),
+                        expression.type
                     ),
-                    @else: Literal(null, expression.type)
+                    @else: Literal(null, expression.type),
+                    expression.type
                 )
             );
         }
 
         if (expression.left.type.IsNullableType() && expression.left.constantValue is null) {
             return RewriteExpression(
-                NullConditional(
+                Conditional(
                     @if: HasValue(expression.left),
                     @then: Binary(
-                        Value(expression.left),
-                        expression.op,
-                        expression.right
+                        Value(expression.left, expression.left.type.GetNullableUnderlyingType()),
+                        expression.opKind,
+                        expression.right,
+                        expression.type
                     ),
-                    @else: Literal(null, expression.type)
+                    @else: Literal(null, expression.type),
+                    expression.type
                 )
             );
         }
 
         if (expression.right.type.IsNullableType() && expression.right.constantValue is null) {
             return RewriteExpression(
-                NullConditional(
+                Conditional(
                     @if: HasValue(expression.right),
                     @then: Binary(
                         expression.left,
-                        expression.op,
-                        Value(expression.right)
+                        expression.opKind,
+                        Value(expression.right, expression.right.type.GetNullableUnderlyingType()),
+                        expression.type
                     ),
-                    @else: Literal(null, expression.type)
+                    @else: Literal(null, expression.type),
+                    expression.type
                 )
             );
         }
@@ -301,10 +307,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         */
         return RewriteExpression(
-            NullConditional(
+            Conditional(
                 @if: HasValue(expression.left),
-                @then: Value(expression.left),
-                @else: expression.right
+                @then: Value(expression.left, expression.left.type),
+                @else: expression.right,
+                expression.type
             )
         );
     }
@@ -347,40 +354,45 @@ internal sealed class Lowerer : BoundTreeRewriter {
         ((<operand> -= 1) + 1)
 
         */
-        if (expression.op.opKind == BoundUnaryOperatorKind.NumericalIdentity)
+        if (expression.opKind == UnaryOperatorKind.UnaryPlus)
             return RewriteExpression(expression.operand);
 
-        if (expression.op.opKind == BoundPrefixOperatorKind.Increment)
+        if (expression.opKind == UnaryOperatorKind.PrefixIncrement)
             return RewriteExpression(Increment(expression.operand));
-        else if (expression.op.opKind == BoundPrefixOperatorKind.Decrement)
+        else if (expression.opKind == UnaryOperatorKind.PrefixDecrement)
             return RewriteExpression(Decrement(expression.operand));
 
-        if (expression.op.opKind == BoundPostfixOperatorKind.Increment ||
-            expression.op.opKind == BoundPostfixOperatorKind.Decrement) {
-            var assignment = expression.op.opKind == BoundPostfixOperatorKind.Increment
+        if (expression.opKind == UnaryOperatorKind.PostfixIncrement ||
+            expression.opKind == UnaryOperatorKind.PostfixDecrement) {
+            var assignment = expression.opKind == UnaryOperatorKind.PostfixIncrement
                 ? Increment(expression.operand)
                 : Decrement(expression.operand);
 
-            if (expression.isOwnStatement) {
-                return RewriteExpression(assignment);
-            } else {
-                var reversal = expression.op.opKind == BoundPostfixOperatorKind.Increment
-                    ? Subtract(assignment, Literal(1))
-                    : Add(assignment, Literal(1));
+            // TODO Probably add a BoundIncrementExpression to handle isOwnStatement
+            // Should ABSOLUTELY be using the expander for this kind of operation however, not undoing an increment
+            // if (expression.isOwnStatement) {
+            //     return RewriteExpression(assignment);
+            // } else {
+            //     var reversal = expression.op.opKind == UnaryOperatorKind.PostfixIncrement
+            //         ? Subtract(assignment, Literal(1))
+            //         : Add(assignment, Literal(1));
 
-                return RewriteExpression(reversal);
-            }
+            //     return RewriteExpression(reversal);
+            // }
+            return RewriteExpression(assignment);
         }
 
         if (expression.operand.type.IsNullableType()) {
             return RewriteExpression(
-                NullConditional(
+                Conditional(
                     @if: HasValue(expression.operand),
                     @then: Unary(
-                        expression.op,
-                        Value(expression.operand)
+                        expression.opKind,
+                        Value(expression.operand, expression.operand.type.GetNullableUnderlyingType()),
+                        expression.type
                     ),
-                    @else: Literal(null, expression.type)
+                    @else: Literal(null, expression.type),
+                    expression.type
                 )
             );
         }
@@ -412,12 +424,12 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         if (operandType.IsNullableType() && !type.IsNullableType()) {
             if (type.Equals(operandType))
-                return RewriteExpression(Value(operand));
+                return RewriteExpression(Value(operand, operandType.GetNullableUnderlyingType()));
 
             return base.RewriteCastExpression(
                 Cast(
                     type,
-                    Value(operand),
+                    Value(operand, operandType.GetNullableUnderlyingType()),
                     ConversionKind.ExplicitNullable,
                     operand.constantValue
                 )
@@ -530,9 +542,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 expression.left,
                 Binary(
                     expression.left,
-                    expression.op,
-                    expression.right
-                )
+                    expression.opKind,
+                    expression.right,
+                    expression.type
+                ),
+                expression.type
             )
         );
     }

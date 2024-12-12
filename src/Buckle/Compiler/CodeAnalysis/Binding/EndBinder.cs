@@ -1,13 +1,18 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 internal sealed class EndBinder : Binder {
-    internal EndBinder(Compilation compilation) : base(compilation) { }
+    internal EndBinder(Compilation compilation, SourceText associatedText) : base(compilation) {
+        this.associatedText = associatedText;
+    }
+
+    internal readonly SourceText associatedText;
 
     internal override ConstantFieldsInProgress constantFieldsInProgress => ConstantFieldsInProgress.Empty;
 
@@ -49,6 +54,14 @@ internal sealed class EndBinder : Binder {
         throw ExceptionUtilities.Unreachable();
     }
 
+    internal override bool IsAccessibleHelper(
+        Symbol symbol,
+        TypeSymbol accessThroughType,
+        out bool failedThroughTypeCheck) {
+        failedThroughTypeCheck = false;
+        return IsSymbolAccessibleConditional(symbol, compilation.globalNamespaceInternal);
+    }
+
     private protected override bool IsUnboundTypeAllowed(TemplateNameSyntax syntax) {
         return false;
     }
@@ -60,5 +73,4 @@ internal sealed class EndBinder : Binder {
     private protected override LocalFunctionSymbol LookupLocalFunction(SyntaxToken identifier) {
         return null;
     }
-
 }

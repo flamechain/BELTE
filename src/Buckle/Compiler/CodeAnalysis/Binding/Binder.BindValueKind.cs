@@ -18,5 +18,6 @@ internal partial class Binder {
         IncrementDecrement = CompoundAssignment + 1,
         RefOrOut = RefersToLocation | RValue | Assignable,
         RefReturn = RefOrOut + 1,
+        RefConst = RefersToLocation | RValue,
     }
 }

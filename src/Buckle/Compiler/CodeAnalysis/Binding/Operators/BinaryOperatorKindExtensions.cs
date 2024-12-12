@@ -1,3 +1,5 @@
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -12,5 +14,33 @@ internal static class BinaryOperatorKindExtensions {
 
     internal static bool IsConditional(this BinaryOperatorKind kind) {
         return 0 != (kind & BinaryOperatorKind.Conditional);
+    }
+
+    internal static SyntaxKind ToSyntaxKind(this BinaryOperatorKind kind) {
+        var isConditional = kind.IsConditional();
+
+        return (kind & BinaryOperatorKind.OpMask) switch {
+            BinaryOperatorKind.Multiplication => SyntaxKind.AsteriskToken,
+            BinaryOperatorKind.Addition => SyntaxKind.PlusToken,
+            BinaryOperatorKind.Subtraction => SyntaxKind.MinusToken,
+            BinaryOperatorKind.Division => SyntaxKind.SlashToken,
+            BinaryOperatorKind.Modulo => SyntaxKind.PercentToken,
+            BinaryOperatorKind.LeftShift => SyntaxKind.LessThanLessThanToken,
+            BinaryOperatorKind.RightShift => SyntaxKind.GreaterThanGreaterThanToken,
+            BinaryOperatorKind.Equal => SyntaxKind.EqualsEqualsToken,
+            BinaryOperatorKind.NotEqual => SyntaxKind.ExclamationEqualsToken,
+            BinaryOperatorKind.GreaterThan => SyntaxKind.GreaterThanToken,
+            BinaryOperatorKind.LessThan => SyntaxKind.LessThanToken,
+            BinaryOperatorKind.GreaterThanOrEqual => SyntaxKind.GreaterThanEqualsToken,
+            BinaryOperatorKind.LessThanOrEqual => SyntaxKind.LessThanEqualsToken,
+            BinaryOperatorKind.UnsignedRightShift => SyntaxKind.GreaterThanGreaterThanGreaterThanToken,
+            BinaryOperatorKind.And when isConditional => SyntaxKind.AmpersandAmpersandToken,
+            BinaryOperatorKind.And when !isConditional => SyntaxKind.AmpersandToken,
+            BinaryOperatorKind.Or when isConditional => SyntaxKind.PipePipeToken,
+            BinaryOperatorKind.Or when !isConditional => SyntaxKind.PipeToken,
+            BinaryOperatorKind.Xor => SyntaxKind.CaretToken,
+            BinaryOperatorKind.Power => SyntaxKind.AsteriskAsteriskToken,
+            _ => throw ExceptionUtilities.UnexpectedValue(kind),
+        };
     }
 }

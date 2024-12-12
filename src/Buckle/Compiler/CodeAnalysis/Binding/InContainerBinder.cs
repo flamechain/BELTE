@@ -12,6 +12,14 @@ internal class InContainerBinder : Binder {
 
     internal override Symbol containingMember => container;
 
+    internal override bool IsAccessibleHelper(
+        Symbol symbol,
+        TypeSymbol accessThroughType,
+        out bool failedThroughTypeCheck) {
+        failedThroughTypeCheck = false;
+        return IsSymbolAccessibleConditional(symbol, compilation.globalNamespaceInternal);
+    }
+
     private protected override SourceDataContainerSymbol LookupLocal(SyntaxToken identifier) {
         return null;
     }

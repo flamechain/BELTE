@@ -9,12 +9,13 @@ namespace Buckle.CodeAnalysis.Binding;
 internal sealed class BoundCompoundAssignmentExpression : BoundExpression {
     internal BoundCompoundAssignmentExpression(
         BoundExpression left,
-        BoundBinaryOperator op,
-        BoundExpression right) {
+        BoundExpression right,
+        BinaryOperatorKind opKind,
+        TypeSymbol type) {
         this.left = left;
-        this.op = op;
         this.right = right;
-        type = right.type;
+        this.opKind = opKind;
+        this.type = type;
     }
 
     internal override BoundNodeKind kind => BoundNodeKind.CompoundAssignmentExpression;
@@ -23,7 +24,7 @@ internal sealed class BoundCompoundAssignmentExpression : BoundExpression {
 
     internal BoundExpression left { get; }
 
-    internal BoundBinaryOperator op { get; }
+    internal BinaryOperatorKind opKind { get; }
 
     internal BoundExpression right { get; }
 }

@@ -95,7 +95,8 @@ internal static class BinaryOperatorEasyOut {
         Shift,
         Logical,
         Logical,
-        Logical
+        Logical,
+        Arithmetic
     ];
 
     public static BinaryOperatorKind OpKind(BinaryOperatorKind kind, TypeSymbol left, TypeSymbol right) {
