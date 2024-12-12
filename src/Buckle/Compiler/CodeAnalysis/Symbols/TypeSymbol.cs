@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
+using Buckle.Libraries;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -118,6 +120,79 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
             },
             _ => true,
         };
+    }
+
+    internal TypeSymbol GetNextBaseType(
+        ConsList<TypeSymbol> basesBeingResolved,
+        ref PooledHashSet<NamedTypeSymbol> visited) {
+        switch (typeKind) {
+            case TypeKind.TemplateParameter:
+                return ((TemplateParameterSymbol)this).effectiveBaseClass;
+            case TypeKind.Class:
+            case TypeKind.Struct:
+            case TypeKind.Error:
+                return GetNextDeclaredBase((NamedTypeSymbol)this, basesBeingResolved, ref visited);
+            case TypeKind.Array:
+                return baseType;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(typeKind);
+        }
+    }
+
+    private static TypeSymbol GetNextDeclaredBase(
+        NamedTypeSymbol type,
+        ConsList<TypeSymbol> basesBeingResolved,
+        ref PooledHashSet<NamedTypeSymbol> visited) {
+        if (basesBeingResolved is not null && basesBeingResolved.ContainsReference(type.originalDefinition))
+            return null;
+
+        if (type.specialType == SpecialType.Object) {
+            type.SetKnownToHaveNoDeclaredBaseCycles();
+            return null;
+        }
+
+        var nextType = type.GetDeclaredBaseType(basesBeingResolved);
+
+        if (nextType is null) {
+            SetKnownToHaveNoDeclaredBaseCycles(ref visited);
+            return GetDefaultBaseOrNull(type);
+        }
+
+        var origType = type.originalDefinition;
+        if (nextType.knownToHaveNoDeclaredBaseCycles) {
+            origType.SetKnownToHaveNoDeclaredBaseCycles();
+            SetKnownToHaveNoDeclaredBaseCycles(ref visited);
+        } else {
+            visited ??= PooledHashSet<NamedTypeSymbol>.GetInstance();
+            visited.Add(origType);
+
+            if (visited.Contains(nextType.originalDefinition))
+                return GetDefaultBaseOrNull(type);
+        }
+
+        return nextType;
+    }
+
+    private static void SetKnownToHaveNoDeclaredBaseCycles(ref PooledHashSet<NamedTypeSymbol> visited) {
+        if (visited != null) {
+            foreach (var v in visited)
+                v.SetKnownToHaveNoDeclaredBaseCycles();
+
+            visited.Free();
+            visited = null;
+        }
+    }
+
+    private static NamedTypeSymbol GetDefaultBaseOrNull(NamedTypeSymbol type) {
+        switch (type.typeKind) {
+            case TypeKind.Class:
+            case TypeKind.Error:
+                return CorLibrary.GetSpecialType(SpecialType.Object);
+            case TypeKind.Struct:
+                return null;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(type.typeKind);
+        }
     }
 
     internal bool IsPossiblyNullableTypeTemplateParameter() {

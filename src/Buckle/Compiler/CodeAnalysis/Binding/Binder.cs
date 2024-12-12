@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
@@ -7,6 +8,7 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
+using Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -294,17 +296,97 @@ internal partial class Binder {
         ExpressionSyntax syntax,
         BelteDiagnosticQueue diagnostics,
         ConsList<TypeSymbol> basesBeingResolved = null) {
+        TypeWithAnnotations nonNullableType;
+
         switch (syntax.kind) {
             case SyntaxKind.NonNullableType:
+                return BindNonNullable();
             case SyntaxKind.IdentifierName:
+                nonNullableType = BindNonTemplateSimpleType(
+                    (IdentifierNameSyntax)syntax,
+                    diagnostics,
+                    basesBeingResolved,
+                    null
+                );
+
+                break;
             case SyntaxKind.TemplateName:
-            case SyntaxKind.QualifiedName:
-            case SyntaxKind.MemberAccessExpression:
+                nonNullableType = BindTemplateSimpleType(
+                    (TemplateNameSyntax)syntax,
+                    diagnostics,
+                    basesBeingResolved,
+                    null
+                );
+
+                break;
+            case SyntaxKind.QualifiedName: {
+                    var node = (QualifiedNameSyntax)syntax;
+                    nonNullableType = BindQualifiedName(node.left, node.right, diagnostics, basesBeingResolved);
+                    break;
+                }
+            case SyntaxKind.MemberAccessExpression: {
+                    var node = (MemberAccessExpressionSyntax)syntax;
+                    nonNullableType = BindQualifiedName(node.expression, node.name, diagnostics, basesBeingResolved);
+                    break;
+                }
             case SyntaxKind.ArrayType:
-            case SyntaxKind.ReferenceType:
+                nonNullableType = BindArrayType(
+                    (ArrayTypeSyntax)syntax,
+                    diagnostics,
+                    false,
+                    basesBeingResolved,
+                    true
+                );
+
+                break;
+            case SyntaxKind.ReferenceType: {
+                    var referenceTypeSyntax = (ReferenceTypeSyntax)syntax;
+                    var refToken = referenceTypeSyntax.refKeyword;
+
+                    // diagnostics.Add(ErrorCode.ERR_UnexpectedToken, refToken.GetLocation(), refToken.ToString());
+                    // TODO error
+
+                    return BindType(referenceTypeSyntax.type, diagnostics, basesBeingResolved);
+                }
             default:
                 return new TypeWithAnnotations(CreateErrorType());
         }
+
+        return nonNullableType.SetIsAnnotated();
+
+        TypeWithAnnotations BindNonNullable() {
+            var nonNullableSyntax = (NonNullableTypeSyntax)syntax;
+            var nullableType = BindType(nonNullableSyntax.type, diagnostics, basesBeingResolved);
+            return new TypeWithAnnotations(nullableType.type.GetNullableUnderlyingType(), false);
+        }
+    }
+
+    private protected TypeWithAnnotations BindNonTemplateSimpleType(
+        IdentifierNameSyntax node,
+        BelteDiagnosticQueue diagnostics,
+        ConsList<TypeSymbol> basesBeingResolved,
+        NamespaceOrTypeSymbol qualifier) {
+        var name = node.identifier.text;
+
+        if (string.IsNullOrWhiteSpace(name)) {
+            // return new TypeWithAnnotations(new ExtendedErrorTypeSymbol(compilation.globalNamespaceInternal, name, 0, null));
+            // TODO error
+        }
+
+        // var errorResult = CreateErrorIfLookupOnTypeParameter(node.Parent, qualifierOpt, identifierValueText, 0, diagnostics);
+        // if (errorResult is not null) {
+        //     return TypeWithAnnotations.Create(errorResult);
+        // }
+
+        var result = LookupResult.GetInstance();
+        var options = LookupOptions.NamespacesOrTypesOnly;
+
+        LookupSymbolsSimpleName(result, qualifier, name, 0, basesBeingResolved, options, true);
+
+        var bindingResult = ResultSymbol(result, name, 0, node, diagnostics, out _, qualifier, options);
+
+        result.Free();
+        return new TypeWithAnnotations(bindingResult);
     }
 
     internal TypeWithAnnotations BindTypeOrImplicitType(
@@ -623,6 +705,329 @@ internal partial class Binder {
     #endregion
 
     #region Lookup
+
+    internal void LookupSymbolsSimpleName(
+        LookupResult result,
+        NamespaceOrTypeSymbol qualifier,
+        string plainName,
+        int arity,
+        ConsList<TypeSymbol> basesBeingResolved,
+        LookupOptions options,
+        bool diagnose) {
+        if (qualifier is null)
+            LookupSymbolsInternal(result, plainName, arity, basesBeingResolved, options, diagnose);
+        else
+            LookupMembersInternal(result, qualifier, plainName, arity, basesBeingResolved, options, this, diagnose);
+    }
+
+    private protected void LookupMembersInternal(
+        LookupResult result,
+        NamespaceOrTypeSymbol nsOrType,
+        string name,
+        int arity,
+        ConsList<TypeSymbol> basesBeingResolved,
+        LookupOptions options,
+        Binder originalBinder,
+        bool diagnose) {
+        if (nsOrType.isNamespace) {
+            LookupMembersInNamespace(result, (NamespaceSymbol)nsOrType, name, arity, options, originalBinder, diagnose);
+        } else {
+            LookupMembersInType(result, (TypeSymbol)nsOrType, name, arity, basesBeingResolved, options, originalBinder, diagnose);
+        }
+    }
+
+    private protected void LookupMembersInType(
+        LookupResult result,
+        TypeSymbol type,
+        string name,
+        int arity,
+        ConsList<TypeSymbol> basesBeingResolved,
+        LookupOptions options,
+        Binder originalBinder,
+        bool diagnose) {
+        switch (type.typeKind) {
+            case TypeKind.TemplateParameter:
+                LookupMembersInTemplateParameter(
+                    result,
+                    (TemplateParameterSymbol)type,
+                    name,
+                    arity,
+                    basesBeingResolved,
+                    options,
+                    originalBinder,
+                    diagnose
+                );
+
+                break;
+            case TypeKind.Class:
+            case TypeKind.Struct:
+            case TypeKind.Array:
+                LookupMembersInClass(
+                    result,
+                    type,
+                    name,
+                    arity,
+                    basesBeingResolved,
+                    options,
+                    originalBinder,
+                    diagnose
+                );
+
+                break;
+            case TypeKind.Error:
+                LookupMembersInErrorType(
+                    result,
+                    (ErrorTypeSymbol)type,
+                    name,
+                    arity,
+                    basesBeingResolved,
+                    options,
+                    originalBinder,
+                    diagnose
+                );
+
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(type.typeKind);
+        }
+    }
+
+    private void LookupMembersInClass(
+            LookupResult result,
+            TypeSymbol type,
+            string name,
+            int arity,
+            ConsList<TypeSymbol> basesBeingResolved,
+            LookupOptions options,
+            Binder originalBinder,
+            bool diagnose) {
+        LookupMembersInClass(result, type, name, arity, basesBeingResolved, options, originalBinder, type, diagnose);
+    }
+
+    private void LookupMembersInTemplateParameter(
+        LookupResult current,
+        TemplateParameterSymbol templateParameter,
+        string name,
+        int arity,
+        ConsList<TypeSymbol> basesBeingResolved,
+        LookupOptions options,
+        Binder originalBinder,
+        bool diagnose) {
+        if ((options & LookupOptions.NamespacesOrTypesOnly) != 0)
+            return;
+
+        LookupMembersInClass(
+            current,
+            templateParameter.effectiveBaseClass,
+            name,
+            arity,
+            basesBeingResolved,
+            options,
+            originalBinder,
+            diagnose
+        );
+    }
+
+    private void LookupMembersInClass(
+        LookupResult result,
+        TypeSymbol type,
+        string name,
+        int arity,
+        ConsList<TypeSymbol> basesBeingResolved,
+        LookupOptions options,
+        Binder originalBinder,
+        TypeSymbol accessThroughType,
+        bool diagnose) {
+        var currentType = type;
+        var tmp = LookupResult.GetInstance();
+
+        PooledHashSet<NamedTypeSymbol> visited = null;
+
+        while (currentType is not null) {
+            tmp.Clear();
+            LookupMembersWithoutInheritance(tmp, currentType, name, arity, options, originalBinder, accessThroughType, diagnose, basesBeingResolved);
+            MergeHidingLookupResults(result, tmp, basesBeingResolved);
+
+            var namedType = currentType as NamedTypeSymbol;
+            var tmpHidesMethodOrIndexers = tmp.isMultiViable && tmp.symbols[0].kind != SymbolKind.Method;
+
+            if (result.isMultiViable && (tmpHidesMethodOrIndexers || tmp.symbols[0].kind != SymbolKind.Method))
+                break;
+
+            if (basesBeingResolved is not null && basesBeingResolved.ContainsReference(type.originalDefinition)) {
+                var other = GetNearestOtherSymbol(basesBeingResolved, type);
+                // var diagInfo = new CSDiagnosticInfo(ErrorCode.ERR_CircularBase, type, other);
+                // TODO error
+                DiagnosticInfo diagInfo = null;
+                var error = new ExtendedErrorTypeSymbol(compilation, name, arity, diagInfo, unreported: true);
+                result.SetFrom(LookupResult.Good(error));
+            }
+
+            currentType = currentType.GetNextBaseType(basesBeingResolved, ref visited);
+        }
+
+        visited?.Free();
+        tmp.Free();
+    }
+
+    private static Symbol GetNearestOtherSymbol(ConsList<TypeSymbol> list, TypeSymbol type) {
+        var other = type;
+
+        for (; list != null && list != ConsList<TypeSymbol>.Empty; list = list.tail) {
+            if (TypeSymbol.Equals(list.head, type.originalDefinition, TypeCompareKind.ConsiderEverything)) {
+                if (TypeSymbol.Equals(other, type, TypeCompareKind.ConsiderEverything) && list.tail is not null &&
+                    list.tail != ConsList<TypeSymbol>.Empty) {
+                    other = list.tail.head;
+                }
+
+                break;
+            } else {
+                other = list.head;
+            }
+        }
+
+        return other;
+    }
+
+    private void MergeHidingLookupResults(
+        LookupResult resultHiding,
+        LookupResult resultHidden,
+        ConsList<TypeSymbol> basesBeingResolved) {
+        if (resultHiding.isMultiViable && resultHidden.isMultiViable) {
+            var hidingSymbols = resultHiding.symbols;
+            var hidingCount = hidingSymbols.Count;
+            var hiddenSymbols = resultHidden.symbols;
+            var hiddenCount = hiddenSymbols.Count;
+
+            for (var i = 0; i < hiddenCount; i++) {
+                var sym = hiddenSymbols[i];
+
+                for (var j = 0; j < hidingCount; j++) {
+                    var hidingSym = hidingSymbols[j];
+
+                    if (hidingSym.kind != SymbolKind.Method || sym.kind != SymbolKind.Method)
+                        goto symIsHidden;
+                }
+
+                hidingSymbols.Add(sym);
+symIsHidden:;
+            }
+        } else {
+            resultHiding.MergePrioritized(resultHidden);
+        }
+    }
+
+    private protected static void LookupMembersWithoutInheritance(
+        LookupResult result,
+        TypeSymbol type,
+        string name,
+        int arity,
+        LookupOptions options,
+        Binder originalBinder,
+        TypeSymbol accessThroughType,
+        bool diagnose,
+        ConsList<TypeSymbol> basesBeingResolved) {
+        var members = GetCandidateMembers(type, name, options, originalBinder);
+
+        foreach (var member in members) {
+            var resultOfThisMember = originalBinder.CheckViability(
+                member,
+                arity,
+                options,
+                accessThroughType,
+                diagnose,
+                basesBeingResolved
+            );
+
+            result.MergeEqual(resultOfThisMember);
+        }
+    }
+
+    private void LookupMembersInErrorType(
+        LookupResult result,
+        ErrorTypeSymbol errorType,
+        string name,
+        int arity,
+        ConsList<TypeSymbol> basesBeingResolved,
+        LookupOptions options,
+        Binder originalBinder,
+        bool diagnose) {
+        if (!errorType.candidateSymbols.IsDefault && errorType.candidateSymbols.Length == 1) {
+            if (errorType.resultKind == LookupResultKind.Inaccessible) {
+                if (errorType.candidateSymbols[0] is TypeSymbol candidateType) {
+                    LookupMembersInType(
+                        result,
+                        candidateType,
+                        name,
+                        arity,
+                        basesBeingResolved,
+                        options,
+                        originalBinder,
+                        diagnose
+                    );
+
+                    return;
+                }
+            }
+        }
+
+        result.Clear();
+    }
+
+
+    private static void LookupMembersInNamespace(
+        LookupResult result,
+        NamespaceSymbol ns,
+        string name,
+        int arity,
+        LookupOptions options,
+        Binder originalBinder,
+        bool diagnose) {
+        var members = GetCandidateMembers(ns, name, options, originalBinder);
+
+        foreach (var member in members) {
+            var resultOfThisMember = originalBinder.CheckViability(member, arity, options, null, diagnose);
+            result.MergeEqual(resultOfThisMember);
+        }
+    }
+
+    internal static ImmutableArray<Symbol> GetCandidateMembers(
+        NamespaceOrTypeSymbol nsOrType,
+        string name,
+        LookupOptions options,
+        Binder originalBinder) {
+        if ((options & LookupOptions.NamespacesOrTypesOnly) != 0 && nsOrType is TypeSymbol) {
+            return nsOrType.GetTypeMembers(name).Cast<NamedTypeSymbol, Symbol>();
+        } else {
+            return nsOrType.GetMembers(name);
+        }
+    }
+
+    private Binder LookupSymbolsInternal(
+        LookupResult result,
+        string name,
+        int arity,
+        ConsList<TypeSymbol> basesBeingResolved,
+        LookupOptions options,
+        bool diagnose) {
+        Binder binder = null;
+
+        for (var scope = this; scope is not null && !result.isMultiViable; scope = scope.next) {
+            if (binder is not null) {
+                var tmp = LookupResult.GetInstance();
+                scope.LookupSymbolsInSingleBinder(tmp, name, arity, basesBeingResolved, options, this, diagnose);
+                result.MergeEqual(tmp);
+                tmp.Free();
+            } else {
+                scope.LookupSymbolsInSingleBinder(result, name, arity, basesBeingResolved, options, this, diagnose);
+
+                if (!result.isClear)
+                    binder = scope;
+            }
+        }
+
+        return binder;
+    }
 
     internal virtual void LookupSymbolsInSingleBinder(
         LookupResult result,

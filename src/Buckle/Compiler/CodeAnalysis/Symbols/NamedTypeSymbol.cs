@@ -86,6 +86,10 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
         return templateParameters.IsEmpty ? this : Construct(templateArguments, unbound: false);
     }
 
+    internal void SetKnownToHaveNoDeclaredBaseCycles() {
+        _hasNoBaseCycles = true;
+    }
+
     internal new TemplateParameterSymbol FindEnclosingTemplateParameter(string name) {
         var allTemplateParameters = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
         GetAllTypeParameters(allTemplateParameters);
@@ -111,7 +115,7 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
     internal static readonly Func<TypeOrConstant, bool> TypeOrConstantIsNullFunction = type
         => type.isType && type.type.type is null;
 
-    internal NamedTypeSymbol Construct(ImmutableArray<TypeOrConstant> templateArguments, bool unbound) {
+    internal NamedTypeSymbol Construct(ImmutableArray<TypeOrConstant> templateArguments, bool unbound = false) {
         if (!ReferenceEquals(this, constructedFrom))
             throw new InvalidOperationException("Cannot create constructed from constructed");
 

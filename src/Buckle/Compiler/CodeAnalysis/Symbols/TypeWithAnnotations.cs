@@ -1,4 +1,5 @@
 using Buckle.CodeAnalysis.Display;
+using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -40,6 +41,11 @@ internal sealed class TypeWithAnnotations {
 
     internal bool IsAtLeastAsVisibleAs(Symbol symbol) {
         return type.IsAtLeastAsVisibleAs(symbol);
+    }
+
+    internal TypeWithAnnotations SetIsAnnotated() {
+        var newType = CorLibrary.GetSpecialType(SpecialType.Nullable).Construct([new TypeOrConstant(type, false)]);
+        return new TypeWithAnnotations(newType, true);
     }
 
     internal TypeOrConstant SubstituteType(TemplateMap templateMap) {
