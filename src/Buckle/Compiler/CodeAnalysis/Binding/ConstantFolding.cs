@@ -187,6 +187,13 @@ internal static class ConstantFolding {
         return null;
     }
 
+    internal static ConstantValue FoldNullAssert(BoundExpression operand) {
+        if (ConstantValue.IsNotNull(operand.constantValue))
+            return operand.constantValue;
+
+        return null;
+    }
+
     /// <summary>
     /// Folds a <see cref="BoundUnaryExpression" /> (if possible).
     /// </summary>

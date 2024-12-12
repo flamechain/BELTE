@@ -17,7 +17,6 @@ internal enum BinaryOperatorKind : int {
     Type = UnaryOperatorKind._Type,
     NullableNull = UnaryOperatorKind._NullableNull,
     Any = UnaryOperatorKind.Any,
-    // TODO Add Any operators
     UserDefined = UnaryOperatorKind.UserDefined,
 
     OpMask = UnaryOperatorKind.OpMask,

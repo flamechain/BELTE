@@ -16,17 +16,13 @@ internal sealed partial class Conversion {
 
     internal static readonly Conversion ImplicitReference = new Conversion(ConversionKind.ImplicitReference);
 
-    internal static readonly Conversion Boxing = new Conversion(ConversionKind.Boxing);
-
-    internal static readonly Conversion BoxingImplicitNullable = new Conversion(ConversionKind.BoxingImplicitNullable);
-
-    internal static readonly Conversion BoxingExplicitNullable = new Conversion(ConversionKind.BoxingExplicitNullable);
-
     internal static readonly Conversion AnyBoxing = new Conversion(ConversionKind.AnyBoxing);
 
-    internal static readonly Conversion AnyBoxingImplicitNullable = new Conversion(ConversionKind.AnyBoxingImplicitNullable);
+    internal static readonly Conversion AnyBoxingImplicitNullable
+        = new Conversion(ConversionKind.AnyBoxingImplicitNullable);
 
-    internal static readonly Conversion AnyBoxingExplicitNullable = new Conversion(ConversionKind.AnyBoxingExplicitNullable);
+    internal static readonly Conversion AnyBoxingExplicitNullable
+        = new Conversion(ConversionKind.AnyBoxingExplicitNullable);
 
     internal static readonly Conversion Explicit = new Conversion(ConversionKind.Explicit);
 
@@ -34,17 +30,13 @@ internal sealed partial class Conversion {
 
     internal static readonly Conversion ExplicitReference = new Conversion(ConversionKind.ExplicitReference);
 
-    internal static readonly Conversion Unboxing = new Conversion(ConversionKind.Unboxing);
-
-    internal static readonly Conversion UnboxingImplicitNullable = new Conversion(ConversionKind.UnboxingImplicitNullable);
-
-    internal static readonly Conversion UnboxingExplicitNullable = new Conversion(ConversionKind.UnboxingExplicitNullable);
-
     internal static readonly Conversion AnyUnboxing = new Conversion(ConversionKind.AnyUnboxing);
 
-    internal static readonly Conversion AnyUnboxingImplicitNullable = new Conversion(ConversionKind.AnyUnboxingImplicitNullable);
+    internal static readonly Conversion AnyUnboxingImplicitNullable
+        = new Conversion(ConversionKind.AnyUnboxingImplicitNullable);
 
-    internal static readonly Conversion AnyUnboxingExplicitNullable = new Conversion(ConversionKind.AnyUnboxingExplicitNullable);
+    internal static readonly Conversion AnyUnboxingExplicitNullable
+        = new Conversion(ConversionKind.AnyUnboxingExplicitNullable);
 
     private Conversion(ConversionKind castKind) {
         kind = castKind;
@@ -94,31 +86,11 @@ internal sealed partial class Conversion {
         if (source.Equals(target))
             return Identity;
 
-        var sourceIsNullable = source.IsNullableType();
-        var targetIsNullable = target.IsNullableType();
+        if (source is NamedTypeSymbol s && target is NamedTypeSymbol t) {
+            if (IsBaseClass(s, t))
+                return Implicit;
 
-        if (source.typeWithAnnotations.underlyingType == target.typeWithAnnotations.underlyingType) {
-            if (sourceIsNullable && targetIsNullable)
-                return Identity;
-            else if (sourceIsNullable)
-                return ExplicitNullable;
-            else
-                return ImplicitNullable;
-        }
-
-        if (source.typeWithAnnotations.underlyingType.InheritsFrom(target.typeWithAnnotations.underlyingType)) {
-            if (sourceIsNullable && targetIsNullable)
-                return ImplicitNullable;
-            else if (sourceIsNullable)
-                return ExplicitNullable;
-            else
-                return ImplicitNullable;
-        }
-
-        if (target.typeWithAnnotations.underlyingType.InheritsFrom(source.typeWithAnnotations.underlyingType)) {
-            if (sourceIsNullable || targetIsNullable)
-                return ExplicitNullable;
-            else
+            if (IsBaseClass(t, s))
                 return Explicit;
         }
 

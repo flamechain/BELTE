@@ -227,6 +227,9 @@ public sealed class DisplayText {
             case BoundNodeKind.NullCoalescingExpression:
                 DisplayNullCoalescingExpression(text, (BoundNullCoalescingExpression)node);
                 break;
+            case BoundNodeKind.NullAssertExpression:
+                DisplayNullAssertExpression(text, (BoundNullAssertExpression)node);
+                break;
             case BoundNodeKind.ConditionalExpression:
                 DisplayConditionalExpression(text, (BoundConditionalExpression)node);
                 break;
@@ -770,7 +773,7 @@ public sealed class DisplayText {
     }
 
     private static void DisplayBinaryExpression(DisplayText text, BoundBinaryExpression node) {
-        DisplayBinaryAdjacentExpression(text, node.left, node.right, node.op);
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, node.op.kind);
     }
 
     private static void DisplayIsExpression(DisplayText text, BoundIsExpression node) {
@@ -796,6 +799,11 @@ public sealed class DisplayText {
     private static void DisplayUnaryExpression(DisplayText text, BoundUnaryExpression node) {
         text.Write(CreatePunctuation(node.op.kind));
         DisplayNode(text, node.operand);
+    }
+
+    private static void DisplayNullAssertExpression(DisplayText text, BoundNullAssertExpression node) {
+        DisplayNode(text, node.operand);
+        text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
     }
 
     private static void DisplayFieldEqualsValue(DisplayText text, BoundFieldEqualsValue node) {

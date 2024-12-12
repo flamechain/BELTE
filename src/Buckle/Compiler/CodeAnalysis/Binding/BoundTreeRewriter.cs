@@ -207,6 +207,8 @@ internal abstract class BoundTreeRewriter {
                 return RewriteIsntExpression((BoundIsntExpression)expression);
             case BoundNodeKind.NullCoalescingExpression:
                 return RewriteNullCoalescingExpression((BoundNullCoalescingExpression)expression);
+            case BoundNodeKind.NullAssertExpression:
+                return RewriteNullAssertExpression((BoundNullAssertExpression)expression);
             case BoundNodeKind.EmptyExpression:
                 return RewriteEmptyExpression((BoundEmptyExpression)expression);
             case BoundNodeKind.ErrorExpression:
@@ -477,6 +479,15 @@ internal abstract class BoundTreeRewriter {
             return expression;
 
         return new BoundUnaryExpression(expression.op, operand);
+    }
+
+    private protected virtual BoundExpression RewriteNullAssertExpression(BoundNullAssertExpression expression) {
+        var operand = RewriteExpression(expression.operand);
+
+        if (operand == expression.operand)
+            return expression;
+
+        return new BoundNullAssertExpression(operand, expression.type);
     }
 
     private ImmutableArray<BoundExpression>? RewriteArguments(ImmutableArray<BoundExpression> arguments) {

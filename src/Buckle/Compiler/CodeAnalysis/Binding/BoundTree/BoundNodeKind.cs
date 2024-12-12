@@ -35,6 +35,7 @@ internal enum BoundNodeKind : byte {
     IsntExpression,
     AsExpression,
     NullCoalescingExpression,
+    NullAssertExpression,
 
     BlockStatement,
     ExpressionStatement,

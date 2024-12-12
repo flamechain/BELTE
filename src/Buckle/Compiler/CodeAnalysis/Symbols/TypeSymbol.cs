@@ -60,17 +60,19 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
             case SpecialType.Int: return 4;
             case SpecialType.Decimal: return 5;
             case SpecialType.Type: return 6;
+            case SpecialType.Object: return 7;
             case SpecialType.Nullable:
                 var underlyingType = GetNullableUnderlyingType();
 
                 switch (underlyingType.specialType) {
-                    case SpecialType.Any: return 7;
-                    case SpecialType.String: return 8;
-                    case SpecialType.Bool: return 9;
-                    case SpecialType.Char: return 10;
-                    case SpecialType.Int: return 11;
-                    case SpecialType.Decimal: return 12;
-                    case SpecialType.Type: return 13;
+                    case SpecialType.Any: return 8;
+                    case SpecialType.String: return 9;
+                    case SpecialType.Bool: return 10;
+                    case SpecialType.Char: return 11;
+                    case SpecialType.Int: return 12;
+                    case SpecialType.Decimal: return 13;
+                    case SpecialType.Type: return 14;
+                    case SpecialType.Object: return 15;
                 }
 
                 goto default;

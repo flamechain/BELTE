@@ -204,6 +204,8 @@ internal abstract class BoundTreeExpander {
                 return ExpandIsntExpression((BoundIsntExpression)expression, out replacement);
             case BoundNodeKind.NullCoalescingExpression:
                 return ExpandNullCoalescingExpression((BoundNullCoalescingExpression)expression, out replacement);
+            case BoundNodeKind.NullAssertExpression:
+                return ExpandNullAssertExpression((BoundNullAssertExpression)expression, out replacement);
             case BoundNodeKind.EmptyExpression:
                 return ExpandEmptyExpression((BoundEmptyExpression)expression, out replacement);
             case BoundNodeKind.ErrorExpression:
@@ -411,6 +413,20 @@ internal abstract class BoundTreeExpander {
 
         if (statements.Count != 0) {
             replacement = new BoundUnaryExpression(expression.op, operandReplacement);
+            return statements;
+        }
+
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandNullAssertExpression(
+        BoundNullAssertExpression expression,
+        out BoundExpression replacement) {
+        var statements = ExpandExpression(expression.operand, out var operandReplacement);
+
+        if (statements.Count != 0) {
+            replacement = new BoundNullAssertExpression(operandReplacement, expression.type);
             return statements;
         }
 

@@ -17,7 +17,6 @@ internal enum UnaryOperatorKind : int {
     _Type = 0x00000007,
     _NullableNull = 0x00000008,
     Any = 0x00000009,
-    // TODO Add Any operators
     UserDefined = 0x0000000A,
 
     OpMask = 0x0000FF00,
