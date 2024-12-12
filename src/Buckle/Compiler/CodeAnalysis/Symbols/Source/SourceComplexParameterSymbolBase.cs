@@ -76,7 +76,7 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
         binder = GetDefaultParameterValueBinder(defaultSyntax);
         binder = binder.CreateBinderForParameterDefaultValue(this, defaultSyntax);
 
-        parameterEqualsValue = binder.BindParameterDefaultValue(
+        parameterEqualsValue = (BoundParameterEqualsValue)binder.BindParameterDefaultValue(
             defaultSyntax,
             this,
             diagnostics,

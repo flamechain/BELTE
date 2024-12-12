@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -26,6 +27,7 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
             ModifierHelpers.CreateModifiers(syntax.modifiers, _declarationDiagnostics, out _);
 
         scopeBinder = binder;
+        location = syntax.identifier.location;
 
         if (syntax.templateParameterList is not null) {
             _templateParameters = MakeTemplateParameters(_declarationDiagnostics);
@@ -79,6 +81,8 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
     internal override Symbol containingSymbol { get; }
 
     internal LocalFunctionStatementSyntax syntax => (LocalFunctionStatementSyntax)syntaxReference.node;
+
+    internal override TextLocation location { get; }
 
     internal SyntaxToken identifier => syntax.identifier;
 

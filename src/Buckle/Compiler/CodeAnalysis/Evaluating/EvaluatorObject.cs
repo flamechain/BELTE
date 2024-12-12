@@ -29,7 +29,7 @@ public sealed class EvaluatorObject {
     /// Creates an <see cref="EvaluatorObject" /> without a value, and instead a list of members.
     /// </summary>
     /// <param name="members">Members to contain by this.</param>
-    internal EvaluatorObject(Dictionary<Symbol, EvaluatorObject> members, BoundType trueType) {
+    internal EvaluatorObject(Dictionary<Symbol, EvaluatorObject> members, TypeSymbol trueType) {
         value = null;
         isReference = false;
         reference = null;
@@ -51,7 +51,7 @@ public sealed class EvaluatorObject {
     /// <param name="isExplicitReference">
     /// If this is just a variable, or if it explicitly a reference expression.
     /// </param>
-    internal EvaluatorObject(VariableSymbol reference, bool isExplicitReference = false) {
+    internal EvaluatorObject(DataContainerSymbol reference, bool isExplicitReference = false) {
         value = null;
         isReference = true;
         this.reference = reference;
@@ -66,11 +66,11 @@ public sealed class EvaluatorObject {
 
     internal bool isExplicitReference { get; set; }
 
-    internal VariableSymbol reference { get; set; }
+    internal DataContainerSymbol reference { get; set; }
 
     internal Dictionary<Symbol, EvaluatorObject> members { get; set; }
 
-    internal BoundType trueType { get; set; }
+    internal TypeSymbol trueType { get; set; }
 
     /// <summary>
     /// Checks if this and another EvaluatorObject's values equal.

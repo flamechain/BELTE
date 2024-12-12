@@ -11,19 +11,19 @@ internal static partial class SpecializedCollections {
 
             private protected List() { }
 
-            public int IndexOf(T item) {
+            public new int IndexOf(T item) {
                 return -1;
             }
 
-            public void Insert(int index, T item) {
+            public new void Insert(int index, T item) {
                 throw new NotSupportedException();
             }
 
-            public void RemoveAt(int index) {
+            public new void RemoveAt(int index) {
                 throw new NotSupportedException();
             }
 
-            public T this[int index] {
+            public new T this[int index] {
                 get {
                     throw new ArgumentOutOfRangeException(nameof(index));
                 }

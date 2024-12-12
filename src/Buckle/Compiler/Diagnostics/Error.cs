@@ -1,6 +1,7 @@
 using System;
 using System.Text;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -105,8 +106,8 @@ internal static class Error {
     /// </summary>
     internal static BelteDiagnostic CannotConvertImplicitly(
         TextLocation location,
-        BoundType from,
-        BoundType to,
+        TypeSymbol from,
+        TypeSymbol to,
         int argument,
         bool canAssert) {
         var message =
@@ -130,7 +131,7 @@ internal static class Error {
     /// <summary>
     /// BU0008. Run `buckle --explain BU0008` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic InvalidUnaryOperatorUse(TextLocation location, string op, BoundType operand) {
+    internal static BelteDiagnostic InvalidUnaryOperatorUse(TextLocation location, string op, TypeSymbol operand) {
         var message = $"unary operator '{op}' is not defined for type '{operand}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidUnaryOperatorUse), location, message);
     }
@@ -157,8 +158,8 @@ internal static class Error {
     internal static BelteDiagnostic InvalidBinaryOperatorUse(
         TextLocation location,
         string op,
-        BoundType left,
-        BoundType right,
+        TypeSymbol left,
+        TypeSymbol right,
         bool isCompound) {
         var operatorWord = isCompound ? "compound" : "binary";
         var message = $"{operatorWord} operator '{op}' is not defined for types '{left}' and '{right}'";
@@ -243,7 +244,7 @@ internal static class Error {
     /// BU0020. Run `buckle --explain BU0020` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic CannotConvert(
-        TextLocation location, BoundType from, BoundType to, int argument = 0) {
+        TextLocation location, TypeSymbol from, TypeSymbol to, int argument = 0) {
         var message = $"cannot convert from type '{from}' to '{to}'";
 
         if (argument > 0)
@@ -294,7 +295,7 @@ internal static class Error {
     /// <summary>
     /// BU0025. Run `buckle --explain BU0025` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic CannotApplyIndexing(TextLocation location, BoundType type) {
+    internal static BelteDiagnostic CannotApplyIndexing(TextLocation location, TypeSymbol type) {
         var message = $"cannot apply indexing with [] to an expression of type '{type}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotApplyIndexing), location, message);
     }
@@ -591,7 +592,7 @@ internal static class Error {
             else if (i > 0)
                 message.Append(", ");
 
-            message.Append($"'{symbols[i].Signature()}'");
+            message.Append($"'{symbols[i]}'");
         }
 
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_AmbiguousMethodOverload), location, message.ToString());
@@ -609,7 +610,7 @@ internal static class Error {
     /// BU0060. Run `buckle --explain BU0060` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic InvalidTernaryOperatorUse(
-        TextLocation location, string op, BoundType left, BoundType center, BoundType right) {
+        TextLocation location, string op, TypeSymbol left, TypeSymbol center, TypeSymbol right) {
         var message = $"ternary operator '{op}' is not defined for types '{left}', '{center}', and '{right}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidTernaryOperatorUse), location, message);
     }
@@ -617,7 +618,7 @@ internal static class Error {
     /// <summary>
     /// BU0061. Run `buckle --explain BU0061` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic NoSuchMember(TextLocation location, BoundType operand, string text) {
+    internal static BelteDiagnostic NoSuchMember(TextLocation location, TypeSymbol operand, string text) {
         var message = $"'{operand}' contains no such member '{text}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoSuchMember), location, message);
     }
@@ -651,7 +652,7 @@ internal static class Error {
     /// <summary>
     /// BU0065. Run `buckle --explain BU0065` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic InvalidPrefixUse(TextLocation location, string op, BoundType operand) {
+    internal static BelteDiagnostic InvalidPrefixUse(TextLocation location, string op, TypeSymbol operand) {
         var message = $"prefix operator '{op}' is not defined for type '{operand}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidPrefixUse), location, message);
     }
@@ -659,7 +660,7 @@ internal static class Error {
     /// <summary>
     /// BU0066. Run `buckle --explain BU0066` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic InvalidPostfixUse(TextLocation location, string op, BoundType operand) {
+    internal static BelteDiagnostic InvalidPostfixUse(TextLocation location, string op, TypeSymbol operand) {
         var message = $"postfix operator '{op}' is not defined for type '{operand}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidPostfixUse), location, message);
     }
@@ -717,7 +718,7 @@ internal static class Error {
     /// <summary>
     /// BU0073. Run `buckle --explain BU0073` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic CannotConvertNull(TextLocation location, BoundType to, int argument = 0) {
+    internal static BelteDiagnostic CannotConvertNull(TextLocation location, TypeSymbol to, int argument = 0) {
         var message = $"cannot convert 'null' to '{to}' because it is a non-nullable type";
 
         if (argument > 0)
@@ -815,7 +816,7 @@ internal static class Error {
             else if (i > 0)
                 message.Append(", ");
 
-            message.Append($"'{symbols[i].Signature()}'");
+            message.Append($"'{symbols[i]}'");
         }
 
         return new BelteDiagnostic(
@@ -942,7 +943,7 @@ internal static class Error {
     /// <summary>
     /// BU0097. Run `buckle --explain BU0097` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic CannotUseType(TextLocation location, BoundType type) {
+    internal static BelteDiagnostic CannotUseType(TextLocation location, TypeSymbol type) {
         var message = $"'{type}' is a type, which is not valid in this context";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseType), location, message);
     }

@@ -56,7 +56,7 @@ internal partial class SourceDataContainerSymbol {
                 var type = this.type;
 
                 if (boundInitValue is null) {
-                    var inProgressBinder = new LocalInProgressBinder(this, _initializerBinder);
+                    var inProgressBinder = new LocalInProgressBinder(_initializer, _initializerBinder);
                     boundInitValue = inProgressBinder.BindDataContainerInitializerValue(
                         _initializer,
                         refKind,

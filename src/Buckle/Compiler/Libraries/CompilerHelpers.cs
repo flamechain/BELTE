@@ -21,6 +21,10 @@ public static class CompilerHelpers {
             if (libraryName.StartsWith("Compiler.Resources"))
                 continue;
 
+            // TODO Remove this, temp
+            if (libraryName != "Compiler.Object.blt")
+                continue;
+
             using var stream = assembly.GetManifestResourceStream(libraryName);
             using var reader = new StreamReader(stream);
             var text = reader.ReadToEnd().TrimEnd();

@@ -23,7 +23,8 @@ internal static class BuiltinMethods {
     internal static readonly MethodSymbol Hex = Method(
         "Hex",
         SpecialType.String,
-        [("value", SpecialType.Int, null), ("prefix", SpecialType.Bool, true)]
+        false,
+        [("value", SpecialType.Int, false, null), ("prefix", SpecialType.Bool, false, true)]
     );
 
     /// <summary>

@@ -213,12 +213,15 @@ public sealed partial class BelteRepl : Repl {
         if (string.IsNullOrEmpty(text))
             return true;
 
-        var twoBlankTines = text.Split(Environment.NewLine).Reverse()
+        var lines = text.Split(Environment.NewLine);
+        lines.Reverse();
+
+        var twoBlankLines = lines
             .TakeWhile(s => string.IsNullOrEmpty(s) || string.IsNullOrWhiteSpace(s))
             .Take(2)
             .Count() == 2;
 
-        if (twoBlankTines)
+        if (twoBlankLines)
             return true;
 
         UpdateTree();
@@ -590,13 +593,13 @@ public sealed partial class BelteRepl : Repl {
                 symbols = (signature == name
                     ? currentSymbols.Where(s => s.name == parts[^1])
                     : currentSymbols.Where(s => s is IMethodSymbol i &&
-                        i.Signature() == (parts[^1] + string.Join('(', signature.Split('(')[1..]))))
+                        i.ToString() == (parts[^1] + string.Join('(', signature.Split('(')[1..]))))
                     .ToArray();
             }
         } else {
             symbols = (signature == name
                 ? globalNamespace.GetMembers(name)
-                : globalNamespace.GetMembers(name).Where(f => f.Signature() == signature))
+                : globalNamespace.GetMembers(name).Where(f => f.ToString() == signature))
                     .ToArray();
         }
 

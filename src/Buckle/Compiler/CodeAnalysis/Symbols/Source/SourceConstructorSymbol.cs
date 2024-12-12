@@ -16,19 +16,21 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
             MakeModifiersAndFlags(
                 containingType,
                 syntax,
-                syntax.constructorInitializer.thisOrBaseKeyword.kind == SyntaxKind.ThisKeyword,
+                syntax.constructorInitializer?.thisOrBaseKeyword?.kind == SyntaxKind.ThisKeyword,
                 diagnostics,
                 out var hasErrors
             )
         ) {
         var hasAnyBody = _flags.hasAnyBody;
-        var location = syntax.constructorKeyword.location;
+        location = syntax.constructorKeyword.location;
 
         ModifierHelpers.CheckAccessibility(_modifiers, diagnostics, location);
 
         if (!hasErrors)
             CheckModifiers(hasAnyBody, location, diagnostics);
     }
+
+    internal override TextLocation location { get; }
 
     private protected override bool _allowRef => true;
 

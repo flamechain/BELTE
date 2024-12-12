@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -21,6 +22,8 @@ internal abstract partial class ErrorTypeSymbol {
         internal override Symbol containingSymbol { get; }
 
         internal override SyntaxReference syntaxReference => null;
+
+        internal override TextLocation location => null;
 
         internal override bool isImplicitlyDeclared => true;
 

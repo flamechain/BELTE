@@ -4,6 +4,7 @@ using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.Libraries;
 
@@ -62,4 +63,6 @@ internal sealed class SynthesizedSimpleOrdinaryMethodSymbol : MethodSymbol {
     internal override bool isSealed => (_modifiers & DeclarationModifiers.Sealed) != 0;
 
     internal override SyntaxReference syntaxReference => null;
+
+    internal override TextLocation location => null;
 }

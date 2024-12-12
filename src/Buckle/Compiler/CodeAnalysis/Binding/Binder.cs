@@ -68,6 +68,10 @@ internal partial class Binder {
 
     internal virtual ImmutableArray<LabelSymbol> labels => [];
 
+    internal virtual bool isInMethodBody => next.isInMethodBody;
+
+    internal virtual bool isNestedFunctionBinder => false;
+
     internal NamedTypeSymbol containingType => containingMember switch {
         null => null,
         NamedTypeSymbol namedType => namedType,
@@ -290,8 +294,17 @@ internal partial class Binder {
         ExpressionSyntax syntax,
         BelteDiagnosticQueue diagnostics,
         ConsList<TypeSymbol> basesBeingResolved = null) {
-        // TODO
-        return null;
+        switch (syntax.kind) {
+            case SyntaxKind.NonNullableType:
+            case SyntaxKind.IdentifierName:
+            case SyntaxKind.TemplateName:
+            case SyntaxKind.QualifiedName:
+            case SyntaxKind.MemberAccessExpression:
+            case SyntaxKind.ArrayType:
+            case SyntaxKind.ReferenceType:
+            default:
+                return new TypeWithAnnotations(CreateErrorType());
+        }
     }
 
     internal TypeWithAnnotations BindTypeOrImplicitType(
@@ -781,11 +794,11 @@ internal partial class Binder {
 
     #region Statements
 
-    internal virtual BoundStatement BindStatement(StatementSyntax node, BelteDiagnosticQueue diagnostics) {
+    internal BoundStatement BindStatement(StatementSyntax node, BelteDiagnosticQueue diagnostics) {
         switch (node.kind) {
-            /*
             case SyntaxKind.BlockStatement:
-                return BindBlockStatement((BlockStatementSyntax)syntax);
+                return BindBlockStatement((BlockStatementSyntax)node, diagnostics);
+            /*
             case SyntaxKind.ExpressionStatement:
                 return BindExpressionStatement((ExpressionStatementSyntax)syntax);
             case SyntaxKind.LocalDeclarationStatement:
@@ -814,6 +827,28 @@ internal partial class Binder {
             default:
                 throw new BelteInternalException($"BindStatementInternal: unexpected syntax '{node.kind}'");
         }
+    }
+
+    private BoundBlockStatement BindBlockStatement(BlockStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        var binder = GetBinder(node);
+        return binder.BindBlockParts(node, diagnostics);
+    }
+
+    private BoundBlockStatement BindBlockParts(BlockStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        var syntaxStatements = node.statements;
+        var nStatements = syntaxStatements.Count;
+
+        var boundStatements = ArrayBuilder<BoundStatement>.GetInstance(nStatements);
+
+        for (var i = 0; i < nStatements; i++) {
+            var boundStatement = BindStatement(syntaxStatements[i], diagnostics);
+            boundStatements.Add(boundStatement);
+        }
+
+        var locals = GetDeclaredLocalsForScope(node);
+        var localFunctions = GetDeclaredLocalFunctionsForScope(node);
+
+        return new BoundBlockStatement(boundStatements.ToImmutableAndFree(), locals, localFunctions);
     }
 
     internal BoundExpression GenerateConversionForAssignment(

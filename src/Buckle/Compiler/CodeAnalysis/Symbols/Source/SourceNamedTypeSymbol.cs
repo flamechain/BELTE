@@ -14,15 +14,23 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
     private NamedTypeSymbol _lazyDeclaredBase;
     private NamedTypeSymbol _lazyBaseType = ErrorTypeSymbol.UnknownResultType;
-
-    private readonly TemplateParameterInfo _templateParameterInfo;
+    private TemplateParameterInfo _lazyTemplateParameterInfo;
 
     internal SourceNamedTypeSymbol(
         NamespaceOrTypeSymbol containingSymbol,
         TypeDeclarationSyntax declaration,
         BelteDiagnosticQueue diagnostics)
-        : base(containingSymbol, declaration, diagnostics) {
-        _templateParameterInfo = arity == 0 ? TemplateParameterInfo.Empty : new TemplateParameterInfo();
+        : base(containingSymbol, declaration, diagnostics) { }
+
+    private TemplateParameterInfo _templateParameterInfo {
+        get {
+            if (_lazyTemplateParameterInfo is null) {
+                var templateParameterInfo = arity == 0 ? TemplateParameterInfo.Empty : new TemplateParameterInfo();
+                Interlocked.CompareExchange(ref _lazyTemplateParameterInfo, templateParameterInfo, null);
+            }
+
+            return _lazyTemplateParameterInfo;
+        }
     }
 
     public override ImmutableArray<TemplateParameterSymbol> templateParameters {
@@ -54,6 +62,11 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
             if (ReferenceEquals(_lazyBaseType, ErrorTypeSymbol.UnknownResultType)) {
                 if (containingType is not null)
                     _ = containingType.baseType;
+
+                if (specialType == SpecialType.Object) {
+                    Interlocked.CompareExchange(ref _lazyBaseType, this, ErrorTypeSymbol.UnknownResultType);
+                    return _lazyBaseType;
+                }
 
                 var diagnostics = BelteDiagnosticQueue.GetInstance();
                 var acyclicBase = MakeAcyclicBaseType(diagnostics);

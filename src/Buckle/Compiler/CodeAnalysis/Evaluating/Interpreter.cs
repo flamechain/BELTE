@@ -36,6 +36,8 @@ internal sealed class Interpreter {
         // compilation needs to have a copy of the text starting at this index.
         var textOffset = 0;
 
+        var variables = new Dictionary<IDataContainerSymbol, EvaluatorObject>();
+
         EvaluationResult result = null;
         Compilation previous = null;
 

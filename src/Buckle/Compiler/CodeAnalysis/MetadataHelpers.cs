@@ -33,6 +33,9 @@ internal static class MetadataHelpers {
         if (string.IsNullOrEmpty(qualifier))
             return name;
 
+        if (qualifier.EndsWith("::"))
+            return string.Concat(qualifier, name);
+
         return string.Concat(qualifier, DotDelimiterString, name);
     }
 }

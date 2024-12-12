@@ -1,7 +1,6 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -9,14 +8,11 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal abstract class SourceMethodSymbol : MethodSymbol {
     private protected SourceMethodSymbol(SyntaxReference syntaxReference) {
         this.syntaxReference = syntaxReference;
-        location = ((MethodDeclarationSyntax)syntaxNode).identifier.location;
     }
 
     internal sealed override bool hidesBaseMethodsByName => false;
 
     internal override SyntaxReference syntaxReference { get; }
-
-    internal override TextLocation location { get; }
 
     internal override bool hasSpecialName => methodKind switch {
         MethodKind.Constructor => true,
@@ -38,7 +34,7 @@ internal abstract class SourceMethodSymbol : MethodSymbol {
     internal static void ReportErrorIfHasConstraints(
         TemplateConstraintClauseListSyntax syntax,
         BelteDiagnosticQueue diagnostics) {
-        if (syntax.constraintClauses.Count > 0) {
+        if (syntax is not null && syntax.constraintClauses.Count > 0) {
             // TODO Do we even want an error here?
             // I can't imagine a situation where you could add an error-free constraint clause without having templates
             // However this would speed up compilation slightly as you wouldn't need to actually bind the constraints

@@ -106,7 +106,7 @@ internal sealed class CompositeText : SourceText {
         else if (segments.Count == 1)
             return segments[0];
         else
-            return new CompositeText(segments.ToImmutableAndFree());
+            return new CompositeText(segments.ToImmutable());
     }
 
     private protected override void EnsureLines() {

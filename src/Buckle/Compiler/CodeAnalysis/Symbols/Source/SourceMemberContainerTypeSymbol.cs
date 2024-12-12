@@ -39,7 +39,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         location = declaration.identifier.location;
         typeKind = declaration.kind == SyntaxKind.ClassDeclaration ? TypeKind.Class : TypeKind.Struct;
         name = declaration.identifier.text;
-        arity = declaration.templateParameterList.parameters.Count;
+        arity = declaration.templateParameterList?.parameters?.Count ?? 0;
 
         var modifiers = MakeModifiers(diagnostics);
         var access = (int)(modifiers & DeclarationModifiers.AccessibilityMask);

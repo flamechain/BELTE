@@ -23,10 +23,12 @@ internal static class Assertions {
     internal static void AssertValue(string text, object expectedValue) {
         var syntaxTree = SyntaxTree.Parse(text);
         var compilation = Compilation.CreateScript(
-            new CompilationOptions(BuildMode.Independent, OutputKind.Console, [], true, false), null, syntaxTree
+            "Tests",
+            new CompilationOptions(BuildMode.Independent, OutputKind.Console, [], true, false),
+            syntaxTree
         );
 
-        var result = compilation.Evaluate(new Dictionary<IDataContainerSymbol, EvaluatorObject>(), false);
+        var result = compilation.Evaluate([], false);
 
         if (result.value is double && Convert.ToDouble(expectedValue).CompareTo(result.value) == 0)
             expectedValue = Convert.ToDouble(expectedValue);
@@ -44,10 +46,12 @@ internal static class Assertions {
     internal static void AssertExceptions(string text, ITestOutputHelper writer, params Exception[] exceptions) {
         var syntaxTree = SyntaxTree.Parse(text);
         var compilation = Compilation.CreateScript(
-            new CompilationOptions(BuildMode.Independent, OutputKind.Console, [], true, false), null, syntaxTree
+            "Tests",
+            new CompilationOptions(BuildMode.Independent, OutputKind.Console, [], true, false),
+            syntaxTree
         );
 
-        var result = compilation.Evaluate(new Dictionary<IDataContainerSymbol, EvaluatorObject>(), false);
+        var result = compilation.Evaluate([], false);
 
         if (exceptions.Length != result.exceptions.Count) {
             writer.WriteLine($"Input: {text}");
@@ -81,7 +85,9 @@ internal static class Assertions {
             tempDiagnostics.Move(treeDiagnostics);
         } else {
             var compilation = Compilation.CreateScript(
-                new CompilationOptions(BuildMode.Independent, OutputKind.Console, [], true, false), null, syntaxTree
+                "Tests",
+                new CompilationOptions(BuildMode.Independent, OutputKind.Console, [], true, false),
+                syntaxTree
             );
 
             var result = compilation.Evaluate(new Dictionary<IDataContainerSymbol, EvaluatorObject>(), false);
@@ -133,13 +139,14 @@ internal static class Assertions {
     internal static void AssertText(string text, string expectedText, BuildMode buildMode) {
         var syntaxTree = SyntaxTree.Parse(text);
         var compilation = Compilation.Create(
+            "EmitterTests",
             new CompilationOptions(buildMode, OutputKind.Console, [], false, false),
             syntaxTree
         );
 
-        var result = compilation.EmitToString(buildMode, "EmitterTests");
+        var result = compilation.EmitToString(out var diagnostics);
 
-        Assert.Empty(compilation.diagnostics.Errors().ToArray());
+        Assert.Empty(diagnostics.Errors().ToArray());
         Assert.Equal(expectedText, result);
     }
 }

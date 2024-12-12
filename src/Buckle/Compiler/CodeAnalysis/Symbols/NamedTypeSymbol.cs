@@ -86,7 +86,7 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
         return templateParameters.IsEmpty ? this : Construct(templateArguments, unbound: false);
     }
 
-    internal TemplateParameterSymbol FindEnclosingTemplateParameter(string name) {
+    internal new TemplateParameterSymbol FindEnclosingTemplateParameter(string name) {
         var allTemplateParameters = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
         GetAllTypeParameters(allTemplateParameters);
 

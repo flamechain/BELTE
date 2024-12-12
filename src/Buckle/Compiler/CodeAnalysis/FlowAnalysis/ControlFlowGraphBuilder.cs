@@ -12,10 +12,9 @@ namespace Buckle.CodeAnalysis.FlowAnalysis;
 /// Builds a <see cref="ControlFlowGraph" /> from BasicBlocks and BasicBlockBranches.
 /// </summary>
 internal sealed partial class ControlFlowGraphBuilder {
-    private readonly Dictionary<BoundStatement, BasicBlock> _blockFromStatement =
-        new Dictionary<BoundStatement, BasicBlock>();
-    private readonly Dictionary<BoundLabel, BasicBlock> _blockFromLabel = new Dictionary<BoundLabel, BasicBlock>();
-    private readonly List<ControlFlowBranch> _branches = new List<ControlFlowBranch>();
+    private readonly Dictionary<BoundStatement, BasicBlock> _blockFromStatement = [];
+    private readonly Dictionary<LabelSymbol, BasicBlock> _blockFromLabel = [];
+    private readonly List<ControlFlowBranch> _branches = [];
     private readonly BasicBlock _start = new BasicBlock(true);
     private readonly BasicBlock _end = new BasicBlock(false);
 
@@ -120,15 +119,17 @@ internal sealed partial class ControlFlowGraphBuilder {
         if (ConstantValue.IsNull(condition.constantValue))
             return condition;
 
+        var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
+
         if (condition is BoundLiteralExpression literal) {
             var value = (bool)literal.value;
 
-            return new BoundLiteralExpression(!value, CorLibrary.GetSpecialType(SpecialType.Bool));
+            return new BoundLiteralExpression(!value, boolType);
         }
 
-        var op = BoundUnaryOperator.Bind(SyntaxKind.ExclamationToken, new BoundType(TypeSymbol.Bool));
+        var opKind = UnaryOperatorEasyOut.OpKind(UnaryOperatorKind.LogicalNegation, boolType);
 
-        return new BoundUnaryExpression(op, condition);
+        return new BoundUnaryExpression(condition, opKind, boolType);
     }
 
     private void Connect(BasicBlock from, BasicBlock to, BoundExpression condition = null) {

@@ -22,7 +22,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         // CheckLowlevelModifier(_modifiers, diagnostics);
         this.hasExplicitAccessModifier = hasExplicitAccessModifier;
         var hasAnyBody = syntax.body is not null;
-        var location = syntax.identifier.location;
+        location = syntax.identifier.location;
 
         if (hasAnyBody)
             CheckModifiersForBody(location, diagnostics);
@@ -32,6 +32,8 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         if (syntax.templateParameterList is null)
             ReportErrorIfHasConstraints(syntax.constraintClauseList, diagnostics);
     }
+
+    internal override TextLocation location { get; }
 
     internal bool hasExplicitAccessModifier { get; }
 

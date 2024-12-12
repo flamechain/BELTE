@@ -161,22 +161,6 @@ internal static class LibraryHelpers {
     internal static SynthesizedFinishedMethodSymbol Method(
         string name,
         SpecialOrKnownType type,
-        IEnumerable<(string name, SpecialOrKnownType type, object defaultValue)> parameters) {
-        return Method(
-            name,
-            type,
-            false,
-            parameters.Select<(string name, SpecialOrKnownType type, object defaultValue),
-                              (string, SpecialOrKnownType, bool, object, RefKind)>(
-                p => (p.name, p.type, false, p.defaultValue, RefKind.None)
-            ),
-            DeclarationModifiers.None
-        );
-    }
-
-    internal static SynthesizedFinishedMethodSymbol Method(
-        string name,
-        SpecialOrKnownType type,
         IEnumerable<(string name, SpecialOrKnownType type, bool isNullable)> parameters) {
         return Method(
             name,

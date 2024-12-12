@@ -4,6 +4,7 @@ using System.Text;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 using Buckle.Utilities;
 using Diagnostics;
 
@@ -746,12 +747,12 @@ internal sealed class Lexer {
             }
 
             if (failed)
-                AddDiagnostic(Error.InvalidType(text, TypeSymbol.Int), _start, length);
+                AddDiagnostic(Error.InvalidType(text, CorLibrary.GetSpecialType(SpecialType.Int)), _start, length);
             else
                 _value = value;
         } else {
             if (!double.TryParse(parsedText, out var value))
-                AddDiagnostic(Error.InvalidType(text, TypeSymbol.Decimal), _start, length);
+                AddDiagnostic(Error.InvalidType(text, CorLibrary.GetSpecialType(SpecialType.Decimal)), _start, length);
             else
                 _value = value;
         }

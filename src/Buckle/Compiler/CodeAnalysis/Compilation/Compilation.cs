@@ -26,7 +26,6 @@ namespace Buckle.CodeAnalysis;
 /// </summary>
 public sealed class Compilation {
     private readonly SyntaxManager _syntax;
-    private readonly ImmutableDictionary<SyntaxTree, int> _ordinalMap;
     private NamespaceSymbol _lazyGlobalNamespace;
     private WeakReference<BinderFactory>[] _binderFactories;
     private BelteDiagnosticQueue _lazyDeclarationDiagnostics;
@@ -287,7 +286,7 @@ public sealed class Compilation {
     }
 
     internal BinderFactory GetBinderFactory(SyntaxTree syntaxTree) {
-        var treeOrdinal = _ordinalMap[syntaxTree];
+        var treeOrdinal = GetSyntaxTreeOrdinal(syntaxTree);
         var binderFactories = _binderFactories;
 
         if (binderFactories is null) {
@@ -333,8 +332,9 @@ public sealed class Compilation {
 
         externalSyntaxTrees.Free();
 
-        if (options.isScript && i > 1)
-            throw new ArgumentException("Script can have at most 1 syntax tree", nameof(trees));
+        // TODO What to do with chained submissions?
+        // if (options.isScript && i > 1)
+        //     throw new ArgumentException("Script can have at most 1 syntax tree", nameof(trees));
 
         syntax = syntax.AddSyntaxTrees(trees);
         return Update(syntax);

@@ -1,6 +1,5 @@
 using System;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.Diagnostics;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 

@@ -64,6 +64,9 @@ public static class SymbolDisplay {
             case SymbolKind.ErrorType:
                 DisplayType(text, (TypeSymbol)symbol, format);
                 break;
+            case SymbolKind.Namespace:
+                DisplayNamespace(text, (NamespaceSymbol)symbol, format);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(symbol.kind);
         }
@@ -390,6 +393,16 @@ public static class SymbolDisplay {
 
         DisplayType(text, namedType.baseType, format);
         DisplayTemplateConstraints(text, namedType.templateConstraints, format);
+    }
+
+    private static void DisplayNamespace(DisplayText text, NamespaceSymbol symbol, SymbolDisplayFormat format) {
+        if (format.includeKeywords) {
+            text.Write(CreateKeyword("namespace"));
+            text.Write(CreateSpace());
+        }
+
+        DisplayContainedNames(text, symbol, format);
+        text.Write(CreateIdentifier(symbol.name));
     }
 
     private static void DisplayModifiers(DisplayText text, Symbol symbol) {

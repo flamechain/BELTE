@@ -20,7 +20,11 @@ internal sealed class SourceUserDefinedOperatorSymbol : SourceUserDefinedOperato
             MakeDeclarationModifiers(syntax, syntax.operatorToken.location, diagnostics),
             syntax.body is not null,
             diagnostics
-        ) { }
+        ) {
+        location = syntax.operatorKeyword.location;
+    }
+
+    internal override TextLocation location { get; }
 
     private protected override TextLocation _returnTypeLocation => GetSyntax().returnType.location;
 

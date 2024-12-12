@@ -15,11 +15,12 @@ internal enum BinderFlags : uint {
     SuppressTemplateArgumentBinding = 1 << 4,
     ParameterDefaultValue = 1 << 5,
     FieldInitializer = 1 << 6,
+    ConstructorInitializer = 1 << 7,
 
-    InCatchBlock = 1 << 7,
-    InFinallyBlock = 1 << 8,
-    InTryBlockofTryCatch = 1 << 9,
-    InNestedFinallyBlock = 1 << 10,
+    InCatchBlock = 1 << 8,
+    InFinallyBlock = 1 << 9,
+    InTryBlockOfTryCatch = 1 << 10,
+    InNestedFinallyBlock = 1 << 11,
 
-    AllClearedAtExecutableCodeBoundary = InCatchBlock | InFinallyBlock | InTryBlockofTryCatch | InNestedFinallyBlock,
+    AllClearedAtExecutableCodeBoundary = InCatchBlock | InFinallyBlock | InTryBlockOfTryCatch | InNestedFinallyBlock,
 }

@@ -57,6 +57,8 @@ internal abstract partial class ArrayTypeSymbol : TypeSymbol {
 
     internal override SyntaxReference syntaxReference => null;
 
+    internal override TextLocation location => null;
+
     internal abstract int rank { get; }
 
     internal abstract bool isSZArray { get; }
@@ -70,8 +72,6 @@ internal abstract partial class ArrayTypeSymbol : TypeSymbol {
     internal TypeWithAnnotations elementTypeWithAnnotations { get; }
 
     internal TypeSymbol elementType => elementTypeWithAnnotations.type;
-
-    internal override TextLocation location => null;
 
     internal override NamedTypeSymbol baseType { get; }
 

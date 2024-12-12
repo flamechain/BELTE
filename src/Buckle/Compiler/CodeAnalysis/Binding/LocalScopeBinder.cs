@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
+using Buckle.Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -270,5 +272,68 @@ internal class LocalScopeBinder : Binder {
         }
 
         return base.LookupLocalFunction(identifier);
+    }
+
+    internal virtual bool EnsureSingleDefinition(
+        Symbol symbol,
+        string name,
+        TextLocation location,
+        BelteDiagnosticQueue diagnostics) {
+        DataContainerSymbol existingLocal = null;
+        LocalFunctionSymbol existingLocalFunction = null;
+
+        var localsMap = _localsMap;
+        var localFunctionsMap = _localFunctionsMap;
+
+        if ((localsMap != null && localsMap.TryGetValue(name, out existingLocal)) ||
+            (localFunctionsMap != null && localFunctionsMap.TryGetValue(name, out existingLocalFunction))) {
+            var existingSymbol = (Symbol)existingLocal ?? existingLocalFunction;
+            if (symbol == existingSymbol)
+                return false;
+
+            return ReportConflictWithLocal(existingSymbol, symbol, name, location, diagnostics);
+        }
+
+        return false;
+    }
+
+    private bool ReportConflictWithLocal(
+        Symbol local,
+        Symbol newSymbol,
+        string name,
+        TextLocation newLocation,
+        BelteDiagnosticQueue diagnostics) {
+        var newSymbolKind = newSymbol is null ? SymbolKind.Parameter : newSymbol.kind;
+
+        if (newSymbolKind == SymbolKind.ErrorType)
+            return true;
+
+        var declaredInThisScope = false;
+
+        declaredInThisScope |= newSymbolKind == SymbolKind.Local && locals.Contains((DataContainerSymbol)newSymbol);
+        declaredInThisScope |= newSymbolKind == SymbolKind.Method &&
+            localFunctions.Contains((LocalFunctionSymbol)newSymbol);
+
+        if (declaredInThisScope && newLocation.span.start >= local.location.span.start) {
+            // A local variable or function named '{0}' is already defined in this scope
+            // diagnostics.Add(ErrorCode.ERR_LocalDuplicate, newLocation, name);
+            // TODO error, should it should syntaxReference.location instead?
+            return true;
+        }
+
+        switch (newSymbolKind) {
+            case SymbolKind.Local:
+            case SymbolKind.Parameter:
+            case SymbolKind.Method:
+            case SymbolKind.TemplateParameter:
+                // A local or parameter named '{0}' cannot be declared in this scope because that name is used in an enclosing local scope to define a local or parameter
+                // diagnostics.Add(ErrorCode.ERR_LocalIllegallyOverrides, newLocation, name);
+                // TODO error
+                return true;
+        }
+
+        // diagnostics.Add(ErrorCode.ERR_InternalError, newLocation);
+        // TODO error
+        return false;
     }
 }

@@ -183,11 +183,27 @@ done:
 
         if (globals.Count > 0) {
             var returnType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void));
+            var program = new SynthesizedSimpleNamedTypeSymbol(
+                "$<Program>",
+                TypeKind.Class,
+                CorLibrary.GetSpecialType(SpecialType.Object),
+                DeclarationModifiers.Static
+            );
+
+            var membersBuilder = ArrayBuilder<Symbol>.GetInstance();
 
             foreach (var keyValuePair in globals) {
-                var symbol = new SynthesizedEntryPoint(this, returnType, keyValuePair.Value.ToImmutableAndFree());
-                ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(builder, symbol.name.AsMemory(), symbol);
+                var entryPoint = new SynthesizedEntryPoint(
+                    program,
+                    returnType,
+                    keyValuePair.Value.ToImmutableAndFree()
+                );
+
+                membersBuilder.Add(entryPoint);
             }
+
+            var symbol = new SynthesizedFinishedNamedTypeSymbol(program, this, membersBuilder.ToImmutableAndFree());
+            ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(builder, symbol.name.AsMemory(), symbol);
         }
 
         var result = new Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>>(
