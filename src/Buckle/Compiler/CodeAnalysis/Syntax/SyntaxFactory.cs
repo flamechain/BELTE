@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using Buckle.CodeAnalysis.Syntax.InternalSyntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Syntax;
@@ -234,5 +236,27 @@ public static partial class SyntaxFactory {
             SeparatedList(arguments),
             Token(SyntaxKind.CloseParenToken)
         );
+    }
+
+    public static CompilationUnitSyntax ParseCompilationUnit(string text, int offset = 0) {
+        using var lexer = MakeLexer(text, offset);
+        using var parser = MakeParser(lexer);
+        var node = parser.ParseCompilationUnit();
+        return (CompilationUnitSyntax)node.CreateRed();
+    }
+
+    private static Lexer MakeLexer(string text, int offset) {
+        return new Lexer(
+            MakeSourceText(text, offset),
+            false
+        );
+    }
+
+    private static LanguageParser MakeParser(Lexer lexer) {
+        return new LanguageParser(lexer, oldTree: null, changes: null);
+    }
+
+    private static SourceText MakeSourceText(string text, int offset) {
+        return SourceText.From(text).GetSubText(offset);
     }
 }

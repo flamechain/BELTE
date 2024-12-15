@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.Diagnostics;
 using Buckle.Utilities;
-using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -13,21 +13,21 @@ internal sealed class ExtendedErrorTypeSymbol : ErrorTypeSymbol {
         Compilation compilation,
         string name,
         int arity,
-        DiagnosticInfo errorInfo,
+        BelteDiagnostic error,
         bool unreported = false,
         bool variableUsedBeforeDeclaration = false)
-        : this(compilation.globalNamespaceInternal, name, arity, errorInfo, unreported, variableUsedBeforeDeclaration) {
+        : this(compilation.globalNamespaceInternal, name, arity, error, unreported, variableUsedBeforeDeclaration) {
     }
 
     internal ExtendedErrorTypeSymbol(
         NamespaceOrTypeSymbol containingSymbol,
         string name,
         int arity,
-        DiagnosticInfo errorInfo,
+        BelteDiagnostic error,
         bool unreported = false,
         bool variableUsedBeforeDeclaration = false) {
         this.name = name;
-        this.errorInfo = errorInfo;
+        this.error = error;
         this.containingSymbol = containingSymbol;
         this.arity = arity;
         this.unreported = unreported;
@@ -38,28 +38,28 @@ internal sealed class ExtendedErrorTypeSymbol : ErrorTypeSymbol {
     internal ExtendedErrorTypeSymbol(
         NamespaceOrTypeSymbol guessSymbol,
         LookupResultKind resultKind,
-        DiagnosticInfo errorInfo,
+        BelteDiagnostic error,
         bool unreported = false)
-        : this(guessSymbol.ContainingNamespaceOrType(), guessSymbol, resultKind, errorInfo, unreported) {
+        : this(guessSymbol.ContainingNamespaceOrType(), guessSymbol, resultKind, error, unreported) {
     }
 
     internal ExtendedErrorTypeSymbol(
         NamespaceOrTypeSymbol containingSymbol,
         Symbol guessSymbol,
         LookupResultKind resultKind,
-        DiagnosticInfo errorInfo,
+        BelteDiagnostic error,
         bool unreported = false)
-        : this(containingSymbol, [guessSymbol], resultKind, errorInfo, GetArity(guessSymbol), unreported) {
+        : this(containingSymbol, [guessSymbol], resultKind, error, GetArity(guessSymbol), unreported) {
     }
 
     internal ExtendedErrorTypeSymbol(
         NamespaceOrTypeSymbol containingSymbol,
         ImmutableArray<Symbol> candidateSymbols,
         LookupResultKind resultKind,
-        DiagnosticInfo errorInfo,
+        BelteDiagnostic error,
         int arity,
         bool unreported = false)
-        : this(containingSymbol, candidateSymbols[0].name, arity, errorInfo, unreported) {
+        : this(containingSymbol, candidateSymbols[0].name, arity, error, unreported) {
         _candidateSymbols = UnwrapErrorCandidates(candidateSymbols);
         this.resultKind = resultKind;
     }
@@ -75,7 +75,7 @@ internal sealed class ExtendedErrorTypeSymbol : ErrorTypeSymbol {
 
     public override int arity { get; }
 
-    internal override DiagnosticInfo errorInfo { get; }
+    internal override BelteDiagnostic error { get; }
 
     internal override LookupResultKind resultKind { get; }
 

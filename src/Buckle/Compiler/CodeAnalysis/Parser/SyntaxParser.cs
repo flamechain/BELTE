@@ -8,14 +8,13 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
-internal abstract partial class SyntaxParser {
+internal abstract partial class SyntaxParser : IDisposable {
     private static readonly ObjectPool<BlendedNode[]> BlendedNodesPool =
         new ObjectPool<BlendedNode[]>(() => new BlendedNode[32], 2);
 
     private protected readonly Lexer _lexer;
     private readonly LexerMode _mode;
     private readonly bool _isIncremental;
-    private readonly SyntaxTree _syntaxTree;
     private readonly Blender _firstBlender;
     private readonly List<Diagnostic> _futureDiagnostics;
 
@@ -34,7 +33,6 @@ internal abstract partial class SyntaxParser {
         IEnumerable<TextChangeRange> changes,
         bool preLexIfNotIncremental) {
         _futureDiagnostics = new List<Diagnostic>();
-        _syntaxTree = lexer.syntaxTree;
         _lexer = lexer;
         _mode = mode;
         _isIncremental = oldTree is not null;
@@ -73,8 +71,10 @@ internal abstract partial class SyntaxParser {
 
     internal DirectiveStack directives => _lexer.directives;
 
+    public void Dispose() { }
+
     private void PreLex() {
-        var size = Math.Min(4096, Math.Max(32, _syntaxTree.text.length / 2));
+        var size = Math.Min(4096, Math.Max(32, _lexer.text.length / 2));
         _lexedTokens = new ArrayElement<SyntaxToken>[size];
 
         for (var i = 0; i < size; i++) {

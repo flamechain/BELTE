@@ -11,6 +11,7 @@ internal sealed partial class BinderFactory {
         ConstructorBodyOrInitializer = 1 << 0,
         OperatorBody = 1 << 0,
 
+
         NamedTypeBodyOrTemplateParameters = 1 << 1,
         NamedTypeBase = 1 << 2,
 

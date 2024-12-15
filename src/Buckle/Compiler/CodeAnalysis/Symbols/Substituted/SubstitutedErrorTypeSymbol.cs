@@ -1,4 +1,4 @@
-using Diagnostics;
+using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -18,7 +18,7 @@ internal abstract class SubstitutedErrorTypeSymbol : ErrorTypeSymbol {
 
     internal override bool mangleName => _originalDefinition.mangleName;
 
-    internal override DiagnosticInfo errorInfo => _originalDefinition.errorInfo;
+    internal override BelteDiagnostic error => _originalDefinition.error;
 
     public override int GetHashCode() {
         if (_hashCode == 0)

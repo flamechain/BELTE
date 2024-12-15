@@ -143,6 +143,34 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
         return new ConstructedNamedTypeSymbol(this, templateArguments, unbound);
     }
 
+    internal NamedTypeSymbol AsUnboundTemplateType() {
+        if (!isTemplateType)
+            throw new InvalidOperationException();
+
+        var original = originalDefinition;
+        var n = original.arity;
+        var originalContainingType = original.containingType;
+
+        var constructedFrom = (originalContainingType is null)
+            ? original
+            : original.AsMember(
+                originalContainingType.isTemplateType
+                    ? originalContainingType.AsUnboundTemplateType()
+                    : originalContainingType
+                );
+
+        if (n == 0)
+            return constructedFrom;
+
+        var templateArguments = UnboundArgumentErrorTypeSymbol.CreateTemplateArguments(
+            constructedFrom.templateParameters,
+            n,
+            null /* TODO error */
+        );
+
+        return constructedFrom.Construct(templateArguments, true);
+    }
+
     internal int ComputeHashCode() {
         if (WasConstructedForAnnotations(this))
             return originalDefinition.GetHashCode();

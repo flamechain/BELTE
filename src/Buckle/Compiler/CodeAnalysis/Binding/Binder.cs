@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
@@ -261,7 +260,12 @@ internal partial class Binder {
             names.TryGetValue(parameter.name, out var ordinal);
 
             if (syntaxNodes[ordinal] is not null) {
-                var constraintClause = BindTypeParameterConstraints(templateParameterList.parameters[ordinal], syntaxNodes[ordinal], diagnostics);
+                var constraintClause = BindTypeParameterConstraints(
+                    templateParameterList.parameters[ordinal],
+                    syntaxNodes[ordinal],
+                    diagnostics
+                );
+
                 results[ordinal] = constraintClause;
             }
         }
@@ -334,8 +338,7 @@ internal partial class Binder {
                     (ArrayTypeSyntax)syntax,
                     diagnostics,
                     false,
-                    basesBeingResolved,
-                    true
+                    basesBeingResolved
                 );
 
                 break;
@@ -361,6 +364,83 @@ internal partial class Binder {
         }
     }
 
+    private NamespaceOrTypeSymbol GetContainingNamespaceOrType(Symbol symbol) {
+        return symbol.ContainingNamespaceOrType() ?? compilation.globalNamespaceInternal;
+    }
+
+    private BestSymbolInfo GetBestSymbolInfo(ArrayBuilder<Symbol> symbols, out BestSymbolInfo secondBest) {
+        var first = default(BestSymbolInfo);
+        var second = default(BestSymbolInfo);
+
+        for (var i = 0; i < symbols.Count; i++) {
+            var symbol = symbols[i];
+            BestSymbolLocation location;
+
+            if (symbol.kind == SymbolKind.Namespace) {
+                location = BestSymbolLocation.None;
+                var ns = (NamespaceSymbol)symbol;
+
+                var current = GetLocation(compilation, ns);
+
+                if (BestSymbolInfo.IsSecondLocationBetter(location, current)) {
+                    location = current;
+
+                    if (location == BestSymbolLocation.FromSourceModule)
+                        break;
+                }
+            } else {
+                location = GetLocation(compilation, symbol);
+            }
+
+            var third = new BestSymbolInfo(location, i);
+
+            if (BestSymbolInfo.Sort(ref second, ref third))
+                BestSymbolInfo.Sort(ref first, ref second);
+        }
+
+        secondBest = second;
+
+        return first;
+    }
+
+    private static BestSymbolLocation GetLocation(Compilation compilation, Symbol symbol) {
+        if (symbol.declaringCompilation == compilation)
+            return BestSymbolLocation.FromSourceModule;
+        else if (symbol.declaringCompilation is not null)
+            return BestSymbolLocation.FromAddedModule;
+        else
+            return BestSymbolLocation.FromCorLibrary;
+    }
+
+    private TypeWithAnnotations BindArrayType(
+        ArrayTypeSyntax node,
+        BelteDiagnosticQueue diagnostics,
+        bool permitDimensions,
+        ConsList<TypeSymbol> basesBeingResolved) {
+        var type = BindType(node.elementType, diagnostics, basesBeingResolved);
+
+        if (type.isStatic) {
+            // TODO error
+        }
+
+        for (var i = node.rankSpecifiers.Count - 1; i >= 0; i--) {
+            var rankSpecifier = node.rankSpecifiers[i];
+            var dimension = rankSpecifier.size;
+
+            if (!permitDimensions && dimension is not null) {
+                // Error(diagnostics, ErrorCode.ERR_ArraySizeInDeclaration, rankSpecifier);
+                // TODO error
+            }
+
+            // TODO need to error check the size, should allow dynamic?
+            var size = (int)BindExpression(dimension, diagnostics).constantValue.value;
+            var array = ArrayTypeSymbol.CreateArray(type, size);
+            type = new TypeWithAnnotations(array);
+        }
+
+        return type;
+    }
+
     private protected TypeWithAnnotations BindNonTemplateSimpleType(
         IdentifierNameSyntax node,
         BelteDiagnosticQueue diagnostics,
@@ -369,10 +449,14 @@ internal partial class Binder {
         var name = node.identifier.text;
 
         if (string.IsNullOrWhiteSpace(name)) {
-            // return new TypeWithAnnotations(new ExtendedErrorTypeSymbol(compilation.globalNamespaceInternal, name, 0, null));
-            // TODO error
+            var error = Error.UndefinedSymbol(node.location, name);
+
+            return new TypeWithAnnotations(
+                new ExtendedErrorTypeSymbol(compilation.globalNamespaceInternal, name, 0, error)
+            );
         }
 
+        // TODO
         // var errorResult = CreateErrorIfLookupOnTypeParameter(node.Parent, qualifierOpt, identifierValueText, 0, diagnostics);
         // if (errorResult is not null) {
         //     return TypeWithAnnotations.Create(errorResult);
@@ -386,7 +470,62 @@ internal partial class Binder {
         var bindingResult = ResultSymbol(result, name, 0, node, diagnostics, out _, qualifier, options);
 
         result.Free();
-        return new TypeWithAnnotations(bindingResult);
+        return new TypeWithAnnotations((TypeSymbol)bindingResult);
+    }
+
+    private TypeWithAnnotations BindQualifiedName(
+        ExpressionSyntax leftName,
+        SimpleNameSyntax rightName,
+        BelteDiagnosticQueue diagnostics,
+        ConsList<TypeSymbol> basesBeingResolved) {
+        var left = BindType(leftName, diagnostics, basesBeingResolved).type;
+
+        var isLeftUnboundTemplateType = left.kind == SymbolKind.NamedType &&
+            ((NamedTypeSymbol)left).isUnboundTemplateType;
+
+        if (isLeftUnboundTemplateType)
+            left = ((NamedTypeSymbol)left).originalDefinition;
+
+        var right = BindSimpleType(rightName, diagnostics, basesBeingResolved, left);
+
+        if (isLeftUnboundTemplateType)
+            return ConvertToUnbound();
+
+        return right;
+
+        TypeWithAnnotations ConvertToUnbound() {
+            var namedTypeRight = right.type as NamedTypeSymbol;
+
+            if (namedTypeRight is not null && namedTypeRight.isTemplateType)
+                return new TypeWithAnnotations(namedTypeRight.AsUnboundTemplateType(), right.isNullable);
+
+            return right;
+        }
+    }
+
+    private TypeWithAnnotations BindSimpleType(
+        SimpleNameSyntax node,
+        BelteDiagnosticQueue diagnostics,
+        ConsList<TypeSymbol> basesBeingResolved,
+        NamespaceOrTypeSymbol qualifier = null) {
+        return node.kind switch {
+            SyntaxKind.IdentifierName
+                => BindNonTemplateSimpleType((IdentifierNameSyntax)node, diagnostics, basesBeingResolved, qualifier),
+            SyntaxKind.TemplateName
+                => BindTemplateSimpleType((TemplateNameSyntax)node, diagnostics, basesBeingResolved, qualifier),
+            _ => new TypeWithAnnotations(
+                new ExtendedErrorTypeSymbol(qualifier ?? compilation.globalNamespaceInternal, "", 0, null)
+            )
+        };
+    }
+
+    private TypeWithAnnotations BindTemplateSimpleType(
+        TemplateNameSyntax node,
+        BelteDiagnosticQueue diagnostics,
+        ConsList<TypeSymbol> basesBeingResolved,
+        NamespaceOrTypeSymbol qualifier) {
+        // TODO
+        return new TypeWithAnnotations(CreateErrorType());
     }
 
     internal TypeWithAnnotations BindTypeOrImplicitType(
@@ -706,6 +845,77 @@ internal partial class Binder {
 
     #region Lookup
 
+    internal Symbol ResultSymbol(
+        LookupResult result,
+        string simpleName,
+        int arity,
+        SyntaxNode where,
+        BelteDiagnosticQueue diagnostics,
+        out bool wasError,
+        NamespaceOrTypeSymbol qualifier,
+        LookupOptions options = default) {
+        var symbols = result.symbols;
+        wasError = false;
+
+        if (result.isMultiViable) {
+            if (symbols.Count > 1) {
+                symbols.Sort(ConsistentSymbolOrder.Instance);
+
+                var best = GetBestSymbolInfo(symbols, out var secondBest);
+            } else {
+                var singleResult = symbols[0];
+                // TODO check if void can appear hear, would need error
+
+                if (singleResult.kind == SymbolKind.ErrorType) {
+                    var errorType = (ErrorTypeSymbol)singleResult;
+
+                    if (errorType.unreported) {
+                        var error = errorType.error;
+                        diagnostics.Push(error);
+
+                        singleResult = new ExtendedErrorTypeSymbol(
+                            GetContainingNamespaceOrType(errorType),
+                            errorType.name,
+                            errorType.arity,
+                            error,
+                            false
+                        );
+                    }
+                }
+
+                return singleResult;
+            }
+        }
+
+        wasError = true;
+
+        if (result.kind == LookupResultKind.Empty) {
+            var error = Error.UndefinedSymbol(where.location, simpleName);
+
+            return new ExtendedErrorTypeSymbol(
+                qualifier ?? compilation.globalNamespaceInternal,
+                simpleName,
+                arity,
+                error
+            );
+        }
+
+        if (result.error is not null && (qualifier is null || qualifier.kind != SymbolKind.ErrorType))
+            diagnostics.Push(result.error);
+
+        if ((symbols.Count > 1) || (symbols[0] is NamespaceOrTypeSymbol) || result.kind == LookupResultKind.NotAType) {
+            return new ExtendedErrorTypeSymbol(
+                GetContainingNamespaceOrType(symbols[0]),
+                symbols.ToImmutable(),
+                result.kind,
+                result.error,
+                arity
+            );
+        }
+
+        return symbols[0];
+    }
+
     internal void LookupSymbolsSimpleName(
         LookupResult result,
         NamespaceOrTypeSymbol qualifier,
@@ -839,35 +1049,43 @@ internal partial class Binder {
         TypeSymbol accessThroughType,
         bool diagnose) {
         var currentType = type;
-        var tmp = LookupResult.GetInstance();
+        var temp = LookupResult.GetInstance();
 
         PooledHashSet<NamedTypeSymbol> visited = null;
 
         while (currentType is not null) {
-            tmp.Clear();
-            LookupMembersWithoutInheritance(tmp, currentType, name, arity, options, originalBinder, accessThroughType, diagnose, basesBeingResolved);
-            MergeHidingLookupResults(result, tmp, basesBeingResolved);
+            temp.Clear();
 
-            var namedType = currentType as NamedTypeSymbol;
-            var tmpHidesMethodOrIndexers = tmp.isMultiViable && tmp.symbols[0].kind != SymbolKind.Method;
+            LookupMembersWithoutInheritance(
+                temp,
+                currentType,
+                name,
+                arity,
+                options,
+                originalBinder,
+                accessThroughType,
+                diagnose,
+                basesBeingResolved
+            );
 
-            if (result.isMultiViable && (tmpHidesMethodOrIndexers || tmp.symbols[0].kind != SymbolKind.Method))
+            MergeHidingLookupResults(result, temp, basesBeingResolved);
+            var tempHidesMethod = temp.isMultiViable && temp.symbols[0].kind != SymbolKind.Method;
+
+            if (result.isMultiViable && (tempHidesMethod || temp.symbols[0].kind != SymbolKind.Method))
                 break;
 
             if (basesBeingResolved is not null && basesBeingResolved.ContainsReference(type.originalDefinition)) {
                 var other = GetNearestOtherSymbol(basesBeingResolved, type);
-                // var diagInfo = new CSDiagnosticInfo(ErrorCode.ERR_CircularBase, type, other);
-                // TODO error
-                DiagnosticInfo diagInfo = null;
-                var error = new ExtendedErrorTypeSymbol(compilation, name, arity, diagInfo, unreported: true);
-                result.SetFrom(LookupResult.Good(error));
+                var error = Error.CircularBase(type.location, type, other);
+                var errorType = new ExtendedErrorTypeSymbol(compilation, name, arity, error, unreported: true);
+                result.SetFrom(LookupResult.Good(errorType));
             }
 
             currentType = currentType.GetNextBaseType(basesBeingResolved, ref visited);
         }
 
         visited?.Free();
-        tmp.Free();
+        temp.Free();
     }
 
     private static Symbol GetNearestOtherSymbol(ConsList<TypeSymbol> list, TypeSymbol type) {
@@ -1361,8 +1579,45 @@ symIsHidden:;
         BelteDiagnosticQueue diagnostics,
         Compilation compilation
         ) {
-        // TODO
-        return null;
+        var containingType = constructor.containingType;
+        var baseType = containingType.baseType;
+
+        if (baseType is not null) {
+            if (baseType.specialType == SpecialType.Object)
+                return GenerateBaseParameterlessConstructorInitializer(constructor, diagnostics);
+            else if (baseType.IsErrorType() || baseType.isStatic)
+                return null;
+        }
+
+        if (containingType.IsStructType())
+            return null;
+
+        Binder outerBinder;
+
+        if (constructor is not SourceMemberMethodSymbol sourceConstructor) {
+            var containerNode = constructor.GetNonNullSyntaxNode();
+
+            if (containerNode is CompilationUnitSyntax)
+                containerNode = containingType.syntaxReference.node as TypeDeclarationSyntax;
+
+            var binderFactory = compilation.GetBinderFactory(containerNode.syntaxTree);
+            outerBinder = binderFactory.GetInTypeBodyBinder((TypeDeclarationSyntax)containerNode);
+        } else {
+            var binderFactory = compilation.GetBinderFactory(sourceConstructor.syntaxTree);
+
+            outerBinder = sourceConstructor.syntaxNode switch {
+                ConstructorDeclarationSyntax ctorDecl => binderFactory.GetBinder(ctorDecl.parameterList),
+                TypeDeclarationSyntax typeDecl => binderFactory.GetInTypeBodyBinder(typeDecl),
+                _ => throw ExceptionUtilities.Unreachable(),
+            };
+        }
+
+        var initializersBinder = outerBinder.WithAdditionalFlagsAndContainingMember(
+            BinderFlags.ConstructorInitializer,
+            constructor
+        );
+
+        return initializersBinder.BindConstructorInitializer(null, constructor, diagnostics);
     }
 
     internal virtual BoundExpressionStatement BindConstructorInitializer(

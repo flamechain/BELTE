@@ -62,5 +62,9 @@ public sealed class TextSpan {
         return unchecked((uint)(position - start) < (uint)length);
     }
 
+    internal bool Contains(TextSpan span) {
+        return span.start >= start && span.end <= end;
+    }
+
     public override string ToString() => $"{start}..{end}";
 }

@@ -4,7 +4,7 @@ using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
-using Diagnostics;
+using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -42,7 +42,7 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
 
     public override ImmutableArray<BoundExpression> templateConstraints => [];
 
-    internal abstract DiagnosticInfo errorInfo { get; }
+    internal abstract BelteDiagnostic error { get; }
 
     internal virtual LookupResultKind resultKind => LookupResultKind.Empty;
 

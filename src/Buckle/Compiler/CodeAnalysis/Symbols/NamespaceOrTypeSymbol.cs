@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -17,6 +18,34 @@ internal abstract class NamespaceOrTypeSymbol : Symbol, INamespaceOrTypeSymbol {
 
     internal sealed override bool isVirtual => false;
 
+    internal SourceNamedTypeSymbol GetSourceTypeMember(TypeDeclarationSyntax syntax) {
+        return GetSourceTypeMember(syntax.identifier.text, syntax.arity, syntax.kind, syntax);
+    }
+
+    internal SourceNamedTypeSymbol? GetSourceTypeMember(
+        string name,
+        int arity,
+        SyntaxKind kind,
+        BelteSyntaxNode syntax) {
+        var typeKind = kind.ToTypeKind();
+
+        foreach (var member in GetTypeMembers(name, arity)) {
+            if (member is SourceNamedTypeSymbol memberT && memberT.typeKind == typeKind) {
+                if (syntax is not null) {
+                    var location = memberT.location;
+
+                    if (memberT.syntaxReference.syntaxTree == syntax.syntaxTree && syntax.span.Contains(location.span))
+                        return memberT;
+                } else {
+                    return memberT;
+                }
+            }
+        }
+
+        return null;
+    }
+
+
     internal abstract ImmutableArray<Symbol> GetMembers();
 
     internal abstract ImmutableArray<Symbol> GetMembers(string name);
@@ -27,6 +56,13 @@ internal abstract class NamespaceOrTypeSymbol : Symbol, INamespaceOrTypeSymbol {
 
     internal ImmutableArray<NamedTypeSymbol> GetTypeMembers(string name)
         => GetTypeMembers(name.AsMemory());
+
+    internal ImmutableArray<NamedTypeSymbol> GetTypeMembers(string name, int arity)
+        => GetTypeMembers(name.AsMemory(), arity);
+
+    internal virtual ImmutableArray<NamedTypeSymbol> GetTypeMembers(ReadOnlyMemory<char> name, int arity) {
+        return GetTypeMembers(name).WhereAsArray(static (t, arity) => t.arity == arity, arity);
+    }
 
     internal abstract ImmutableArray<NamedTypeSymbol> GetTypeMembers(ReadOnlyMemory<char> name);
 

@@ -23,10 +23,6 @@ internal partial class ConsList<T> : IEnumerable<T> {
 
     internal ConsList<T> tail => _tail;
 
-    internal ConsList<T> Prepend(T head) {
-        return new ConsList<T>(head, this ?? Empty);
-    }
-
     internal bool ContainsReference(T element) {
         var list = this;
 

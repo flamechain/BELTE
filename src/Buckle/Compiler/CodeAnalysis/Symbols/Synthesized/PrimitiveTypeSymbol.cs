@@ -4,18 +4,22 @@ using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
+using Buckle.Libraries;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
-    internal PrimitiveTypeSymbol(string name, SpecialType specialType) {
+    internal PrimitiveTypeSymbol(string name, SpecialType specialType, int arity = 0) {
         this.name = name;
         this.specialType = specialType;
+        this.arity = arity;
+        templateParameters = ConstructTemplateParameters();
     }
 
     public override string name { get; }
 
-    public override ImmutableArray<TemplateParameterSymbol> templateParameters => [];
+    public override ImmutableArray<TemplateParameterSymbol> templateParameters { get; }
 
     public override ImmutableArray<TypeOrConstant> templateArguments => [];
 
@@ -25,9 +29,11 @@ internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
 
     public override TypeKind typeKind => TypeKind.Primitive;
 
-    public override int arity => 0;
+    public override int arity { get; }
 
     internal override bool mangleName => false;
+
+    internal override Compilation declaringCompilation => null;
 
     internal override Symbol containingSymbol => null;
 
@@ -69,5 +75,18 @@ internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
 
     internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers(ReadOnlyMemory<char> name) {
         throw new InvalidOperationException();
+    }
+
+    private ImmutableArray<TemplateParameterSymbol> ConstructTemplateParameters() {
+        if (arity == 0)
+            return [];
+
+        var builder = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
+        var typeType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type));
+
+        for (var i = 0; i < arity; i++)
+            builder.Add(new SynthesizedTemplateParameterSymbol(this, typeType, i));
+
+        return builder.ToImmutableAndFree();
     }
 }

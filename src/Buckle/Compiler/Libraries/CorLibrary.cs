@@ -9,32 +9,40 @@ namespace Buckle.Libraries;
 internal sealed class CorLibrary {
     private static readonly CorLibrary Instance = new CorLibrary();
 
-    private const int TotalSpecialTypes = 12;
+    private const int TotalSpecialTypes = 13;
 
     private readonly ConcurrentDictionary<SpecialType, NamedTypeSymbol> _specialTypes = [];
 
     private int _registeredSpecialTypes;
+    private bool _complete = false;
 
     private CorLibrary() {
-        RegisterCorTypes();
+        RegisterPrimitiveCorTypes();
     }
 
     internal static NamedTypeSymbol GetSpecialType(SpecialType specialType) {
+        Instance.EnsureCorLibraryIsComplete();
         return Instance.GetSpecialTypeCore(specialType);
     }
 
     internal static void RegisterDeclaredSpecialType(NamedTypeSymbol type) {
+        Instance.EnsureCorLibraryIsComplete();
         Instance.RegisterSpecialType(type);
     }
 
     internal static bool StillLookingForSpecialTypes() {
+        Instance.EnsureCorLibraryIsComplete();
         return Instance._registeredSpecialTypes < TotalSpecialTypes;
     }
 
-    private NamedTypeSymbol GetSpecialTypeCore(SpecialType specialType) {
-        if (specialType is SpecialType.None or SpecialType.Nullable)
-            throw new ArgumentException($"Cannot retrieve special type {specialType}");
+    private void EnsureCorLibraryIsComplete() {
+        if (!_complete) {
+            _complete = true;
+            RegisterNonPrimitiveCorTypes();
+        }
+    }
 
+    private NamedTypeSymbol GetSpecialTypeCore(SpecialType specialType) {
         if (!_specialTypes.TryGetValue(specialType, out var result))
             throw new ArgumentException($"Special type {specialType} has not been registered");
 
@@ -47,9 +55,6 @@ internal sealed class CorLibrary {
         if (specialType == SpecialType.None)
             throw new ArgumentException($"Cannot register type {type} because it is not a special type");
 
-        if (specialType == SpecialType.Nullable)
-            throw new ArgumentException($"Cannot register special type {specialType}");
-
         if (!_specialTypes.TryAdd(specialType, type))
             throw new ArgumentException($"Special type {specialType} was already registered");
 
@@ -59,7 +64,7 @@ internal sealed class CorLibrary {
             throw new UnreachableException($"Registered more special types than there are special types");
     }
 
-    private void RegisterCorTypes() {
+    private void RegisterPrimitiveCorTypes() {
         RegisterSpecialType(new PrimitiveTypeSymbol("any", SpecialType.Any));
         RegisterSpecialType(new PrimitiveTypeSymbol("int", SpecialType.Int));
         RegisterSpecialType(new PrimitiveTypeSymbol("bool", SpecialType.Bool));
@@ -68,6 +73,10 @@ internal sealed class CorLibrary {
         RegisterSpecialType(new PrimitiveTypeSymbol("decimal", SpecialType.Decimal));
         RegisterSpecialType(new PrimitiveTypeSymbol("type", SpecialType.Type));
         RegisterSpecialType(new PrimitiveTypeSymbol("void", SpecialType.Void));
+    }
+
+    private void RegisterNonPrimitiveCorTypes() {
         RegisterSpecialType(new PrimitiveTypeSymbol("Array", SpecialType.Array));
+        RegisterSpecialType(new PrimitiveTypeSymbol("Nullable", SpecialType.Nullable, 1));
     }
 }

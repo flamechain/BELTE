@@ -1,4 +1,4 @@
-using Diagnostics;
+using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -8,5 +8,5 @@ internal sealed class UnsupportedMetadataTypeSymbol : ErrorTypeSymbol {
 
     internal override bool mangleName => false;
 
-    internal override DiagnosticInfo errorInfo => null;
+    internal override BelteDiagnostic error => null;
 }

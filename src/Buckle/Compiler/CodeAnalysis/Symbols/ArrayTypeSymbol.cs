@@ -17,6 +17,13 @@ internal abstract partial class ArrayTypeSymbol : TypeSymbol {
         baseType = array;
     }
 
+    internal static ArrayTypeSymbol CreateArray(TypeWithAnnotations elementType, int rank = 1) {
+        if (rank == 1)
+            return CreateSZArray(elementType);
+
+        return CreateMDArray(elementType, rank, default, default);
+    }
+
     internal static ArrayTypeSymbol CreateMDArray(
         TypeWithAnnotations elementType,
         int rank,

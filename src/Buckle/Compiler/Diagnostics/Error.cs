@@ -1416,7 +1416,7 @@ internal static class Error {
     /// <summary>
     /// BU0152. Run `buckle --explain BU0152` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic CircularBase(TextLocation location, NamedTypeSymbol type1, NamedTypeSymbol type2) {
+    internal static BelteDiagnostic CircularBase(TextLocation location, Symbol type1, Symbol type2) {
         var message = $"circular base dependency involving '{type1}' and '{type2}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CircularBase), location, message);
         // TODO add this to resource doc after finding example

@@ -39,11 +39,19 @@ internal sealed partial class BinderFactory {
 
         private bool _inScript => _factory.inScript;
 
+        internal static BinderCacheKey CreateBinderCacheKey(BelteSyntaxNode node, NodeUsage usage) {
+            return new BinderCacheKey(node, usage);
+        }
+
         internal override Binder DefaultVisit(SyntaxNode parent) {
             return ((BelteSyntaxNode)parent).parent.Accept(this);
         }
 
         internal override Binder Visit(SyntaxNode node) {
+            return ((BelteSyntaxNode)node).Accept(this);
+        }
+
+        private Binder VisitCore(SyntaxNode node) {
             return ((BelteSyntaxNode)node).Accept(this);
         }
 
@@ -68,5 +76,36 @@ internal sealed partial class BinderFactory {
 
             return result;
         }
+
+        internal Binder VisitTypeDeclarationCore(TypeDeclarationSyntax parent, NodeUsage extraInfo) {
+            var key = CreateBinderCacheKey(parent, extraInfo);
+
+            if (!_binderCache.TryGetValue(key, out var resultBinder)) {
+                resultBinder = VisitCore(parent.parent);
+
+                if (extraInfo != NodeUsage.Normal) {
+                    var typeSymbol = ((NamespaceOrTypeSymbol)resultBinder.containingMember).GetSourceTypeMember(parent);
+
+                    if (extraInfo == NodeUsage.NamedTypeBase) {
+                        resultBinder = new WithClassTemplateParametersBinder(typeSymbol, resultBinder);
+                    } else {
+                        // TODO Even though we dont have this sugar, does this class add something necessary?
+                        // resultBinder = new WithPrimaryConstructorParametersBinder(typeSymbol, resultBinder);
+
+                        resultBinder = new InContainerBinder(typeSymbol, resultBinder);
+
+                        if (parent.templateParameterList is not null)
+                            resultBinder = new WithClassTemplateParametersBinder(typeSymbol, resultBinder);
+                    }
+                }
+
+                _binderCache.TryAdd(key, resultBinder);
+            }
+
+            return resultBinder;
+        }
+
+        // TODO finish this class
+
     }
 }

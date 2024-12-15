@@ -171,7 +171,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
             return new ExtendedErrorTypeSymbol(
                 declaredBase,
                 LookupResultKind.NotReferencable,
-                diagnostics.Push(Error.CircularBase(syntaxReference.location, declaredBase, this))
+                Error.CircularBase(syntaxReference.location, declaredBase, this)
             );
         }
 
@@ -231,8 +231,8 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
                 localBase = (NamedTypeSymbol)baseType;
 
                 if (isStatic && localBase.specialType != SpecialType.Object) {
-                    var info = diagnostics.Push(Error.StaticDeriveFromNotObject(location, localBase));
-                    localBase = new ExtendedErrorTypeSymbol(localBase, LookupResultKind.NotReferencable, info);
+                    var error = Error.StaticDeriveFromNotObject(location, localBase);
+                    localBase = new ExtendedErrorTypeSymbol(localBase, LookupResultKind.NotReferencable, error);
                 }
             }
         } else {

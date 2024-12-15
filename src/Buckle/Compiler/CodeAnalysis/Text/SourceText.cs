@@ -224,6 +224,16 @@ public abstract class SourceText {
         return false;
     }
 
+    public SourceText GetSubText(int start) {
+        if (start < 0 || start > length)
+            throw new ArgumentOutOfRangeException(nameof(start));
+
+        if (start == 0)
+            return this;
+
+        return GetSubText(new TextSpan(start, length - start));
+    }
+
     /// <summary>
     /// Constructs a new <see cref="SourceText" /> from this with the specified changes.
     /// </summary>

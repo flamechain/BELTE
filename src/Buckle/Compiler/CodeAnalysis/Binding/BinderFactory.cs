@@ -45,6 +45,13 @@ internal sealed partial class BinderFactory {
         return result;
     }
 
+    internal Binder GetInTypeBodyBinder(TypeDeclarationSyntax syntax) {
+        var visitor = GetBinderFactoryVisitor(syntax.span.start, null, null);
+        Binder resultBinder = visitor.VisitTypeDeclarationCore(syntax, NodeUsage.NamedTypeBodyOrTemplateParameters);
+        ClearBinderFactoryVisitor(visitor);
+        return resultBinder;
+    }
+
     private BinderFactoryVisitor GetBinderFactoryVisitor(
         int position,
         BelteSyntaxNode memberDeclaration,

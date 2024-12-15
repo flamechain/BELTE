@@ -196,4 +196,55 @@ internal static class ImmutableArrayExtensions {
 
         return count;
     }
+
+    internal static ImmutableArray<T> WhereAsArray<T, TArg>(
+        this ImmutableArray<T> array,
+        Func<T, TArg, bool> predicate,
+        TArg arg)
+        => WhereAsArrayImpl(array, predicateWithoutArg: null, predicate, arg);
+
+    private static ImmutableArray<T> WhereAsArrayImpl<T, TArg>(
+        ImmutableArray<T> array,
+        Func<T, bool>? predicateWithoutArg,
+        Func<T, TArg, bool>? predicateWithArg,
+        TArg arg) {
+        ArrayBuilder<T>? builder = null;
+        var none = true;
+        var all = true;
+
+        var n = array.Length;
+        for (var i = 0; i < n; i++) {
+            var a = array[i];
+
+            if ((predicateWithoutArg != null) ? predicateWithoutArg(a) : predicateWithArg!(a, arg)) {
+                none = false;
+
+                if (all)
+                    continue;
+
+                builder ??= ArrayBuilder<T>.GetInstance();
+                builder.Add(a);
+            } else {
+                if (none) {
+                    all = false;
+                    continue;
+                }
+
+                if (all) {
+                    all = false;
+                    builder = ArrayBuilder<T>.GetInstance();
+
+                    for (var j = 0; j < i; j++)
+                        builder.Add(array[j]);
+                }
+            }
+        }
+
+        if (builder != null)
+            return builder.ToImmutableAndFree();
+        else if (all)
+            return array;
+        else
+            return [];
+    }
 }
