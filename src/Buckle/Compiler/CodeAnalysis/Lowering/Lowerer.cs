@@ -430,7 +430,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 Cast(
                     type,
                     Value(operand, operandType.GetNullableUnderlyingType()),
-                    ConversionKind.ExplicitNullable,
+                    Conversion.ExplicitNullable,
                     operand.constantValue
                 )
             );
@@ -575,7 +575,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         if (method.returnsVoid) {
             if (statementsBuilder.Count == 0 || CanFallThrough(statementsBuilder.Last()))
-                statementsBuilder.Add(new BoundReturnStatement(null));
+                statementsBuilder.Add(new BoundReturnStatement(RefKind.None, null));
         }
 
         return new BoundBlockStatement(

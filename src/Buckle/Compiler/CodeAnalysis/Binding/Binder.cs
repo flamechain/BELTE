@@ -7,7 +7,6 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
-using Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -33,6 +32,7 @@ internal partial class Binder {
         this.next = next;
         flags = next.flags;
         _lazyConversions = conversions;
+        compilation = next.compilation;
     }
 
     private protected Binder(Binder next, BinderFlags flags) {
@@ -862,6 +862,7 @@ internal partial class Binder {
                 symbols.Sort(ConsistentSymbolOrder.Instance);
 
                 var best = GetBestSymbolInfo(symbols, out var secondBest);
+                // TODO
             } else {
                 var singleResult = symbols[0];
                 // TODO check if void can appear hear, would need error
@@ -1421,6 +1422,8 @@ symIsHidden:;
         switch (node.kind) {
             case SyntaxKind.BlockStatement:
                 return BindBlockStatement((BlockStatementSyntax)node, diagnostics);
+            case SyntaxKind.ReturnStatement:
+                return BindReturnStatement((ReturnStatementSyntax)node, diagnostics);
             /*
             case SyntaxKind.ExpressionStatement:
                 return BindExpressionStatement((ExpressionStatementSyntax)syntax);
@@ -1442,8 +1445,6 @@ symIsHidden:;
                 return BindBreakStatement((BreakStatementSyntax)syntax);
             case SyntaxKind.ContinueStatement:
                 return BindContinueStatement((ContinueStatementSyntax)syntax);
-            case SyntaxKind.ReturnStatement:
-                return BindReturnStatement((ReturnStatementSyntax)syntax);
             case SyntaxKind.LocalFunctionStatement:
                 return new BoundBlockStatement([]);
             */
@@ -1474,49 +1475,73 @@ symIsHidden:;
         return new BoundBlockStatement(boundStatements.ToImmutableAndFree(), locals, localFunctions);
     }
 
-    internal BoundExpression GenerateConversionForAssignment(
-        TypeSymbol targetType,
-        BoundExpression expression,
-        BelteDiagnosticQueue diagnostics,
-        ConversionForAssignmentFlags flags = ConversionForAssignmentFlags.None) {
-        return GenerateConversionForAssignment(targetType, expression, diagnostics, out _, flags);
-    }
+    private BoundReturnStatement BindReturnStatement(ReturnStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        var expressionSyntax = node.expression.UnwrapRefExpression(out var refKind);
+        BoundExpression argument = null;
 
-    internal BoundExpression GenerateConversionForAssignment(
-        TypeSymbol targetType,
-        BoundExpression expression,
-        BelteDiagnosticQueue diagnostics,
-        out Conversion conversion,
-        ConversionForAssignmentFlags flags = ConversionForAssignmentFlags.None) {
-        if (expression is BoundErrorExpression)
-            diagnostics = BelteDiagnosticQueue.Discarded;
-
-        conversion = (flags & ConversionForAssignmentFlags.IncrementAssignment) == 0
-            ? conversions.ClassifyConversionFromExpression(expression, targetType)
-            : conversions.ClassifyConversionFromType(expression.type, targetType);
-
-        if ((flags & ConversionForAssignmentFlags.RefAssignment) != 0) {
-            if (conversion.kind != ConversionKind.Identity) {
-                // Error(diagnostics, ErrorCode.ERR_RefAssignmentMustHaveIdentityConversion, expression.Syntax, targetType);
-                // TODO
-            } else {
-                return expression;
-            }
-        } else if (!conversion.exists ||
-              ((flags & ConversionForAssignmentFlags.CompoundAssignment) == 0
-                ? !conversion.isImplicit
-                : (conversion.isExplicit && (flags & ConversionForAssignmentFlags.PredefinedOperator) == 0))) {
-            if ((flags & ConversionForAssignmentFlags.DefaultParameter) == 0) {
-                // GenerateImplicitConversionError(diagnostics, expression.syntax, conversion, expression, targetType);
-                // TODO
-            }
-
-            diagnostics = BelteDiagnosticQueue.Discarded;
+        if (expressionSyntax is not null) {
+            var requiredValueKind = GetRequiredReturnValueKind(refKind);
+            argument = BindValue(expressionSyntax, diagnostics, requiredValueKind);
         }
 
-        return new BoundCastExpression(targetType, expression, conversion.kind, null);
-        // return CreateConversion(expression.Syntax, expression, conversion, isCast: false, conversionGroupOpt: null, targetType, diagnostics);
-        // TODO Consider this helper method
+        var returnType = GetCurrentReturnType(out var signatureRefKind);
+        var hasErrors = false;
+
+        if (returnType is not null && refKind != RefKind.None != (signatureRefKind != RefKind.None)) {
+            // TODO ref return error
+            hasErrors = true;
+        }
+
+        if (argument is not null)
+            hasErrors |= argument.type is not null && argument.type.IsErrorType();
+
+        if (hasErrors)
+            return new BoundReturnStatement(refKind, argument);
+
+        if (returnType is not null) {
+            if (returnType.IsVoidType()) {
+                if (argument is not null) {
+                    hasErrors = true;
+                    diagnostics.Push(Error.UnexpectedReturnValue(node.keyword.location));
+                    // TODO confirm this error has enough info, maybe include containingMember?
+                }
+            } else {
+                if (argument is null) {
+                    hasErrors = true;
+                    diagnostics.Push(Error.MissingReturnValue(node.keyword.location));
+                } else {
+                    argument = CreateReturnConversion(node, diagnostics, argument, signatureRefKind, returnType);
+                }
+            }
+        } else {
+            if (argument?.type is not null && argument.type.IsVoidType()) {
+                diagnostics.Push(Error.UnexpectedReturnValue(node.expression.location));
+                hasErrors = true;
+            }
+        }
+
+        return new BoundReturnStatement(refKind, argument);
+    }
+
+    private BindValueKind GetRequiredReturnValueKind(RefKind refKind) {
+        var requiredValueKind = BindValueKind.RValue;
+
+        if (refKind != RefKind.None) {
+            GetCurrentReturnType(out var signatureRefKind);
+            requiredValueKind = signatureRefKind == RefKind.Ref ? BindValueKind.RefReturn : BindValueKind.RefConst;
+        }
+
+        return requiredValueKind;
+    }
+
+    private protected virtual TypeSymbol GetCurrentReturnType(out RefKind refKind) {
+        if (containingMember is MethodSymbol symbol) {
+            refKind = symbol.refKind;
+            return symbol.returnType;
+        }
+
+        refKind = RefKind.None;
+        return null;
     }
 
     internal virtual BoundNode BindMethodBody(BelteSyntaxNode syntax, BelteDiagnosticQueue diagnostics) {
@@ -1627,6 +1652,96 @@ symIsHidden:;
             .BindConstructorInitializer(initializer.argumentList, (MethodSymbol)containingMember, diagnostics);
 
         return new BoundExpressionStatement(call);
+    }
+
+    #endregion
+
+    #region Conversions
+
+    internal BoundExpression CreateReturnConversion(
+        SyntaxNode node,
+        BelteDiagnosticQueue diagnostics,
+        BoundExpression argument,
+        RefKind returnRefKind,
+        TypeSymbol returnType) {
+        var conversion = conversions.ClassifyConversionFromExpression(argument, returnType);
+
+        if (argument is not BoundErrorExpression) {
+            if (returnRefKind != RefKind.None) {
+                if (conversion.kind != ConversionKind.Identity) {
+                    // TODO ref return must have identity conversion?
+                } else {
+                    return argument;
+                }
+            }
+        }
+
+        return CreateConversion(node, argument, conversion, isCast: false, returnType, diagnostics);
+    }
+
+    internal BoundExpression GenerateConversionForAssignment(
+        TypeSymbol targetType,
+        BoundExpression expression,
+        BelteDiagnosticQueue diagnostics,
+        ConversionForAssignmentFlags flags = ConversionForAssignmentFlags.None) {
+        return GenerateConversionForAssignment(targetType, expression, diagnostics, out _, flags);
+    }
+
+    internal BoundExpression GenerateConversionForAssignment(
+        TypeSymbol targetType,
+        BoundExpression expression,
+        BelteDiagnosticQueue diagnostics,
+        out Conversion conversion,
+        ConversionForAssignmentFlags flags = ConversionForAssignmentFlags.None) {
+        if (expression is BoundErrorExpression)
+            diagnostics = BelteDiagnosticQueue.Discarded;
+
+        conversion = (flags & ConversionForAssignmentFlags.IncrementAssignment) == 0
+            ? conversions.ClassifyConversionFromExpression(expression, targetType)
+            : conversions.ClassifyConversionFromType(expression.type, targetType);
+
+        if ((flags & ConversionForAssignmentFlags.RefAssignment) != 0) {
+            if (conversion.kind != ConversionKind.Identity) {
+                // Error(diagnostics, ErrorCode.ERR_RefAssignmentMustHaveIdentityConversion, expression.Syntax, targetType);
+                // TODO
+            } else {
+                return expression;
+            }
+        } else if (!conversion.exists ||
+              ((flags & ConversionForAssignmentFlags.CompoundAssignment) == 0
+                ? !conversion.isImplicit
+                : (conversion.isExplicit && (flags & ConversionForAssignmentFlags.PredefinedOperator) == 0))) {
+            if ((flags & ConversionForAssignmentFlags.DefaultParameter) == 0) {
+                // GenerateImplicitConversionError(diagnostics, expression.syntax, conversion, expression, targetType);
+                // TODO
+            }
+
+            diagnostics = BelteDiagnosticQueue.Discarded;
+        }
+
+        return new BoundCastExpression(targetType, expression, conversion, null);
+        // return CreateConversion(expression.Syntax, expression, conversion, isCast: false, conversionGroupOpt: null, targetType, diagnostics);
+        // TODO Consider this helper method
+    }
+
+    internal BoundExpression CreateConversion(
+        SyntaxNode node,
+        BoundExpression source,
+        Conversion conversion,
+        bool isCast,
+        TypeSymbol destination,
+        BelteDiagnosticQueue diagnostics,
+        bool hasErrors = false) {
+        if (conversion.isIdentity && !isCast && source.type.Equals(destination, TypeCompareKind.IgnoreNullability))
+            return source;
+
+        // TODO
+        // if (conversion.isMethodGroup)
+        //     return CreateMethodGroupConversion(node, source, conversion, isCast, destination, diagnostics);
+
+        var constantValue = ConstantFolding.FoldCast(source, new TypeWithAnnotations(destination));
+
+        return new BoundCastExpression(destination, source, conversion, constantValue);
     }
 
     #endregion

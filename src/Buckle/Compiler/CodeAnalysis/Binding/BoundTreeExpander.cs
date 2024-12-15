@@ -147,7 +147,7 @@ internal abstract class BoundTreeExpander {
         var statements = ExpandExpression(statement.expression, out var replacement);
 
         if (statements.Count != 0) {
-            statements.Add(new BoundReturnStatement(replacement));
+            statements.Add(new BoundReturnStatement(statement.refKind, replacement));
             return statements;
         }
 
@@ -493,7 +493,7 @@ internal abstract class BoundTreeExpander {
             replacement = new BoundCastExpression(
                 expression.type,
                 expressionReplacement,
-                expression.conversionKind,
+                expression.conversion,
                 expression.constantValue
             );
 

@@ -56,9 +56,9 @@ internal static partial class BoundFactory {
     internal static BoundCastExpression Cast(
         TypeSymbol type,
         BoundExpression expression,
-        ConversionKind conversionKind,
+        Conversion conversion,
         ConstantValue constant) {
-        return new BoundCastExpression(type, expression, conversionKind, constant);
+        return new BoundCastExpression(type, expression, conversion, constant);
     }
 
     internal static BoundConditionalExpression Conditional(

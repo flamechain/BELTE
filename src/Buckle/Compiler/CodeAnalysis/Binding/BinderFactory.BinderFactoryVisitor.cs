@@ -1,6 +1,8 @@
 using System;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -59,17 +61,20 @@ internal sealed partial class BinderFactory {
             if (node != _syntaxTree.GetRoot())
                 throw new ArgumentOutOfRangeException(nameof(node), "node is not apart of the tree");
 
-            var key = new BinderCacheKey(node, _inScript ? NodeUsage.CompilationUnitScript : NodeUsage.Normal);
+            // TODO
+            // var key = new BinderCacheKey(node, _inScript ? NodeUsage.CompilationUnitScript : NodeUsage.Normal);
+            var key = new BinderCacheKey(node, NodeUsage.Normal);
 
             if (!_binderCache.TryGetValue(key, out var result)) {
                 result = _endBinder;
 
-                if (_inScript) {
-                    // TODO
-                } else {
-                    var globalNamespace = _compilation.globalNamespaceInternal;
-                    result = new InContainerBinder(globalNamespace, result);
-                }
+                // TODO script
+                // if (_inScript) {
+                //     // TODO
+                // } else {
+                var globalNamespace = _compilation.globalNamespaceInternal;
+                result = new InContainerBinder(globalNamespace, result);
+                // }
 
                 _binderCache.TryAdd(key, result);
             }
@@ -77,16 +82,35 @@ internal sealed partial class BinderFactory {
             return result;
         }
 
-        internal Binder VisitTypeDeclarationCore(TypeDeclarationSyntax parent, NodeUsage extraInfo) {
-            var key = CreateBinderCacheKey(parent, extraInfo);
+        private Binder VisitTypeDeclarationCore(TypeDeclarationSyntax node) {
+            if (!LookupPosition.IsInTypeDeclaration(_position, node))
+                return VisitCore(node.parent);
+
+            var nodeUsage = NodeUsage.Normal;
+
+            if (node.openBrace != default &&
+                node.closeBrace != default &&
+                LookupPosition.IsBetweenTokens(_position, node.openBrace, node.closeBrace)) {
+                nodeUsage = NodeUsage.NamedTypeBodyOrTemplateParameters;
+            } else if (LookupPosition.IsInTemplateParameterList(_position, node)) {
+                nodeUsage = NodeUsage.NamedTypeBodyOrTemplateParameters;
+            } else if (LookupPosition.IsBetweenTokens(_position, node.keyword, node.openBrace)) {
+                nodeUsage = NodeUsage.NamedTypeBase;
+            }
+
+            return VisitTypeDeclarationCore(node, nodeUsage);
+        }
+
+        internal Binder VisitTypeDeclarationCore(TypeDeclarationSyntax node, NodeUsage nodeUsage) {
+            var key = CreateBinderCacheKey(node, nodeUsage);
 
             if (!_binderCache.TryGetValue(key, out var resultBinder)) {
-                resultBinder = VisitCore(parent.parent);
+                resultBinder = VisitCore(node.parent);
 
-                if (extraInfo != NodeUsage.Normal) {
-                    var typeSymbol = ((NamespaceOrTypeSymbol)resultBinder.containingMember).GetSourceTypeMember(parent);
+                if (nodeUsage != NodeUsage.Normal) {
+                    var typeSymbol = ((NamespaceOrTypeSymbol)resultBinder.containingMember).GetSourceTypeMember(node);
 
-                    if (extraInfo == NodeUsage.NamedTypeBase) {
+                    if (nodeUsage == NodeUsage.NamedTypeBase) {
                         resultBinder = new WithClassTemplateParametersBinder(typeSymbol, resultBinder);
                     } else {
                         // TODO Even though we dont have this sugar, does this class add something necessary?
@@ -94,7 +118,7 @@ internal sealed partial class BinderFactory {
 
                         resultBinder = new InContainerBinder(typeSymbol, resultBinder);
 
-                        if (parent.templateParameterList is not null)
+                        if (node.templateParameterList is not null)
                             resultBinder = new WithClassTemplateParametersBinder(typeSymbol, resultBinder);
                     }
                 }
@@ -105,7 +129,180 @@ internal sealed partial class BinderFactory {
             return resultBinder;
         }
 
-        // TODO finish this class
+        internal override Binder VisitMethodDeclaration(MethodDeclarationSyntax node) {
+            if (!LookupPosition.IsInMethodDeclaration(_position, node))
+                return VisitCore(node.parent);
 
+            NodeUsage usage;
+
+            if (LookupPosition.IsInBody(_position, node))
+                usage = NodeUsage.MethodBody;
+            else if (LookupPosition.IsInMethodTemplateParameterScope(_position, node))
+                usage = NodeUsage.MethodTemplateParameters;
+            else
+                usage = NodeUsage.Normal;
+
+            var key = CreateBinderCacheKey(node, usage);
+
+            if (!_binderCache.TryGetValue(key, out var resultBinder)) {
+                var parentType = node.parent as TypeDeclarationSyntax;
+
+                if (parentType is not null)
+                    resultBinder = VisitTypeDeclarationCore(parentType, NodeUsage.NamedTypeBodyOrTemplateParameters);
+                else
+                    resultBinder = VisitCore(node.parent);
+
+                SourceMemberMethodSymbol method = null;
+
+                if (usage != NodeUsage.Normal && node.templateParameterList is not null) {
+                    method = GetMethodSymbol(node, resultBinder);
+                    resultBinder = new WithMethodTemplateParametersBinder(method, resultBinder);
+                }
+
+                if (usage == NodeUsage.MethodBody) {
+                    method = method ?? GetMethodSymbol(node, resultBinder);
+                    resultBinder = new InMethodBinder(method, resultBinder);
+                }
+
+                _binderCache.TryAdd(key, resultBinder);
+            }
+
+            return resultBinder;
+        }
+
+        private SourceMemberMethodSymbol GetMethodSymbol(BaseMethodDeclarationSyntax baseMethodDeclarationSyntax, Binder outerBinder) {
+            if (baseMethodDeclarationSyntax == _memberDeclaration)
+                return (SourceMemberMethodSymbol)_member;
+
+            var container = GetContainerType(outerBinder);
+
+            if (container is null)
+                return null;
+
+            var methodName = GetMethodName(baseMethodDeclarationSyntax);
+            return (SourceMemberMethodSymbol)GetMemberSymbol(methodName, baseMethodDeclarationSyntax.fullSpan, container, SymbolKind.Method);
+        }
+
+        private NamedTypeSymbol GetContainerType(Binder binder) {
+            var containingSymbol = binder.containingMember;
+
+            if (containingSymbol is not NamedTypeSymbol container)
+                container = ((NamespaceSymbol)containingSymbol).implicitType;
+
+            return container;
+        }
+
+        private Symbol GetMemberSymbol(
+            string memberName,
+            TextSpan memberSpan,
+            NamedTypeSymbol container,
+            SymbolKind kind) {
+            foreach (var sym in container.GetMembers(memberName)) {
+                if (CheckSymbol(sym, memberSpan, kind, out var result))
+                    return result;
+            }
+
+            return null;
+
+            bool CheckSymbol(Symbol sym, TextSpan memberSpan, SymbolKind kind, out Symbol result) {
+                result = sym;
+
+                if (sym.kind != kind)
+                    return false;
+
+                var syntaxReference = sym.syntaxReference;
+
+                if (kind is SymbolKind.Method) {
+
+                    if (InSpan(syntaxReference.location, syntaxReference.syntaxTree, _syntaxTree, memberSpan))
+                        return true;
+                } else if (InSpan(syntaxReference.location, syntaxReference.syntaxTree, _syntaxTree, memberSpan)) {
+                    return true;
+                }
+
+                return false;
+            }
+        }
+
+        private static bool InSpan(
+            TextLocation location,
+            SyntaxTree firstSyntaxTree,
+            SyntaxTree secondSyntaxTree,
+            TextSpan span) {
+            return (firstSyntaxTree == secondSyntaxTree) && span.Contains(location.span);
+        }
+
+        private static string GetMethodName(BaseMethodDeclarationSyntax syntax) {
+            switch (syntax.kind) {
+                case SyntaxKind.ConstructorDeclaration:
+                    return WellKnownMemberNames.InstanceConstructorName;
+                case SyntaxKind.OperatorDeclaration:
+                    var operatorDeclaration = (OperatorDeclarationSyntax)syntax;
+                    return SyntaxFacts.GetOperatorMemberName(operatorDeclaration);
+                case SyntaxKind.MethodDeclaration:
+                    var methodDeclSyntax = (MethodDeclarationSyntax)syntax;
+                    return methodDeclSyntax.identifier.text;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(syntax.kind);
+            }
+        }
+
+        internal override Binder VisitConstructorDeclaration(ConstructorDeclarationSyntax node) {
+            if (!LookupPosition.IsInMethodDeclaration(_position, node))
+                return VisitCore(node.parent);
+
+            var inBodyOrInitializer = LookupPosition.IsInConstructorParameterScope(_position, node);
+            var nodeUsage = inBodyOrInitializer ? NodeUsage.ConstructorBodyOrInitializer : NodeUsage.Normal;
+            var key = CreateBinderCacheKey(node, nodeUsage);
+
+            if (!_binderCache.TryGetValue(key, out var resultBinder)) {
+                resultBinder = VisitCore(node.parent);
+
+                if (inBodyOrInitializer) {
+                    var method = GetMethodSymbol(node, resultBinder);
+
+                    if (method is not null)
+                        resultBinder = new InMethodBinder(method, resultBinder);
+                }
+
+                _binderCache.TryAdd(key, resultBinder);
+            }
+
+            return resultBinder;
+        }
+
+        internal override Binder VisitOperatorDeclaration(OperatorDeclarationSyntax node) {
+            if (!LookupPosition.IsInMethodDeclaration(_position, node))
+                return VisitCore(node.parent);
+
+            var inBody = LookupPosition.IsInBody(_position, node);
+            var nodeUsage = inBody ? NodeUsage.OperatorBody : NodeUsage.Normal;
+            var key = CreateBinderCacheKey(node, nodeUsage);
+
+            if (!_binderCache.TryGetValue(key, out var resultBinder)) {
+                resultBinder = VisitCore(node.parent);
+
+                var method = GetMethodSymbol(node, resultBinder);
+
+                if (method is not null && inBody)
+                    resultBinder = new InMethodBinder(method, resultBinder);
+
+                _binderCache.TryAdd(key, resultBinder);
+            }
+
+            return resultBinder;
+        }
+
+        internal override Binder VisitFieldDeclaration(FieldDeclarationSyntax node) {
+            return VisitCore(node.parent);
+        }
+
+        internal override Binder VisitClassDeclaration(ClassDeclarationSyntax node) {
+            return VisitTypeDeclarationCore(node);
+        }
+
+        internal override Binder VisitStructDeclaration(StructDeclarationSyntax node) {
+            return VisitTypeDeclarationCore(node);
+        }
     }
 }

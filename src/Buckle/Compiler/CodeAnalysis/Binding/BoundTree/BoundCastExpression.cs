@@ -9,12 +9,12 @@ internal sealed class BoundCastExpression : BoundExpression {
     internal BoundCastExpression(
         TypeSymbol type,
         BoundExpression operand,
-        ConversionKind conversionKind,
+        Conversion conversion,
         ConstantValue constantValue) {
         this.type = type;
         this.operand = operand;
         this.constantValue = constantValue;
-        this.conversionKind = conversionKind;
+        this.conversion = conversion;
     }
 
     internal override BoundNodeKind kind => BoundNodeKind.CastExpression;
@@ -25,5 +25,5 @@ internal sealed class BoundCastExpression : BoundExpression {
 
     internal BoundExpression operand { get; }
 
-    internal ConversionKind conversionKind { get; }
+    internal Conversion conversion { get; }
 }

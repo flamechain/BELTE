@@ -72,7 +72,7 @@ internal abstract class BoundTreeRewriter {
         if (expression == statement.expression)
             return statement;
 
-        return new BoundReturnStatement(expression);
+        return new BoundReturnStatement(statement.refKind, expression);
     }
 
     private protected virtual BoundStatement RewriteDoWhileStatement(BoundDoWhileStatement statement) {
@@ -382,7 +382,7 @@ internal abstract class BoundTreeRewriter {
         if (rewrote == expression.operand)
             return expression;
 
-        return new BoundCastExpression(expression.type, rewrote, expression.conversionKind, expression.constantValue);
+        return new BoundCastExpression(expression.type, rewrote, expression.conversion, expression.constantValue);
     }
 
     private protected virtual BoundExpression RewriteCallExpression(BoundCallExpression expression) {

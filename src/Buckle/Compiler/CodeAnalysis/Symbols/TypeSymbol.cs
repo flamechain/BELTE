@@ -11,6 +11,8 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// A type symbol. This is just the base type name, not a full <see cref="Binding.BoundType" />.
 /// </summary>
 internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
+    internal const string ImplicitTypeName = "<invalid-global-code>";
+
     public override SymbolKind kind => SymbolKind.NamedType;
 
     public abstract TypeKind typeKind { get; }

@@ -27,6 +27,17 @@ internal abstract class NamespaceSymbol : NamespaceOrTypeSymbol, INamespaceSymbo
 
     internal abstract NamespaceExtent extent { get; }
 
+    internal NamedTypeSymbol implicitType {
+        get {
+            var types = GetTypeMembers(TypeSymbol.ImplicitTypeName);
+
+            if (types.Length == 0)
+                return null;
+
+            return types[0];
+        }
+    }
+
     internal abstract ImmutableArray<Symbol> GetMembers(ReadOnlyMemory<char> name);
 
     internal sealed override ImmutableArray<Symbol> GetMembers(string name)
