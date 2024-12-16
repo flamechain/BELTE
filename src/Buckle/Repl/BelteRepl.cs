@@ -546,12 +546,11 @@ public sealed partial class BelteRepl : Repl {
     [MetaCommand("list", "List all defined symbols")]
     private void EvaluateList() {
         var compilation = state.previous ?? EmptyCompilation;
-        // TODO Does this get globals from previous submissions?
-        var symbols = compilation.globalNamespace.GetMembers().OrderBy(s => s.kind).ThenBy(s => s.name);
+        var symbols = compilation.GetSymbols(true);
         var displayText = new DisplayText();
 
         foreach (var symbol in symbols) {
-            displayText.Write(symbol.ToDisplaySegments());
+            displayText.Write(symbol.ToDisplaySegments(SymbolDisplayFormat.Everything));
             displayText.Write(CreateLine());
         }
 
@@ -561,20 +560,17 @@ public sealed partial class BelteRepl : Repl {
     [MetaCommand("dump", "Show contents of symbol <signature>")]
     private void EvaluateDump(string signature) {
         // TODO Let this work with template overloads
-        // TODO Rewrite this with new public symbol model
         var compilation = state.previous ?? EmptyCompilation;
-        // TODO Does globalNamespace.GetMembers() get previous submission symbols like Compilation.GetSymbols used to?
-        var globalNamespace = compilation.globalNamespace;
+        var allSymbols = compilation.GetSymbols(true);
         var name = signature.Contains('(') ? signature.Split('(')[0] : signature;
         ISymbol[] symbols;
 
         if (name.Contains('.')) {
             var failed = false;
             var parts = name.Split('.');
-            var currentSymbols = globalNamespace.GetMembers();
 
             for (var i = 0; i < parts.Length - 1; i++) {
-                var namedTypes = currentSymbols
+                var namedTypes = allSymbols
                     .Where(s => s.name == parts[i] && s is INamedTypeSymbol)
                     .Select(s => s as INamedTypeSymbol);
 
@@ -584,22 +580,22 @@ public sealed partial class BelteRepl : Repl {
                 }
 
                 var first = namedTypes.First();
-                currentSymbols = first.GetMembers();
+                allSymbols = first.GetMembers();
             }
 
             if (failed) {
                 symbols = [];
             } else {
                 symbols = (signature == name
-                    ? currentSymbols.Where(s => s.name == parts[^1])
-                    : currentSymbols.Where(s => s is IMethodSymbol i &&
+                    ? allSymbols.Where(s => s.name == parts[^1])
+                    : allSymbols.Where(s => s is IMethodSymbol i &&
                         i.ToString() == (parts[^1] + string.Join('(', signature.Split('(')[1..]))))
                     .ToArray();
             }
         } else {
             symbols = (signature == name
-                ? globalNamespace.GetMembers(name)
-                : globalNamespace.GetMembers(name).Where(f => f.ToString() == signature))
+                ? allSymbols.Where(s => s.name == name)
+                : allSymbols.Where(s => s.name == name).Where(f => f.ToString() == signature))
                     .ToArray();
         }
 

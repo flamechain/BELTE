@@ -183,6 +183,11 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
         }
     }
 
+    internal override bool TryGetThisParameter(out ParameterSymbol thisParameter) {
+        thisParameter = null;
+        return true;
+    }
+
     private void ComputeParameters() {
         if (!_lazyParameters.IsDefault)
             return;

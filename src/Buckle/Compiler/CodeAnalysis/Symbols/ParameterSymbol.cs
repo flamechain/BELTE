@@ -45,6 +45,8 @@ internal abstract class ParameterSymbol : Symbol, IParameterSymbol {
 
     internal abstract ConstantValue explicitDefaultConstantValue { get; }
 
+    internal virtual bool isThis => false;
+
     internal bool hasExplicitDefaultValue => isOptional && explicitDefaultConstantValue is not null;
 
     internal bool isOptional => refKind == RefKind.None && isMetadataOptional;

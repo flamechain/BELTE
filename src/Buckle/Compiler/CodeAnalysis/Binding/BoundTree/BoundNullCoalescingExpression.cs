@@ -11,7 +11,7 @@ internal sealed class BoundNullCoalescingExpression : BoundExpression {
         this.left = left;
         this.right = right;
         this.type = type;
-        constantValue = ConstantFolding.FoldNullCoalescing(left, right);
+        constantValue = ConstantFolding.FoldNullCoalescing(left, right, type);
     }
 
     internal override BoundNodeKind kind => BoundNodeKind.NullCoalescingExpression;

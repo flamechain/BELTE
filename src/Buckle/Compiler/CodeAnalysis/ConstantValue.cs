@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis;
@@ -13,14 +14,23 @@ internal partial class ConstantValue {
 
     internal ConstantValue(object value) {
         this.value = value;
+        specialType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(value);
     }
 
-    internal ConstantValue(object value, BelteDiagnostic[] diagnostics) {
+    internal ConstantValue(object value, SpecialType specialType) {
         this.value = value;
+        this.specialType = specialType;
+    }
+
+    internal ConstantValue(object value, SpecialType specialType, BelteDiagnostic[] diagnostics) {
+        this.value = value;
+        this.specialType = specialType;
         this.diagnostics = diagnostics;
     }
 
     internal object value { get; }
+
+    internal SpecialType specialType { get; }
 
     internal BelteDiagnostic[] diagnostics { get; }
 

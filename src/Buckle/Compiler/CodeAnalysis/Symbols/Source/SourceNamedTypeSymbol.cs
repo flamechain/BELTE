@@ -64,7 +64,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
                     _ = containingType.baseType;
 
                 if (specialType == SpecialType.Object) {
-                    Interlocked.CompareExchange(ref _lazyBaseType, this, ErrorTypeSymbol.UnknownResultType);
+                    Interlocked.CompareExchange(ref _lazyBaseType, null, ErrorTypeSymbol.UnknownResultType);
                     return _lazyBaseType;
                 }
 

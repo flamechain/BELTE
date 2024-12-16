@@ -75,7 +75,7 @@ internal partial class SourceDataContainerSymbol {
 
                 Interlocked.CompareExchange(
                     ref _lazyConstantValue,
-                    new ConstantValue(value, diagnostics.ToArrayAndFree()),
+                    new ConstantValue(value, type.specialType, diagnostics.ToArrayAndFree()),
                     null
                 );
             }

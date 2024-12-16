@@ -7,12 +7,13 @@ using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.Libraries;
 
 internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbol {
     private ImmutableArray<Symbol> _allMembers;
-    private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>> _nameToMembersMap;
+    private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> _nameToMembersMap;
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> _nameToTypeMembersMap;
     private bool _allMembersIsSorted;
 
@@ -59,9 +60,7 @@ internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbo
     }
 
     internal override ImmutableArray<Symbol> GetMembers(string name) {
-        return GetNameToMembersMap().TryGetValue(name.AsMemory(), out var members)
-            ? members.Cast<NamespaceOrTypeSymbol, Symbol>()
-            : [];
+        return GetNameToMembersMap().TryGetValue(name.AsMemory(), out var members) ? members : [];
     }
 
     internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers() {
@@ -72,7 +71,7 @@ internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbo
         return GetNameToTypeMembersMap().TryGetValue(name, out var members) ? members : [];
     }
 
-    private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>> GetNameToMembersMap() {
+    private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> GetNameToMembersMap() {
         if (_nameToMembersMap is null)
             Interlocked.CompareExchange(ref _nameToMembersMap, MakeNameToMembersMap(), null);
 
@@ -84,7 +83,7 @@ internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbo
             Interlocked.CompareExchange(
                 ref _nameToTypeMembersMap,
                 CodeAnalysis.ImmutableArrayExtensions
-                    .GetTypesFromMemberMap<ReadOnlyMemory<char>, NamespaceOrTypeSymbol, NamedTypeSymbol>(
+                    .GetTypesFromMemberMap<ReadOnlyMemory<char>, Symbol, NamedTypeSymbol>(
                         GetNameToMembersMap(),
                         ReadOnlyMemoryOfCharComparer.Instance
                     ),
@@ -95,7 +94,7 @@ internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbo
         return _nameToTypeMembersMap;
     }
 
-    private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>> MakeNameToMembersMap() {
+    private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> MakeNameToMembersMap() {
         var builder = NameToObjectPool.Allocate();
 
         foreach (var symbol in _allMembers) {
@@ -106,17 +105,16 @@ internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbo
             );
         }
 
-        var result = new Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>>(
+        var result = new Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>>(
             builder.Count,
             ReadOnlyMemoryOfCharComparer.Instance
         );
 
-        CodeAnalysis.ImmutableArrayExtensions.CreateNameToMembersMap<
-                ReadOnlyMemory<char>,
-                NamespaceOrTypeSymbol,
-                NamedTypeSymbol,
-                NamespaceSymbol
-            >(builder, result);
+        foreach (var pair in builder) {
+            result.Add(pair.Key, pair.Value is ArrayBuilder<Symbol> arrayBuilder
+                ? arrayBuilder.ToImmutableAndFree()
+                : [(Symbol)pair.Value]);
+        }
 
         builder.Free();
         return result;

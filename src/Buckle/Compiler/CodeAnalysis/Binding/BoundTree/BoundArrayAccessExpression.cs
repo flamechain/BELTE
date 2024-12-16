@@ -13,7 +13,7 @@ internal sealed class BoundArrayAccessExpression : BoundExpression {
         this.receiver = receiver;
         this.index = index;
         this.type = type;
-        constantValue = ConstantFolding.FoldIndex(receiver, index);
+        constantValue = ConstantFolding.FoldIndex(receiver, index, type);
     }
 
     internal override BoundNodeKind kind => BoundNodeKind.ArrayAccessExpression;

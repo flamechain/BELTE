@@ -107,6 +107,20 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
         }
     }
 
+    internal ParameterSymbol thisParameter {
+        get {
+            if (!TryGetThisParameter(out var thisParameter))
+                throw ExceptionUtilities.Unreachable();
+
+            return thisParameter;
+        }
+    }
+
+    internal virtual bool TryGetThisParameter(out ParameterSymbol thisParameter) {
+        thisParameter = null;
+        return false;
+    }
+
     internal TypeSymbol GetParameterType(int index) {
         return parameterTypesWithAnnotations[index].type;
     }

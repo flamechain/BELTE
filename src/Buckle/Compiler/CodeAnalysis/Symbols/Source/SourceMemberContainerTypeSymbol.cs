@@ -22,10 +22,10 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     private protected SymbolCompletionState _state;
     private protected readonly TypeDeclarationSyntax _declaration;
 
-    private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>>? _lazyTypeMembers;
+    private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> _lazyTypeMembers;
     private DeclaredMembersAndInitializers _lazyDeclaredMembersAndInitializers = DeclaredMembersAndInitializers.UninitializedSentinel;
     private MembersAndInitializers _lazyMembersAndInitializers;
-    private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>>? _lazyMembersDictionary;
+    private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> _lazyMembersDictionary;
     private ImmutableArray<Symbol> _lazyMembersFlattened;
 
     private bool _fieldDefinitionsNoted;
@@ -636,7 +636,10 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     }
 
     private DeclarationModifiers MakeModifiers(BelteDiagnosticQueue diagnostics) {
-        var defaultAccess = DeclarationModifiers.Private;
+        var defaultAccess = containingSymbol is null or NamespaceSymbol
+            ? DeclarationModifiers.None
+            : DeclarationModifiers.Private;
+
         var allowedModifiers = DeclarationModifiers.AccessibilityMask;
 
         switch (typeKind) {

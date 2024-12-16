@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Evaluating;
@@ -9,33 +8,33 @@ namespace Buckle.CodeAnalysis.Evaluating;
 /// Encased Object that can also be a reference to a <see cref="VariableSymbol" />.
 /// </summary>
 public sealed class EvaluatorObject {
-    internal static EvaluatorObject Null => new EvaluatorObject(value: null);
+    internal static EvaluatorObject Null => new EvaluatorObject(value: null, type: null);
 
     /// <summary>
     /// Creates an <see cref="EvaluatorObject" /> with a value (not a reference).
     /// In this case <see cref="EvaluatorObject" /> acts purely as an Object wrapper.
     /// </summary>
     /// <param name="value">Value to store.</param>
-    internal EvaluatorObject(object value) {
+    internal EvaluatorObject(object value, TypeSymbol type) {
         this.value = value;
         isReference = false;
         reference = null;
         isExplicitReference = false;
         members = null;
-        trueType = null;
+        this.type = type;
     }
 
     /// <summary>
     /// Creates an <see cref="EvaluatorObject" /> without a value, and instead a list of members.
     /// </summary>
     /// <param name="members">Members to contain by this.</param>
-    internal EvaluatorObject(Dictionary<Symbol, EvaluatorObject> members, TypeSymbol trueType) {
+    internal EvaluatorObject(Dictionary<Symbol, EvaluatorObject> members, TypeSymbol type) {
         value = null;
         isReference = false;
         reference = null;
         isExplicitReference = false;
         this.members = members;
-        this.trueType = trueType;
+        this.type = type;
     }
 
     /// <summary>
@@ -57,7 +56,9 @@ public sealed class EvaluatorObject {
         this.reference = reference;
         this.isExplicitReference = isExplicitReference;
         members = null;
-        trueType = null;
+
+        // TODO is there ever a case where this isn't true?
+        type = reference.type;
     }
 
     internal object value { get; set; }
@@ -70,17 +71,18 @@ public sealed class EvaluatorObject {
 
     internal Dictionary<Symbol, EvaluatorObject> members { get; set; }
 
-    internal TypeSymbol trueType { get; set; }
+    internal TypeSymbol type { get; set; }
 
     /// <summary>
     /// Checks if this and another EvaluatorObject's values equal.
     /// </summary>
     internal bool ValueEquals(EvaluatorObject other) {
-        if ((trueType is null) != (other.trueType is null))
+        // TODO should probably rework this
+        if ((type is null) != (other.type is null))
             return false;
 
-        if (trueType is not null) {
-            if (!trueType.Equals(other.trueType))
+        if (type is not null) {
+            if (!type.Equals(other.type))
                 return false;
         }
 

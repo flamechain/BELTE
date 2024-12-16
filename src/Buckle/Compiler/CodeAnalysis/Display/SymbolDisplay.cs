@@ -102,7 +102,7 @@ public static class SymbolDisplay {
                     if (argument.isConstant)
                         DisplayText.DisplayConstant(text, argument.constant);
                     else
-                        DisplayTypeWithAnnotations(text, argument.type, format);
+                        DisplayType(text, argument.type.type, format);
                 }
 
                 text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
@@ -126,7 +126,7 @@ public static class SymbolDisplay {
             text.Write(CreatePunctuation("::"));
         }
 
-        var currentSymbol = symbol as Symbol;
+        var currentSymbol = symbol.containingSymbol;
         var includeTypes = (format.qualificationStyle & SymbolDisplayQualificationStyle.IncludeContainingTypes) != 0;
         var includeNamespaces =
             (format.qualificationStyle & SymbolDisplayQualificationStyle.IncludeContainingNamespaces) != 0;
@@ -140,7 +140,7 @@ public static class SymbolDisplay {
                     break;
 
                 nameText.Write(CreatePunctuation(SyntaxKind.PeriodToken));
-                nameText.Write(CreateType(currentSymbol.containingType.name));
+                nameText.Write(CreateType(currentSymbol.name));
                 currentSymbol = currentSymbol.containingSymbol;
             } else {
                 break;
@@ -162,7 +162,7 @@ public static class SymbolDisplay {
         }
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeType) != 0) {
-            DisplayTypeWithAnnotations(text, field.typeWithAnnotations, format);
+            DisplayType(text, field.type, format);
             text.Write(CreateSpace());
         }
 
@@ -184,7 +184,7 @@ public static class SymbolDisplay {
             if (needSpace)
                 text.Write(CreateSpace());
 
-            DisplayTypeWithAnnotations(text, parameter.typeWithAnnotations, format);
+            DisplayType(text, parameter.type, format);
             needSpace = true;
         }
 
@@ -213,7 +213,7 @@ public static class SymbolDisplay {
         TemplateParameterSymbol templateParameter,
         SymbolDisplayFormat format) {
         if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeType) != 0) {
-            DisplayTypeWithAnnotations(text, templateParameter.underlyingType, format);
+            DisplayType(text, templateParameter.underlyingType.type, format);
             text.Write(CreateSpace());
         }
 
@@ -238,7 +238,7 @@ public static class SymbolDisplay {
                         text.Write(CreateSpace());
                     }
 
-                    DisplayTypeWithAnnotations(text, constraint, format);
+                    DisplayType(text, constraint.type, format);
                 }
             }
         }
@@ -253,7 +253,7 @@ public static class SymbolDisplay {
             if (defaultValue.isConstant)
                 DisplayText.DisplayConstant(text, defaultValue.constant);
             else
-                DisplayTypeWithAnnotations(text, defaultValue.type, format);
+                DisplayType(text, defaultValue.type.type, format);
         }
     }
 
@@ -267,7 +267,7 @@ public static class SymbolDisplay {
         }
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeType) != 0) {
-            DisplayTypeWithAnnotations(text, dataContainer.typeWithAnnotations, format);
+            DisplayType(text, dataContainer.type, format);
             text.Write(CreateSpace());
         }
 
@@ -328,7 +328,7 @@ public static class SymbolDisplay {
         }
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeType) != 0) {
-            DisplayTypeWithAnnotations(text, method.returnTypeWithAnnotations, format);
+            DisplayType(text, method.returnType, format);
             text.Write(CreateSpace());
         }
 
@@ -387,11 +387,13 @@ public static class SymbolDisplay {
 
         DisplayTemplateParameters(text, namedType.templateParameters, format);
 
-        text.Write(CreateSpace());
-        text.Write(CreateKeyword(SyntaxKind.ExtendsKeyword));
-        text.Write(CreateSpace());
+        if (namedType.baseType is not null) {
+            text.Write(CreateSpace());
+            text.Write(CreateKeyword(SyntaxKind.ExtendsKeyword));
+            text.Write(CreateSpace());
+            DisplayType(text, namedType.baseType, format);
+        }
 
-        DisplayType(text, namedType.baseType, format);
         DisplayTemplateConstraints(text, namedType.templateConstraints, format);
     }
 

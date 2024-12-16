@@ -16,7 +16,7 @@ internal sealed class BoundConditionalExpression : BoundExpression {
         this.center = center;
         this.right = right;
         this.type = type;
-        constantValue = ConstantFolding.FoldConditional(left, center, right);
+        constantValue = ConstantFolding.FoldConditional(left, center, right, type);
     }
 
     internal override BoundNodeKind kind => BoundNodeKind.ConditionalExpression;

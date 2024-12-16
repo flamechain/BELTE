@@ -6,12 +6,15 @@ internal readonly struct SpecialOrKnownType {
     internal static SpecialOrKnownType Unset = new SpecialOrKnownType();
 
     private SpecialOrKnownType(SpecialType specialType) {
+        this.specialType = specialType;
         knownType = CorLibrary.GetSpecialType(specialType);
     }
 
     private SpecialOrKnownType(NamedTypeSymbol knownType) {
         this.knownType = knownType;
     }
+
+    internal SpecialType specialType { get; }
 
     internal NamedTypeSymbol knownType { get; }
 

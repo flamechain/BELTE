@@ -12,6 +12,7 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol {
 
     private protected Flags _flags;
     private protected SymbolCompletionState _state;
+    private ParameterSymbol _lazyThisParameter;
 
     private OverriddenOrHiddenMembersResult _lazyOverriddenOrHiddenMembers;
 
@@ -131,6 +132,17 @@ done:
     internal abstract ExecutableCodeBinder TryGetBodyBinder(
         BinderFactory binderFactory = null,
         bool ignoreAccessibility = false);
+
+    internal sealed override bool TryGetThisParameter(out ParameterSymbol thisParameter) {
+        thisParameter = _lazyThisParameter;
+
+        if (thisParameter is not null || isStatic)
+            return true;
+
+        Interlocked.CompareExchange(ref _lazyThisParameter, new ThisParameterSymbol(this), null);
+        thisParameter = _lazyThisParameter;
+        return true;
+    }
 
     private protected abstract void MethodChecks(BelteDiagnosticQueue diagnostics);
 

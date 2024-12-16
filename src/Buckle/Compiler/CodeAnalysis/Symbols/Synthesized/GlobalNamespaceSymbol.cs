@@ -163,6 +163,7 @@ done:
         BelteDiagnosticQueue diagnostics) {
         var builder = NameToObjectPool.Allocate();
         var globals = new Dictionary<SourceText, ArrayBuilder<GlobalStatementSyntax>>();
+        var methods = new List<MethodDeclarationSyntax>();
 
         foreach (var declaration in _declarations) {
             if (declaration is GlobalStatementSyntax g) {
@@ -175,16 +176,19 @@ done:
                     globalsBuilder.Add(g);
                     globals.Add(sourceText, globalsBuilder);
                 }
+            } else if (declaration is MethodDeclarationSyntax m) {
+                methods.Add(m);
             } else {
                 var symbol = BuildSymbol(declaration, diagnostics);
                 ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(builder, symbol.name.AsMemory(), symbol);
             }
         }
 
-        if (globals.Count > 0) {
+        if (globals.Count > 0 || methods.Count > 0) {
             var returnType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void));
             var program = new SynthesizedSimpleNamedTypeSymbol(
-                "$<Program>",
+                this,
+                WellKnownMemberNames.TopLevelStatementsEntryPointTypeName,
                 TypeKind.Class,
                 CorLibrary.GetSpecialType(SpecialType.Object),
                 DeclarationModifiers.Static
@@ -200,6 +204,11 @@ done:
                 );
 
                 membersBuilder.Add(entryPoint);
+            }
+
+            foreach (var method in methods) {
+                var methodSymbol = SourceOrdinaryMethodSymbol.CreateMethodSymbol(program, method, diagnostics);
+                membersBuilder.Add(methodSymbol);
             }
 
             var symbol = new SynthesizedFinishedNamedTypeSymbol(program, this, membersBuilder.ToImmutableAndFree());

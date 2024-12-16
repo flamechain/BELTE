@@ -3,18 +3,22 @@ class Object {
     protected constructor() { }
 
     public virtual string ToString() {
-        return GetType().ToString();
+        // return GetType().ToString();
+        return "";
     }
 
     public virtual bool! Equals(Object object) {
-        return this == object;
+        // return this == object;
+        return false;
     }
 
     public bool! ReferenceEquals(Object object) {
-        return this == object;
+        // return this == object;
+        return false;
     }
 
     public virtual int! GetHashCode() {
-        return GetHashCode(this);
+        // return GetHashCode(this);
+        return 0;
     }
 }

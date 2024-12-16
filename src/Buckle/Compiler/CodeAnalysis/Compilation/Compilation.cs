@@ -93,6 +93,23 @@ public sealed class Compilation {
         }
     }
 
+    public ImmutableArray<ISymbol> GetSymbols(bool includePreviousCompilations = false) {
+        if (!includePreviousCompilations)
+            return globalNamespace.GetMembers();
+
+        // TODO Cache this lookup?
+        // TODO Eventually flesh out this function to support more options (filtering, sorting, etc.)
+        var builder = ArrayBuilder<ISymbol>.GetInstance();
+        var current = this;
+
+        while (current is not null) {
+            builder.AddRange(current.globalNamespace.GetMembers());
+            current = current.previous;
+        }
+
+        return builder.ToImmutableAndFree();
+    }
+
     public static Compilation Create(string assemblyName, CompilationOptions options, params SyntaxTree[] syntaxTrees) {
         return Create(assemblyName, options, null, syntaxTrees);
     }
@@ -134,7 +151,7 @@ public sealed class Compilation {
         }
 #endif
 
-        Log(logTime, timer, builder, $"Bound the program in {timer.ElapsedMilliseconds} ms");
+        Log(logTime, timer, builder, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
 
         if (logTime) {
             timer.Stop();
@@ -151,7 +168,7 @@ public sealed class Compilation {
         var eval = new Evaluator(program, globals, options.arguments);
         var evalResult = eval.Evaluate(abort, out var hasValue);
 
-        Log(logTime, timer, builder, $"Evaluated the program in {timer.ElapsedMilliseconds} ms");
+        Log(logTime, timer, builder, $"Evaluated the program in {timer?.ElapsedMilliseconds} ms");
 
         var result = new EvaluationResult(
             evalResult,
@@ -170,7 +187,7 @@ public sealed class Compilation {
         var builder = GetDiagnostics();
         var program = boundProgram;
 
-        Log(logTime, timer, builder, $"Compiled in {timer.ElapsedMilliseconds} ms");
+        Log(logTime, timer, builder, $"Compiled in {timer?.ElapsedMilliseconds} ms");
 
         if (builder.AnyErrors())
             return builder;
@@ -184,7 +201,7 @@ public sealed class Compilation {
             builder.Push(Fatal.Unsupported.IndependentCompilation());
 
         if (options.buildMode is BuildMode.Dotnet or BuildMode.CSharpTranspile)
-            Log(logTime, timer, builder, $"Emitted the program in {timer.ElapsedMilliseconds} ms");
+            Log(logTime, timer, builder, $"Emitted the program in {timer?.ElapsedMilliseconds} ms");
 
         return builder;
     }

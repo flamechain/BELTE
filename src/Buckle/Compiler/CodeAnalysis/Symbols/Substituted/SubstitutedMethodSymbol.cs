@@ -104,6 +104,19 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
 
     internal override MethodSymbol constructedFrom { get; }
 
+    internal sealed override bool TryGetThisParameter(out ParameterSymbol thisParameter) {
+        if (!originalDefinition.TryGetThisParameter(out var originalThisParameter)) {
+            thisParameter = null;
+            return false;
+        }
+
+        thisParameter = originalThisParameter is not null
+            ? new ThisParameterSymbol(this)
+            : null;
+
+        return true;
+    }
+
     private void EnsureMapAndTemplateParameters() {
         if (!_lazyTemplateParameters.IsDefault)
             return;

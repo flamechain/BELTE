@@ -549,9 +549,9 @@ public sealed class DisplayText {
     private static void DisplayDataContainerDeclaration(DisplayText text, BoundDataContainerDeclaration node) {
         var dataContainer = node.dataContainer;
 
-        SymbolDisplay.DisplayTypeWithAnnotations(
+        SymbolDisplay.DisplayType(
             text,
-            dataContainer.typeWithAnnotations,
+            dataContainer.type,
             SymbolDisplayFormat.Everything
         );
 

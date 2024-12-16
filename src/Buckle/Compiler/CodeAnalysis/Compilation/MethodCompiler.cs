@@ -47,13 +47,18 @@ internal sealed class MethodCompiler {
     private static MethodSymbol GetEntryPoint(NamespaceSymbol globalNamespace, BelteDiagnosticQueue diagnostics) {
         var builder = ArrayBuilder<MethodSymbol>.GetInstance();
         var globalsCount = 0;
+        var programClasses = globalNamespace.GetMembers(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName);
 
-        foreach (var member in globalNamespace.GetMembers(WellKnownMemberNames.EntryPointMethodName)) {
-            if (member is MethodSymbol m && HasEntryPointSignature(m)) {
-                if (m is SynthesizedEntryPoint)
-                    globalsCount++;
+        if (programClasses.Length > 0) {
+            var programClass = (NamedTypeSymbol)programClasses[0];
 
-                builder.Add(m);
+            foreach (var member in programClass.GetMembers(WellKnownMemberNames.EntryPointMethodName)) {
+                if (member is MethodSymbol m && HasEntryPointSignature(m)) {
+                    if (m is SynthesizedEntryPoint)
+                        globalsCount++;
+
+                    builder.Add(m);
+                }
             }
         }
 
@@ -273,6 +278,21 @@ internal sealed class MethodCompiler {
             var baseConstructorCall = Binder.GenerateBaseParameterlessConstructorInitializer(constructor, diagnostics);
             var statement = new BoundExpressionStatement(baseConstructorCall);
             body = new BoundBlockStatement([statement], [], []);
+        } else if (method is SynthesizedEntryPoint entryPoint) {
+            var bodyBuilder = ArrayBuilder<BoundStatement>.GetInstance();
+
+            for (var i = 0; i < entryPoint.statements.Length; i++) {
+                var statement = entryPoint.statements[i];
+                var statementBinder = state.compilation.GetBinder(statement);
+                var boundStatement = statementBinder.BindStatement(statement.statement, diagnostics);
+
+                if (i == entryPoint.statements.Length - 1 && boundStatement is BoundExpressionStatement e)
+                    boundStatement = new BoundReturnStatement(RefKind.None, e.expression);
+
+                bodyBuilder.Add(boundStatement);
+            }
+
+            body = new BoundBlockStatement(bodyBuilder.ToImmutableAndFree(), [], []);
         }
 
         var constructorInitializer = BindImplicitConstructorInitializerIfAny(method, state, syntaxNode, diagnostics);

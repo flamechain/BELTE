@@ -9,7 +9,7 @@ namespace Buckle.Libraries;
 internal sealed class CorLibrary {
     private static readonly CorLibrary Instance = new CorLibrary();
 
-    private const int TotalSpecialTypes = 13;
+    private const int TotalSpecialTypes = 13 - 2; // TODO remove -2 after adding List and Dict
 
     private readonly ConcurrentDictionary<SpecialType, NamedTypeSymbol> _specialTypes = [];
 

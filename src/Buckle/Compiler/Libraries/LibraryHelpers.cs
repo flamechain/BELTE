@@ -226,7 +226,9 @@ internal static class LibraryHelpers {
 
         foreach (var parameter in parameters) {
             var parameterTypeWithAnnotations = new TypeWithAnnotations(parameter.type.knownType, parameter.isNullable);
-            var constantValue = parameter.defaultValue is null ? null : new ConstantValue(parameter.defaultValue);
+            var constantValue = parameter.defaultValue is null
+                ? null
+                : new ConstantValue(parameter.defaultValue, parameter.type.specialType);
 
             var synthesizedParameter = SynthesizedParameterSymbol.Create(
                 method,

@@ -6,6 +6,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -104,6 +105,10 @@ internal partial class Binder {
     internal Binder next { get; }
 
     private protected virtual bool _inExecutableBinder => false;
+
+    private protected bool _inConstructorInitializer => flags.Includes(BinderFlags.ConstructorInitializer);
+
+    internal bool inFieldInitializer => flags.Includes(BinderFlags.FieldInitializer);
 
     internal virtual Binder GetBinder(SyntaxNode node) {
         return next.GetBinder(node);
@@ -764,7 +769,7 @@ internal partial class Binder {
         BindValueKind kind,
         BelteDiagnosticQueue diagnostics) {
         // TODO
-        return null;
+        return expression;
     }
 
     private BoundExpression BindConstructorInitializerCore(
@@ -781,9 +786,15 @@ internal partial class Binder {
         bool called,
         bool indexed) {
         switch (node.kind) {
-            /*
             case SyntaxKind.LiteralExpression:
-                return BindLiteralExpression((LiteralExpressionSyntax)expression);
+                return BindLiteralExpression((LiteralExpressionSyntax)node, diagnostics);
+            case SyntaxKind.ThisExpression:
+                return BindThisExpression((ThisExpressionSyntax)node, diagnostics);
+            case SyntaxKind.BaseExpression:
+                return BindBaseExpression((BaseExpressionSyntax)node, diagnostics);
+            // case SyntaxKind.CallExpression:
+            //     return BindCallExpression((CallExpressionSyntax)node, diagnostics);
+            /*
             case SyntaxKind.InitializerListExpression:
                 return BindInitializerListExpression((InitializerListExpressionSyntax)expression, initializerListType);
             case SyntaxKind.InitializerDictionaryExpression:
@@ -798,8 +809,6 @@ internal partial class Binder {
                 return BindParenExpression((ParenthesisExpressionSyntax)expression);
             case SyntaxKind.AssignmentExpression:
                 return BindAssignmentExpression((AssignmentExpressionSyntax)expression);
-            case SyntaxKind.CallExpression:
-                return BindCallExpression((CallExpressionSyntax)expression);
             case SyntaxKind.IndexExpression:
                 return BindIndexExpression((IndexExpressionSyntax)expression);
             case SyntaxKind.EmptyExpression:
@@ -818,10 +827,6 @@ internal partial class Binder {
                 return BindNameOfExpression((NameOfExpressionSyntax)expression);
             case SyntaxKind.ObjectCreationExpression:
                 return BindObjectCreationExpression((ObjectCreationExpressionSyntax)expression);
-            case SyntaxKind.ThisExpression:
-                return BindThisExpression((ThisExpressionSyntax)expression);
-            case SyntaxKind.BaseExpression:
-                return BindBaseExpression((BaseExpressionSyntax)expression);
             case SyntaxKind.ThrowExpression:
                 return BindThrowExpression((ThrowExpressionSyntax)expression);
             case SyntaxKind.TemplateName:
@@ -837,8 +842,96 @@ internal partial class Binder {
                 return BindType((TypeSyntax)expression, explicitly: true);
                 */
             default:
-                throw new BelteInternalException($"BindExpressionInternal: unexpected syntax '{node.kind}'");
+                throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
+    }
+
+    private BoundLiteralExpression BindLiteralExpression(
+        LiteralExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        var value = node.token.value;
+
+        if (value is null)
+            return new BoundLiteralExpression(new ConstantValue(null, SpecialType.None), null);
+
+        var specialType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(value);
+        var constantValue = new ConstantValue(value, specialType);
+        var type = CorLibrary.GetSpecialType(specialType);
+        return new BoundLiteralExpression(constantValue, type);
+    }
+
+    private BoundThisExpression BindThisExpression(ThisExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        if (!HasThis(true, out var inStaticContext)) ;
+        // TODO error
+        else
+            IsRefOrOutThisParameterCaptured(node.keyword, diagnostics);
+
+        return new BoundThisExpression(containingType);
+    }
+
+    private BoundBaseExpression BindBaseExpression(BaseExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var hasErrors = false;
+        TypeSymbol baseType = containingType?.baseType;
+
+        if (!HasThis(true, out var inStaticContext)) {
+            // Error(diagnostics, inStaticContext ? ErrorCode.ERR_BaseInStaticMeth : ErrorCode.ERR_BaseInBadContext, node.Token);
+            // TODO error
+            hasErrors = true;
+        } else if (baseType is null) {
+            // Error(diagnostics, ErrorCode.ERR_NoBaseClass, node);
+            // TODO error
+            hasErrors = true;
+        } else if (containingType is null || node.parent is null ||
+            (node.parent.kind != SyntaxKind.MemberAccessExpression && node.parent.kind != SyntaxKind.IndexExpression)) {
+            // Error(diagnostics, ErrorCode.ERR_BaseIllegal, node.Token);
+            // TODO error
+            hasErrors = true;
+        } else if (IsRefOrOutThisParameterCaptured(node.keyword, diagnostics)) {
+            hasErrors = true;
+        }
+
+        return new BoundBaseExpression(baseType);
+    }
+
+    internal bool HasThis(bool isExplicit, out bool inStaticContext) {
+        var member = containingMember;
+
+        if (member?.isStatic == true) {
+            inStaticContext = member.kind == SymbolKind.Field || member.kind == SymbolKind.Method;
+            return false;
+        }
+
+        inStaticContext = false;
+
+        if (_inConstructorInitializer)
+            return false;
+
+        if (inFieldInitializer)
+            return false;
+
+        return !isExplicit;
+    }
+
+    private bool IsRefOrOutThisParameterCaptured(SyntaxNodeOrToken thisOrBaseToken, BelteDiagnosticQueue diagnostics) {
+        if (GetDiagnosticIfRefOrOutThisParameterCaptured(thisOrBaseToken.location) is { } diagnostic) {
+            diagnostics.Push(diagnostic);
+            return true;
+        }
+
+        return false;
+    }
+
+    private BelteDiagnostic GetDiagnosticIfRefOrOutThisParameterCaptured(TextLocation location) {
+        var thisSymbol = containingMember.EnclosingThisSymbol();
+
+        if (thisSymbol is not null &&
+            thisSymbol.containingSymbol != containingMember &&
+            thisSymbol.refKind != RefKind.None) {
+            // TODO error, confirm this is the right one
+            return Error.CannotUseThis(location);
+        }
+
+        return null;
     }
 
     #endregion
@@ -1424,6 +1517,8 @@ symIsHidden:;
                 return BindBlockStatement((BlockStatementSyntax)node, diagnostics);
             case SyntaxKind.ReturnStatement:
                 return BindReturnStatement((ReturnStatementSyntax)node, diagnostics);
+            case SyntaxKind.ExpressionStatement:
+                return BindExpressionStatement((ExpressionStatementSyntax)node, diagnostics);
             /*
             case SyntaxKind.ExpressionStatement:
                 return BindExpressionStatement((ExpressionStatementSyntax)syntax);
@@ -1449,7 +1544,7 @@ symIsHidden:;
                 return new BoundBlockStatement([]);
             */
             default:
-                throw new BelteInternalException($"BindStatementInternal: unexpected syntax '{node.kind}'");
+                throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
     }
 
@@ -1521,6 +1616,16 @@ symIsHidden:;
         }
 
         return new BoundReturnStatement(refKind, argument);
+    }
+
+    private BoundExpressionStatement BindExpressionStatement(
+        ExpressionStatementSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        var expression = BindValue(node.expression, diagnostics, BindValueKind.RValue);
+
+        // TODO restrict allowed expressions as statements
+
+        return new BoundExpressionStatement(expression);
     }
 
     private BindValueKind GetRequiredReturnValueKind(RefKind refKind) {
@@ -1596,6 +1701,10 @@ symIsHidden:;
         SyntaxNode syntax,
         BelteDiagnosticQueue diagnostics) {
         var call = BindImplicitConstructorInitializer((MethodSymbol)containingMember, diagnostics, compilation);
+
+        if (call is null)
+            return null;
+
         return new BoundExpressionStatement(call);
     }
 
