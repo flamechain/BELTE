@@ -74,6 +74,8 @@ internal partial class Binder {
 
     internal virtual bool isNestedFunctionBinder => false;
 
+    internal virtual bool isInsideNameof => next.isInsideNameof;
+
     internal NamedTypeSymbol containingType => containingMember switch {
         null => null,
         NamedTypeSymbol namedType => namedType,
@@ -103,6 +105,8 @@ internal partial class Binder {
     }
 
     internal Binder next { get; }
+
+    private protected virtual SyntaxNode _enclosingNameofArgument => next._enclosingNameofArgument;
 
     private protected virtual bool _inExecutableBinder => false;
 
@@ -542,6 +546,30 @@ internal partial class Binder {
         return null;
     }
 
+    private ImmutableArray<(string, TypeOrConstant)> BindTemplateArguments(
+        SeparatedSyntaxList<ArgumentSyntax> templateArguments,
+        BelteDiagnosticQueue diagnostics,
+        ConsList<TypeSymbol> basesBeingResolved = null) {
+        var arguments = ArrayBuilder<(string, TypeOrConstant)>.GetInstance(templateArguments.Count);
+
+        foreach (var argumentSyntax in templateArguments)
+            arguments.Add(BindTemplateArgument(argumentSyntax, diagnostics, basesBeingResolved));
+
+        return arguments.ToImmutableAndFree();
+    }
+
+    private (string, TypeOrConstant) BindTemplateArgument(
+        ArgumentSyntax templateArgument,
+        BelteDiagnosticQueue diagnostics,
+        ConsList<TypeSymbol> basesBeingResolved = null) {
+        var name = templateArgument.identifier.text;
+        var value = BindExpression(templateArgument.expression, diagnostics);
+
+        // TODO Implement normal arguments first
+        // return (name, value);
+        return (null, null);
+    }
+
     internal NamedTypeSymbol CreateErrorType(string name = "") {
         return new ExtendedErrorTypeSymbol(compilation, name, 0, null);
     }
@@ -792,8 +820,18 @@ internal partial class Binder {
                 return BindThisExpression((ThisExpressionSyntax)node, diagnostics);
             case SyntaxKind.BaseExpression:
                 return BindBaseExpression((BaseExpressionSyntax)node, diagnostics);
-            // case SyntaxKind.CallExpression:
-            //     return BindCallExpression((CallExpressionSyntax)node, diagnostics);
+            case SyntaxKind.EmptyExpression:
+                return BindEmptyExpression((EmptyExpressionSyntax)node, diagnostics);
+            case SyntaxKind.CallExpression:
+                return BindCallExpression((CallExpressionSyntax)node, diagnostics);
+            case SyntaxKind.QualifiedName:
+                return BindQualifiedName((QualifiedNameSyntax)node, diagnostics);
+            case SyntaxKind.ReferenceType:
+                return BindReferenceType((ReferenceTypeSyntax)node, diagnostics);
+            case SyntaxKind.NonNullableType:
+                return BindNonNullableType((NonNullableTypeSyntax)node, diagnostics);
+            case SyntaxKind.ParenthesizedExpression:
+                return BindParenthesisExpression((ParenthesisExpressionSyntax)node, diagnostics);
             /*
             case SyntaxKind.InitializerListExpression:
                 return BindInitializerListExpression((InitializerListExpressionSyntax)expression, initializerListType);
@@ -805,14 +843,10 @@ internal partial class Binder {
                 return BindBinaryExpression((BinaryExpressionSyntax)expression);
             case SyntaxKind.TernaryExpression:
                 return BindTernaryExpression((TernaryExpressionSyntax)expression);
-            case SyntaxKind.ParenthesizedExpression:
-                return BindParenExpression((ParenthesisExpressionSyntax)expression);
             case SyntaxKind.AssignmentExpression:
                 return BindAssignmentExpression((AssignmentExpressionSyntax)expression);
             case SyntaxKind.IndexExpression:
                 return BindIndexExpression((IndexExpressionSyntax)expression);
-            case SyntaxKind.EmptyExpression:
-                return BindEmptyExpression((EmptyExpressionSyntax)expression);
             case SyntaxKind.PostfixExpression:
                 return BindPostfixExpression((PostfixExpressionSyntax)expression, ownStatement);
             case SyntaxKind.PrefixExpression:
@@ -834,8 +868,6 @@ internal partial class Binder {
                 return BindIdentifier((SimpleNameSyntax)expression, called, allowTypes);
             case SyntaxKind.MemberAccessExpression:
                 return BindMemberAccessExpression((MemberAccessExpressionSyntax)expression, called);
-            case SyntaxKind.QualifiedName:
-                return BindQualifiedName((QualifiedNameSyntax)expression, called);
             case SyntaxKind.NonNullableType when allowTypes:
             case SyntaxKind.ReferenceType when allowTypes:
             case SyntaxKind.ArrayType when allowTypes:
@@ -844,6 +876,361 @@ internal partial class Binder {
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
+    }
+
+    private BoundErrorExpression ErrorExpression(BoundExpression expression) {
+        // This is factored out into a method for debugging purposes
+        // TODO consider storing the entire node
+        return new BoundErrorExpression(expression.type);
+    }
+
+    private BoundExpression BindQualifiedName(QualifiedNameSyntax node, BelteDiagnosticQueue diagnostics) {
+        // TODO Some languages allow "Color Color" member access where the instance name is the same as the type name
+        // In which case we would need a special handler for this "BindLeftOfPotentialColorColorMemberAccess"
+        // however, currently we disallow that naming convention
+        var left = BindExpression(node.left, diagnostics);
+        return BindMemberAccessWithBoundLeft(node, left, node.right, node.period, false, false, diagnostics);
+    }
+
+    private BoundExpression BindMemberAccessWithBoundLeft(
+        ExpressionSyntax node,
+        BoundExpression boundLeft,
+        SimpleNameSyntax right,
+        SyntaxToken operatorToken,
+        bool called,
+        bool indexed,
+        BelteDiagnosticQueue diagnostics) {
+        boundLeft = MakeMemberAccessValue(boundLeft, diagnostics);
+        var leftType = boundLeft.type;
+
+        if (leftType is not null && leftType.IsVoidType()) {
+            // TODO error cannot access void
+            return ErrorExpression(boundLeft);
+        }
+
+        var lookupResult = LookupResult.GetInstance();
+
+        try {
+            var options = LookupOptions.AllMethodsOnArityZero;
+
+            if (called)
+                options |= LookupOptions.MustBeInvocableIfMember;
+
+            var templateArgumentsSyntax = right.kind == SyntaxKind.TemplateName
+                ? ((TemplateNameSyntax)right).templateArgumentList.arguments
+                : default;
+
+            var templateArguments = templateArgumentsSyntax.Count > 0
+                ? BindTemplateArguments(templateArgumentsSyntax, diagnostics)
+                : default;
+
+            var rightName = right.identifier.text;
+            var rightArity = right.arity;
+            BoundExpression result;
+
+            switch (boundLeft.kind) {
+                case BoundNodeKind.TypeExpression:
+                    if (leftType.typeKind == TypeKind.TemplateParameter) {
+
+                        this.LookupMembersWithFallback(lookupResult, leftType, rightName, rightArity, null, options | LookupOptions.MustNotBeInstance | LookupOptions.MustBeAbstractOrVirtual);
+
+                        if (lookupResult.isMultiViable) {
+                            return BindMemberOfType(
+                                node,
+                                right,
+                                rightName,
+                                rightArity,
+                                indexed,
+                                boundLeft,
+                                templateArgumentsSyntax,
+                                templateArguments,
+                                lookupResult,
+                                BoundMethodGroupFlags.None,
+                                diagnostics
+                            );
+                        } else if (lookupResult.isClear) {
+                            // Error(diagnostics, ErrorCode.ERR_LookupInTypeVariable, boundLeft.Syntax, leftType);
+                            // return BadExpression(node, LookupResultKind.NotAValue, boundLeft);
+                            // TODO error
+                            return ErrorExpression(boundLeft);
+                        }
+                    } else if (_enclosingNameofArgument == node) {
+                        return BindInstanceMemberAccess(
+                            node,
+                            right,
+                            boundLeft,
+                            rightName,
+                            rightArity,
+                            templateArgumentsSyntax,
+                            templateArguments,
+                            called,
+                            indexed,
+                            diagnostics
+                        );
+                    } else {
+                        this.LookupMembersWithFallback(lookupResult, leftType, rightName, rightArity, null, options);
+
+                        if (lookupResult.isMultiViable) {
+                            return BindMemberOfType(
+                                node,
+                                right,
+                                rightName,
+                                rightArity,
+                                indexed,
+                                boundLeft,
+                                templateArgumentsSyntax,
+                                templateArguments,
+                                lookupResult,
+                                BoundMethodGroupFlags.None,
+                                diagnostics
+                            );
+                        }
+                    }
+
+                    break;
+                default:
+                    if (boundLeft.kind == BoundNodeKind.LiteralExpression &&
+                        ConstantValue.IsNull(((BoundLiteralExpression)boundLeft).constantValue)) {
+                        // TODO error
+                        return ErrorExpression(boundLeft);
+                    } else if (leftType is not null) {
+                        boundLeft = CheckValue(boundLeft, BindValueKind.RValue, diagnostics);
+                        return BindInstanceMemberAccess(
+                            node,
+                            right,
+                            boundLeft,
+                            rightName,
+                            rightArity,
+                            templateArgumentsSyntax,
+                            templateArguments,
+                            called,
+                            indexed,
+                            diagnostics
+                        );
+                    }
+
+                    break;
+            }
+        } finally {
+            lookupResult.Free();
+        }
+    }
+
+    private BoundExpression BindInstanceMemberAccess(
+        SyntaxNode node,
+        SyntaxNode right,
+        BoundExpression boundLeft,
+        string rightName,
+        int rightArity,
+        SeparatedSyntaxList<ArgumentSyntax> templateArgumentsSyntax,
+        ImmutableArray<(string, TypeOrConstant)> templateArguments,
+        bool called,
+        bool indexed,
+        BelteDiagnosticQueue diagnostics) {
+        // TODO
+        return null;
+    }
+
+    private BoundExpression BindMemberOfType(
+        SyntaxNode node,
+        SyntaxNode right,
+        string plainName,
+        int arity,
+        bool indexed,
+        BoundExpression left,
+        SeparatedSyntaxList<ArgumentSyntax> templateArgumentsSyntax,
+        ImmutableArray<(string, TypeOrConstant)> templateArguments,
+        LookupResult lookupResult,
+        BoundMethodGroupFlags methodGroupFlags,
+        BelteDiagnosticQueue diagnostics) {
+        var members = ArrayBuilder<Symbol>.GetInstance();
+        BoundExpression result;
+        Symbol symbol = GetSymbolOrMethodGroup(lookupResult, right, plainName, arity, members, diagnostics, out var wasError,
+                                                         qualifierOpt: left is BoundTypeExpression typeExpr ? typeExpr.Type : null);
+
+        if (symbol is null) {
+            result = ConstructBoundMemberGroupAndReportOmittedTypeArguments(
+                node,
+                typeArgumentsSyntax,
+                typeArgumentsWithAnnotations,
+                left,
+                plainName,
+                members,
+                lookupResult,
+                methodGroupFlags,
+                wasError,
+                diagnostics);
+        } else {
+            left = ReplaceTypeOrValueReceiver(left, symbol.isStatic || symbol.kind == SymbolKind.NamedType, diagnostics);
+
+            switch (symbol.kind) {
+                case SymbolKind.NamedType:
+                case SymbolKind.ErrorType:
+                    if (IsInstanceReceiver(left) == true && !wasError) {
+                        // CS0572: 'B': cannot reference a type through an expression; try 'A.B' instead
+                        // Error(diagnostics, ErrorCode.ERR_BadTypeReference, right, plainName, symbol);
+                        // TODO error
+                        wasError = true;
+                    }
+
+                    var type = (NamedTypeSymbol)symbol;
+                    if (!templateArguments.IsDefault) {
+                        // type = ConstructNamedTypeUnlessTypeArgumentOmitted(right, type, typeArgumentsSyntax, typeArgumentsWithAnnotations, diagnostics);
+                        // TODO templates
+                    }
+
+                    result = new BoundTypeExpression(type);
+                    break;
+                case SymbolKind.Field:
+                    result = BindFieldAccess(
+                        node,
+                        left,
+                        (FieldSymbol)symbol,
+                        diagnostics,
+                        lookupResult.kind,
+                        indexed,
+                        wasError
+                    );
+
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(symbol.kind);
+            }
+        }
+
+        members.Free();
+        return result;
+    }
+
+    private protected BoundExpression BindFieldAccess(
+        SyntaxNode node,
+        BoundExpression receiver,
+        FieldSymbol fieldSymbol,
+        BelteDiagnosticQueue diagnostics,
+        LookupResultKind resultKind,
+        bool indexed,
+        bool hasErrors) {
+        var hasError = false;
+
+        if (!hasError)
+            hasError = CheckInstanceOrStatic(node, receiver, fieldSymbol, ref resultKind, diagnostics);
+
+        ConstantValue constantValueOpt = null;
+
+        if (fieldSymbol.isConst && !isInsideNameof) {
+            constantValueOpt = fieldSymbol.GetConstantValue(constantFieldsInProgress);
+
+            if (constantValueOpt == ConstantValue.Unset)
+                constantValueOpt = null;
+        }
+
+        if (!fieldSymbol.isStatic) {
+            // WarnOnAccessOfOffDefault(node, receiver, diagnostics);
+            // TODO warning?
+        }
+
+        // TODO error
+        // if (!IsBadBaseAccess(node, receiver, fieldSymbol, diagnostics)) {
+        //     CheckReceiverAndRuntimeSupportForSymbolAccess(node, receiver, fieldSymbol, diagnostics);
+        // }
+
+        var fieldType = fieldSymbol.GetFieldType(fieldsBeingBound).type;
+        return new BoundFieldAccessExpression(receiver, fieldSymbol, fieldType, constantValueOpt);
+    }
+
+    private bool CheckInstanceOrStatic(
+        SyntaxNode node,
+        BoundExpression receiver,
+        Symbol symbol,
+        ref LookupResultKind resultKind,
+        BelteDiagnosticQueue diagnostics) {
+        var instanceReceiver = IsInstanceReceiver(receiver);
+
+        if (!symbol.RequiresInstanceReceiver()) {
+            if (instanceReceiver) {
+                if (!isInsideNameof) {
+                    // TODO error
+                    // var error = flags.Includes(BinderFlags.ObjectInitializerMember) ?
+                    //     ErrorCode.ERR_StaticMemberInObjectInitializer :
+                    //     ErrorCode.ERR_ObjectProhibited;
+                    // Error(diagnostics, errorCode, node, symbol);
+                } else {
+                    return false;
+                }
+
+                resultKind = LookupResultKind.StaticInstanceMismatch;
+                return true;
+            }
+        } else {
+            if (!instanceReceiver && !isInsideNameof) {
+                // Error(diagnostics, ErrorCode.ERR_ObjectRequired, node, symbol);
+                // TODO error
+                resultKind = LookupResultKind.StaticInstanceMismatch;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsInstanceReceiver(BoundExpression receiver) {
+        return receiver is not null && receiver.kind == BoundNodeKind.TypeExpression;
+    }
+
+    private BoundExpression MakeMemberAccessValue(BoundExpression expression, BelteDiagnosticQueue diagnostics) {
+        switch (expression.kind) {
+            case BoundNodeKind.MethodGroup: {
+                    /*
+                        var methodGroup = (BoundMethodGroup)expression;
+                        var resolution = ResolveMethodGroup(methodGroup, null);
+                        diagnostics.PushRange(resolution.Diagnostics);
+
+                        if (resolution.methodGroup is not null && !resolution.hasAnyErrors) {
+                            var method = resolution.methodGroup.methods[0];
+                            // Error(diagnostics, ErrorCode.ERR_BadSKunknown, methodGroup.NameSyntax, method, MessageID.IDS_SK_METHOD.Localize());
+                            // TODO error
+                        }
+
+                        // expression = this.BindMemberAccessBadResult(methodGroup);
+                        expression = new BoundErrorExpression(expression.type);
+                        resolution.Free();
+                        return expression;
+                        */
+                    // TODO do we even need a special case here?
+                    return expression;
+                }
+            default:
+                return expression;
+        }
+    }
+
+    private BoundCallExpression BindCallExpression(CallExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+
+    }
+
+    private BoundExpression BindParenthesisExpression(
+        ParenthesisExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        var value = BindExpression(node.expression, diagnostics);
+        CheckNotType(value, diagnostics);
+        return value;
+    }
+
+    private static bool CheckNotType(BoundExpression expression, BelteDiagnosticQueue diagnostics) {
+        switch (expression.kind) {
+            case BoundNodeKind.TypeExpression:
+                diagnostics.Push(
+                    Error.CannotUseType(expression.syntax.location, ((BoundTypeExpression)expression).type)
+                );
+
+                return false;
+            default:
+                return true;
+        }
+    }
+
+    private BoundEmptyExpression BindEmptyExpression(EmptyExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        return new BoundEmptyExpression();
     }
 
     private BoundLiteralExpression BindLiteralExpression(

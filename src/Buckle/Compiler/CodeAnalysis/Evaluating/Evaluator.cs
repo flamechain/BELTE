@@ -14,6 +14,9 @@ namespace Buckle.CodeAnalysis.Evaluating;
 /// </summary>
 internal sealed class Evaluator {
     private readonly BoundProgram _program;
+    private readonly Dictionary<IDataContainerSymbol, EvaluatorObject> _globals;
+    private readonly Stack<Dictionary<Symbol, EvaluatorObject>> _locals;
+    private readonly Stack<EvaluatorObject> _enclosingTypes;
 
     private EvaluatorObject _lastValue;
     private bool _hasValue;
@@ -28,7 +31,10 @@ internal sealed class Evaluator {
         BoundProgram program,
         Dictionary<IDataContainerSymbol, EvaluatorObject> globals,
         string[] arguments) {
+        _globals = globals;
         _program = program;
+        _enclosingTypes = new Stack<EvaluatorObject>();
+        _locals = new Stack<Dictionary<Symbol, EvaluatorObject>>();
     }
 
     /// <summary>
@@ -54,8 +60,9 @@ internal sealed class Evaluator {
     /// <param name="hasValue">If the evaluation had a returned result.</param>
     /// <returns>Result of <see cref="BoundProgram" /> (if applicable).</returns>
     internal object Evaluate(ValueWrapper<bool> abort, out bool hasValue) {
-        var entryPoint = _program.methodBodies[_program.entryPoint];
-        var result = EvaluateStatement(entryPoint, abort, out _);
+        var entryPoint = _program.entryPoint;
+        var entryPointBody = _program.methodBodies[entryPoint];
+        var result = EvaluateStatement(entryPointBody, abort, out _);
         hasValue = _hasValue;
         return Value(result);
     }
@@ -93,6 +100,10 @@ internal sealed class Evaluator {
                 var s = block.statements[index];
 
                 switch (s.kind) {
+                    case BoundNodeKind.ExpressionStatement:
+                        EvaluateExpressionStatement((BoundExpressionStatement)s, abort);
+                        index++;
+                        break;
                     case BoundNodeKind.ReturnStatement:
                         var returnStatement = (BoundReturnStatement)s;
                         _lastValue = returnStatement.expression is null
@@ -138,11 +149,24 @@ internal sealed class Evaluator {
         }
     }
 
+    private void EvaluateExpressionStatement(BoundExpressionStatement statement, ValueWrapper<bool> abort) {
+        _lastValue = EvaluateExpression(statement.expression, abort);
+    }
+
     private EvaluatorObject EvaluateExpression(BoundExpression expression, ValueWrapper<bool> abort) {
         if (expression.constantValue is not null)
             return EvaluateConstant(expression.constantValue);
 
-        return EvaluatorObject.Null;
+        switch (expression.kind) {
+            case BoundNodeKind.EmptyExpression:
+                return EvaluatorObject.Null;
+            case BoundNodeKind.ThisExpression:
+                return EvaluateThisExpression();
+            case BoundNodeKind.BaseExpression:
+                return EvaluateBaseExpression();
+            default:
+                throw new BelteInternalException($"EvaluateExpression: unexpected node '{expression.kind}'");
+        }
     }
 
     private EvaluatorObject EvaluateConstant(ConstantValue constantValue) {
@@ -152,5 +176,13 @@ internal sealed class Evaluator {
 
         var type = CorLibrary.GetSpecialType(constantValue.specialType);
         return new EvaluatorObject(constantValue.value, type);
+    }
+
+    private EvaluatorObject EvaluateThisExpression() {
+        return _enclosingTypes.Peek();
+    }
+
+    private EvaluatorObject EvaluateBaseExpression() {
+        return _enclosingTypes.Peek();
     }
 }

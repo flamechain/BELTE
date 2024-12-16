@@ -14,5 +14,6 @@ internal enum LookupResultKind : byte {
     OverloadResolutionFailure,
     Ambiguous,
     MemberGroup,
+    StaticInstanceMismatch,
     Viable,
 }

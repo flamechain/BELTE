@@ -16,11 +16,12 @@ internal enum BinderFlags : uint {
     ParameterDefaultValue = 1 << 5,
     FieldInitializer = 1 << 6,
     ConstructorInitializer = 1 << 7,
+    ObjectInitializerMember = 1 << 8,
 
-    InCatchBlock = 1 << 8,
-    InFinallyBlock = 1 << 9,
-    InTryBlockOfTryCatch = 1 << 10,
-    InNestedFinallyBlock = 1 << 11,
+    InCatchBlock = 1 << 9,
+    InFinallyBlock = 1 << 10,
+    InTryBlockOfTryCatch = 1 << 11,
+    InNestedFinallyBlock = 1 << 12,
 
     AllClearedAtExecutableCodeBoundary = InCatchBlock | InFinallyBlock | InTryBlockOfTryCatch | InNestedFinallyBlock,
 }

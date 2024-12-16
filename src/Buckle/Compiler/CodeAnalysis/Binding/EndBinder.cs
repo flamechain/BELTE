@@ -28,6 +28,14 @@ internal sealed class EndBinder : Binder {
 
     internal override Symbol containingMember => null;
 
+    internal override bool isInsideNameof => false;
+
+    internal override bool isInMethodBody => false;
+
+    private protected override SyntaxNode _enclosingNameofArgument => null;
+
+    private protected override bool _inExecutableBinder => false;
+
     internal override Binder GetBinder(SyntaxNode node) {
         return null;
     }
