@@ -53,7 +53,7 @@ internal sealed class SubstitutedLocalSymbol : DataContainerSymbol {
         return _originalLocal.GetConstantValue(node, inProgress, diagnostics);
     }
 
-    internal override BelteDiagnostic[] GetConstantValueDiagnostics(BoundExpression boundInitValue) {
+    internal override BelteDiagnosticQueue GetConstantValueDiagnostics(BoundExpression boundInitValue) {
         return _originalLocal.GetConstantValueDiagnostics(boundInitValue);
     }
 }

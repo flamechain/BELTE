@@ -552,9 +552,13 @@ internal partial class Binder {
         TypeSyntax syntax,
         BelteDiagnosticQueue diagnostics,
         out bool isImplicitlyTyped) {
-        // TODO
-        isImplicitlyTyped = false;
-        return null;
+        if (syntax.isImplicitlyTyped) {
+            isImplicitlyTyped = true;
+            return new TypeWithAnnotations(null);
+        } else {
+            isImplicitlyTyped = false;
+            return BindType(syntax, diagnostics);
+        }
     }
 
     private ImmutableArray<(string, TypeOrConstant)> BindTemplateArguments(
@@ -2175,6 +2179,8 @@ symIsHidden:;
                 return BindReturnStatement((ReturnStatementSyntax)node, diagnostics);
             case SyntaxKind.ExpressionStatement:
                 return BindExpressionStatement((ExpressionStatementSyntax)node, diagnostics);
+            case SyntaxKind.LocalDeclarationStatement:
+                return BindLocalDeclarationStatement((LocalDeclarationStatementSyntax)node, diagnostics);
             /*
             case SyntaxKind.LocalDeclarationStatement:
                 var statement = BindLocalDeclarationStatement((LocalDeclarationStatementSyntax)syntax);
@@ -2200,6 +2206,283 @@ symIsHidden:;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
+    }
+
+    private BoundLocalDeclarationStatement BindLocalDeclarationStatement(
+        LocalDeclarationStatementSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        var typeSyntax = node.declaration.type.SkipRef(out _);
+        var isConst = node.isConst;
+        var isConstExpr = node.isConstExpr;
+
+        var declarationType = BindVariableTypeWithAnnotations(
+            node.declaration,
+            diagnostics,
+            typeSyntax,
+            ref isConst,
+            ref isConstExpr,
+            out var isImplicitlyTyped
+        );
+
+        var kind = isConstExpr
+            ? DataContainerDeclarationKind.ConstantExpression
+            : (isConst ? DataContainerDeclarationKind.Constant : DataContainerDeclarationKind.Variable);
+
+        return BindVariableDeclaration(
+            kind,
+            isImplicitlyTyped,
+            node.declaration,
+            typeSyntax,
+            declarationType,
+            diagnostics,
+            true,
+            node
+        );
+    }
+
+    private protected BoundLocalDeclarationStatement BindVariableDeclaration(
+        DataContainerDeclarationKind kind,
+        bool isImplicitlyTyped,
+        VariableDeclarationSyntax declaration,
+        TypeSyntax typeSyntax,
+        TypeWithAnnotations declarationType,
+        BelteDiagnosticQueue diagnostics,
+        bool includeBoundType,
+        BelteSyntaxNode associatedSyntaxNode = null) {
+        return BindVariableDeclaration(
+            LocateDeclaredVariableSymbol(declaration, typeSyntax),
+            kind,
+            isImplicitlyTyped,
+            declaration,
+            typeSyntax,
+            declarationType,
+            diagnostics,
+            includeBoundType,
+            associatedSyntaxNode
+        );
+    }
+
+    private SourceDataContainerSymbol LocateDeclaredVariableSymbol(
+        VariableDeclarationSyntax declaration,
+        TypeSyntax typeSyntax) {
+        return LocateDeclaredVariableSymbol(
+            declaration.identifier,
+            typeSyntax,
+            declaration.initializer,
+            DataContainerDeclarationKind.Variable
+        );
+    }
+
+    private SourceDataContainerSymbol LocateDeclaredVariableSymbol(
+        SyntaxToken identifier,
+        TypeSyntax typeSyntax,
+        EqualsValueClauseSyntax equalsValue,
+        DataContainerDeclarationKind kind) {
+        var localSymbol = LookupLocal(identifier) ?? SourceDataContainerSymbol.MakeLocal(
+            containingMember,
+            this,
+            false,
+            typeSyntax,
+            identifier,
+            kind,
+            equalsValue
+        );
+
+        return localSymbol;
+    }
+
+    private protected BoundLocalDeclarationStatement BindVariableDeclaration(
+        SourceDataContainerSymbol localSymbol,
+        DataContainerDeclarationKind kind,
+        bool isImplicitlyTyped,
+        VariableDeclarationSyntax declaration,
+        TypeSyntax typeSyntax,
+        TypeWithAnnotations declarationType,
+        BelteDiagnosticQueue diagnostics,
+        bool includeBoundType,
+        BelteSyntaxNode associatedSyntaxNode = null) {
+        var localDiagnostics = BelteDiagnosticQueue.GetInstance();
+        associatedSyntaxNode ??= declaration;
+
+        var nameConflict = localSymbol.scopeBinder.ValidateDeclarationNameConflictsInScope(localSymbol, diagnostics);
+        var hasErrors = false;
+        var equalsClauseSyntax = declaration.initializer;
+
+        if (!IsInitializerRefKindValid(
+            equalsClauseSyntax,
+            declaration,
+            localSymbol.refKind,
+            diagnostics,
+            out var valueKind,
+            out var value)) {
+            hasErrors = true;
+        }
+
+        BoundExpression initializerOpt;
+        if (isImplicitlyTyped) {
+            initializerOpt = BindInferredVariableInitializer(diagnostics, value, valueKind, declaration);
+            var initializerType = initializerOpt?.type;
+
+            if (initializerType is not null) {
+                declarationType = new TypeWithAnnotations(initializerType);
+
+                if (declarationType.IsVoidType()) {
+                    // Error(localDiagnostics, ErrorCode.ERR_ImplicitlyTypedVariableAssignedBadValue, declarator, declTypeOpt.Type);
+                    // TODO error
+                    declarationType = new TypeWithAnnotations(CreateErrorType("var"));
+                    hasErrors = true;
+                }
+
+                if (!declarationType.type.IsErrorType()) {
+                    if (declarationType.isStatic) {
+                        // Error(localDiagnostics, ErrorCode.ERR_VarDeclIsStaticClass, typeSyntax, initializerType);
+                        // TODO error
+                        hasErrors = true;
+                    }
+                }
+            } else {
+                declarationType = new TypeWithAnnotations(CreateErrorType("var"));
+                hasErrors = true;
+            }
+        } else {
+            if (equalsClauseSyntax is null) {
+                initializerOpt = null;
+            } else {
+                initializerOpt = BindPossibleArrayInitializer(value, declarationType.type, valueKind, diagnostics);
+                initializerOpt = GenerateConversionForAssignment(
+                    declarationType.type,
+                    initializerOpt,
+                    localDiagnostics,
+                    localSymbol.refKind != RefKind.None
+                        ? ConversionForAssignmentFlags.RefAssignment
+                        : ConversionForAssignmentFlags.None
+                );
+            }
+        }
+
+        localSymbol.SetTypeWithAnnotations(declarationType);
+
+        if (kind == DataContainerDeclarationKind.Constant && initializerOpt is not null) {
+            var constantValueDiagnostics = localSymbol.GetConstantValueDiagnostics(initializerOpt);
+            diagnostics.PushRange(constantValueDiagnostics);
+            hasErrors = constantValueDiagnostics.AnyErrors();
+        }
+
+        diagnostics.PushRangeAndFree(localDiagnostics);
+        BoundTypeExpression boundDeclType = null;
+
+        if (includeBoundType) {
+            var invalidDimensions = ArrayBuilder<BoundExpression>.GetInstance();
+
+            typeSyntax.VisitRankSpecifiers((rankSpecifier, args) => {
+                var _ = false;
+                var size = args.binder.BindArrayDimension(rankSpecifier.size, args.diagnostics, ref _);
+                if (size is not null)
+                    args.invalidDimensions.Add(size);
+            }, (binder: this, invalidDimensions, diagnostics));
+
+            boundDeclType = new BoundTypeExpression(declarationType.type);
+        }
+
+        return new BoundLocalDeclarationStatement(new BoundDataContainerDeclaration(localSymbol, initializerOpt));
+    }
+
+    internal BoundExpression BindInferredVariableInitializer(
+        BelteDiagnosticQueue diagnostics,
+        RefKind refKind,
+        EqualsValueClauseSyntax initializer,
+        BelteSyntaxNode errorSyntax) {
+        IsInitializerRefKindValid(initializer, initializer, refKind, diagnostics, out var valueKind, out var value);
+        return BindInferredVariableInitializer(diagnostics, value, valueKind, errorSyntax);
+    }
+
+    private protected BoundExpression BindInferredVariableInitializer(
+        BelteDiagnosticQueue diagnostics,
+        ExpressionSyntax initializer,
+        BindValueKind valueKind,
+        BelteSyntaxNode errorSyntax) {
+        if (initializer is null) {
+            diagnostics.Push(Error.NoInitOnImplicit(errorSyntax.location));
+            return null;
+        }
+
+        // TODO Implicit initializer lists/dictionaries
+        // if (initializer.kind == SyntaxKind.InitializerListExpression) {
+        //     var result = BindUnexpectedArrayInitializer((InitializerExpressionSyntax)initializer,
+        //         diagnostics, ErrorCode.ERR_ImplicitlyTypedVariableAssignedArrayInitializer, errorSyntax);
+
+        //     return CheckValue(result, valueKind, diagnostics);
+        // }
+
+        return BindValue(initializer, diagnostics, valueKind);
+    }
+
+    private BoundExpression BindArrayDimension(
+        ExpressionSyntax dimension,
+        BelteDiagnosticQueue diagnostics,
+        ref bool hasErrors) {
+        return BindValue(dimension, diagnostics, BindValueKind.RValue);
+    }
+
+    internal bool ValidateDeclarationNameConflictsInScope(Symbol symbol, BelteDiagnosticQueue diagnostics) {
+        var location = GetLocation(symbol);
+        return ValidateNameConflictsInScope(symbol, location, symbol.name, diagnostics);
+    }
+
+    private TextLocation GetLocation(Symbol symbol) {
+        return symbol.location ?? symbol.containingSymbol.location;
+    }
+
+    private bool ValidateNameConflictsInScope(
+        Symbol symbol,
+        TextLocation location,
+        string name,
+        BelteDiagnosticQueue diagnostics) {
+        if (string.IsNullOrEmpty(name))
+            return false;
+
+        for (var binder = this; binder != null; binder = binder.next) {
+            if (binder is InContainerBinder)
+                return false;
+
+            var scope = binder as LocalScopeBinder;
+            if (scope?.EnsureSingleDefinition(symbol, name, location, diagnostics) == true)
+                return true;
+
+            if (binder.isNestedFunctionBinder)
+                return false;
+
+            if (binder.IsLastBinderWithinMember())
+                return false;
+        }
+
+        return false;
+    }
+
+    private bool IsLastBinderWithinMember() {
+        var containingMember = this.containingMember;
+        return (containingMember?.kind) switch {
+            null or SymbolKind.NamedType or SymbolKind.Namespace => true,
+            _ => containingMember.containingSymbol?.kind == SymbolKind.NamedType &&
+                                next?.containingMember != containingMember,
+        };
+    }
+
+    private TypeWithAnnotations BindVariableTypeWithAnnotations(
+        BelteSyntaxNode declarationNode,
+        BelteDiagnosticQueue diagnostics,
+        TypeSyntax typeSyntax,
+        ref bool isConst,
+        ref bool isConstExpr,
+        out bool isImplicitlyTyped) {
+        var declType = BindTypeOrImplicitType(typeSyntax.SkipRef(out _), diagnostics, out isImplicitlyTyped);
+
+        if (!isImplicitlyTyped) {
+            if (declType.isStatic)
+                diagnostics.Push(Error.StaticVariable(declarationNode.location));
+        }
+
+        return declType;
     }
 
     private BoundBlockStatement BindBlockStatement(BlockStatementSyntax node, BelteDiagnosticQueue diagnostics) {

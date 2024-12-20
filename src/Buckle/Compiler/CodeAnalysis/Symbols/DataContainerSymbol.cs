@@ -77,7 +77,7 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
         DataContainerSymbol inProgress,
         BelteDiagnosticQueue diagnostics);
 
-    internal abstract BelteDiagnostic[] GetConstantValueDiagnostics(BoundExpression boundInitValue);
+    internal abstract BelteDiagnosticQueue GetConstantValueDiagnostics(BoundExpression boundInitValue);
 
     internal abstract SyntaxNode GetDeclarationSyntax();
 

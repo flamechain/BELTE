@@ -40,9 +40,11 @@ internal partial class SourceDataContainerSymbol {
             return _lazyConstantValue;
         }
 
-        internal override BelteDiagnostic[] GetConstantValueDiagnostics(BoundExpression boundInitValue) {
+        internal override BelteDiagnosticQueue GetConstantValueDiagnostics(BoundExpression boundInitValue) {
             MakeConstantValue(null, boundInitValue);
-            return _lazyConstantValue is null ? [] : _lazyConstantValue.diagnostics;
+            return _lazyConstantValue is null
+                ? BelteDiagnosticQueue.Discarded
+                : new BelteDiagnosticQueue(_lazyConstantValue.diagnostics);
         }
 
         private protected override TypeWithAnnotations InferTypeOfImplicit(BelteDiagnosticQueue diagnostics) {

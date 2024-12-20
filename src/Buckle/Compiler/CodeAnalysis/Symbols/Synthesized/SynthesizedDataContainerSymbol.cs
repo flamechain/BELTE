@@ -65,7 +65,7 @@ internal sealed class SynthesizedDataContainerSymbol : DataContainerSymbol {
         return null;
     }
 
-    internal override BelteDiagnostic[] GetConstantValueDiagnostics(BoundExpression boundInitValue) {
-        return [];
+    internal override BelteDiagnosticQueue GetConstantValueDiagnostics(BoundExpression boundInitValue) {
+        return BelteDiagnosticQueue.Discarded;
     }
 }

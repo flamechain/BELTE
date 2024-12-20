@@ -71,8 +71,77 @@ internal sealed class Evaluator {
         return evaluatorObject.value;
     }
 
+    private void Create(DataContainerSymbol left, EvaluatorObject right) {
+        if (left.kind == SymbolKind.Global) {
+            var set = false;
+
+            foreach (var global in _globals) {
+                if (global.Key.name == left.name) {
+                    _globals.Remove(global.Key);
+                    _globals[left] = Copy(right);
+                    set = true;
+
+                    break;
+                }
+            }
+
+            if (!set)
+                _globals[left] = Copy(right);
+        } else {
+            var locals = _locals.Peek();
+            var set = false;
+
+            foreach (var local in locals) {
+                if (local.Key.name == left.name) {
+                    locals.Remove(local.Key);
+                    locals[left] = Copy(right);
+                    set = true;
+
+                    break;
+                }
+            }
+
+            if (!set)
+                locals[left] = Copy(right);
+        }
+    }
+
     private EvaluatorObject Copy(EvaluatorObject evaluatorObject) {
         return new EvaluatorObject(evaluatorObject.value, evaluatorObject.type);
+    }
+
+    private EvaluatorObject Get(DataContainerSymbol variable) {
+        if (variable.kind == SymbolKind.Global) {
+            if (_globals.TryGetValue(variable, out var evaluatorObject))
+                return evaluatorObject;
+        } else {
+            foreach (var frame in _locals) {
+                if (frame.TryGetValue(variable, out var evaluatorObject))
+                    return evaluatorObject;
+            }
+        }
+
+        throw new BelteInternalException($"Get: '{variable.name}' was not found in any accessible scopes");
+    }
+
+    private EvaluatorObject GetFromScopeWithFallback(
+        DataContainerSymbol variable,
+        Dictionary<IDataContainerSymbol, EvaluatorObject> scope) {
+        if (scope.TryGetValue(variable, out var evaluatorObject))
+            return evaluatorObject;
+
+        return Get(variable);
+    }
+
+    private EvaluatorObject Dereference(EvaluatorObject reference, bool dereferenceOnExplicit = true) {
+        while (reference.isReference) {
+            if (!dereferenceOnExplicit && reference.isExplicitReference)
+                break;
+
+            reference = Get(reference.reference);
+        }
+
+        return reference;
     }
 
     private EvaluatorObject EvaluateStatement(
@@ -102,6 +171,10 @@ internal sealed class Evaluator {
                 switch (s.kind) {
                     case BoundNodeKind.ExpressionStatement:
                         EvaluateExpressionStatement((BoundExpressionStatement)s, abort);
+                        index++;
+                        break;
+                    case BoundNodeKind.LocalDeclarationStatement:
+                        EvaluateLocalDeclarationStatement((BoundLocalDeclarationStatement)s, abort);
                         index++;
                         break;
                     case BoundNodeKind.ReturnStatement:
@@ -153,20 +226,23 @@ internal sealed class Evaluator {
         _lastValue = EvaluateExpression(statement.expression, abort);
     }
 
+    private void EvaluateLocalDeclarationStatement(BoundLocalDeclarationStatement statement, ValueWrapper<bool> abort) {
+        var value = EvaluateExpression(statement.declaration.initializer, abort);
+        _lastValue = default;
+        Create(statement.declaration.dataContainer, value);
+    }
+
     private EvaluatorObject EvaluateExpression(BoundExpression expression, ValueWrapper<bool> abort) {
         if (expression.constantValue is not null)
             return EvaluateConstant(expression.constantValue);
 
-        switch (expression.kind) {
-            case BoundNodeKind.EmptyExpression:
-                return EvaluatorObject.Null;
-            case BoundNodeKind.ThisExpression:
-                return EvaluateThisExpression();
-            case BoundNodeKind.BaseExpression:
-                return EvaluateBaseExpression();
-            default:
-                throw new BelteInternalException($"EvaluateExpression: unexpected node '{expression.kind}'");
-        }
+        return expression.kind switch {
+            BoundNodeKind.EmptyExpression => EvaluatorObject.Null,
+            BoundNodeKind.ThisExpression => EvaluateThisExpression(),
+            BoundNodeKind.BaseExpression => EvaluateBaseExpression(),
+            BoundNodeKind.CastExpression => EvaluateCastExpression((BoundCastExpression)expression, abort),
+            _ => throw new BelteInternalException($"EvaluateExpression: unexpected node '{expression.kind}'"),
+        };
     }
 
     private EvaluatorObject EvaluateConstant(ConstantValue constantValue) {
@@ -184,5 +260,51 @@ internal sealed class Evaluator {
 
     private EvaluatorObject EvaluateBaseExpression() {
         return _enclosingTypes.Peek();
+    }
+
+    private EvaluatorObject EvaluateCastExpression(BoundCastExpression expression, ValueWrapper<bool> abort) {
+        var value = EvaluateExpression(expression.operand, abort);
+        return EvaluateCast(value, expression.operand.type, expression.type);
+    }
+
+    private EvaluatorObject EvaluateCast(EvaluatorObject value, TypeSymbol source, TypeSymbol target) {
+        var dereferenced = Dereference(value);
+
+        if (dereferenced.members is null) {
+            var valueValue = Value(value);
+
+            if (target.specialType != SpecialType.Nullable && value is null)
+                throw new NullReferenceException();
+
+            if (source.Equals(target, TypeCompareKind.IgnoreNullability))
+                return value;
+
+            return new EvaluatorObject(SpecialTypeCast(valueValue, target.specialType), target);
+        }
+
+        if (dereferenced.type.InheritsFromIgnoringConstruction((NamedTypeSymbol)target))
+            return value;
+
+        throw new InvalidCastException();
+    }
+
+    private static object SpecialTypeCast(object value, SpecialType target) {
+        switch (target) {
+            case SpecialType.Int:
+                if (value.IsFloatingPoint())
+                    value = Math.Truncate(Convert.ToDouble(value));
+
+                return Convert.ToInt32(value);
+            case SpecialType.Decimal:
+                return Convert.ToDouble(value);
+            case SpecialType.Bool:
+                return Convert.ToBoolean(value);
+            case SpecialType.String:
+                return Convert.ToString(value);
+            case SpecialType.Char:
+                return Convert.ToChar(value);
+            default:
+                return value;
+        }
     }
 }
