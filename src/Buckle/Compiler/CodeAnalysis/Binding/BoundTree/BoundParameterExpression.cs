@@ -6,9 +6,9 @@ namespace Buckle.CodeAnalysis.Binding;
 /// Bound from a <see cref="Syntax.NameSyntax" />.
 /// </summary>
 internal sealed class BoundParameterExpression : BoundExpression {
-    internal BoundParameterExpression(ParameterSymbol parameter, TypeSymbol type) {
+    internal BoundParameterExpression(ParameterSymbol parameter) {
         this.parameter = parameter;
-        this.type = type;
+        type = parameter.type;
         constantValue = parameter.explicitDefaultConstantValue;
     }
 

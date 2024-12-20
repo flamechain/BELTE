@@ -890,7 +890,346 @@ internal partial class Binder {
         bool indexed,
         BelteDiagnosticQueue diagnostics) {
         // TODO
-        return ErrorExpression(null);
+        BoundExpression expression = null;
+        var hasTemplateArguments = node.arity > 0;
+        var templateArgumentList = node is TemplateNameSyntax t ? t.templateArgumentList : default;
+
+        var lookupResult = LookupResult.GetInstance();
+        var name = node.identifier.text;
+        LookupIdentifier(lookupResult, node, called);
+
+        if (lookupResult.kind != LookupResultKind.Empty) {
+            var members = ArrayBuilder<Symbol>.GetInstance();
+            var symbol = GetSymbolOrMethodGroup(
+                lookupResult,
+                node,
+                name,
+                node.arity,
+                members,
+                diagnostics,
+                out var isError,
+                null
+            );
+
+            if (symbol is null) {
+                // var receiver = SynthesizeMethodGroupReceiver(node, members);
+                // expression = ConstructBoundMemberGroupAndReportOmittedTypeArguments(
+                //     node,
+                //     typeArgumentList,
+                //     typeArgumentsWithAnnotations,
+                //     receiver,
+                //     name,
+                //     members,
+                //     lookupResult,
+                //     receiver != null ? BoundMethodGroupFlags.HasImplicitReceiver : BoundMethodGroupFlags.None,
+                //     isError,
+                //     diagnostics);
+
+                // ReportSimpleProgramLocalReferencedOutsideOfTopLevelStatement(node, members[0], diagnostics);
+                // TODO error
+            } else {
+                var isNamedType = symbol.kind is SymbolKind.NamedType or SymbolKind.ErrorType;
+
+                if (hasTemplateArguments && isNamedType) {
+                    // symbol = ConstructNamedTypeUnlessTemplateArgumentOmitted(node, (NamedTypeSymbol)symbol, typeArgumentList, typeArgumentsWithAnnotations, diagnostics);
+                    // TODO template
+                }
+
+                expression = BindNonMethod(node, symbol, diagnostics, lookupResult.kind, indexed, isError);
+
+                // TODO error
+                // if (!isNamedType && (hasTemplateArguments || node.Kind() == SyntaxKind.GenericName)) {
+                //     Debug.Assert(isError); // Should have been reported by GetSymbolOrMethodOrPropertyGroup.
+                //     expression = new BoundBadExpression(
+                //         syntax: node,
+                //         resultKind: LookupResultKind.WrongArity,
+                //         symbols: ImmutableArray.Create(symbol),
+                //         childBoundNodes: ImmutableArray.Create(BindToTypeForErrorRecovery(expression)),
+                //         type: expression.Type,
+                //         hasErrors: isError);
+                // }
+            }
+
+            // Note, this call can clear and reuse lookupResult and members
+            // reportPrimaryConstructorParameterShadowing(node, symbol ?? members[0], name, invoked, lookupResult, members, diagnostics);
+            // TODO error
+            members.Free();
+        } else {
+            expression = ErrorExpression(null);
+            // TODO error
+            // if (lookupResult.Error != null) {
+            //     Error(diagnostics, lookupResult.Error, node);
+            // } else if (IsJoinRangeVariableInLeftKey(node)) {
+            //     Error(diagnostics, ErrorCode.ERR_QueryOuterKey, node, name);
+            // } else if (IsInJoinRightKey(node)) {
+            //     Error(diagnostics, ErrorCode.ERR_QueryInnerKey, node, name);
+            // } else {
+            //     Error(diagnostics, ErrorCode.ERR_NameNotInContext, node, name);
+            // }
+        }
+
+        lookupResult.Free();
+        return expression;
+    }
+
+    private BoundExpression BindNonMethod(
+        SimpleNameSyntax node,
+        Symbol symbol,
+        BelteDiagnosticQueue diagnostics,
+        LookupResultKind resultKind,
+        bool indexed,
+        bool isError) {
+
+        switch (symbol.kind) {
+            case SymbolKind.Local: {
+                    var localSymbol = (DataContainerSymbol)symbol;
+                    TypeSymbol type;
+                    bool isNullableUnknown;
+
+                    if (IsUsedBeforeDeclaration(node, localSymbol)) {
+                        FieldSymbol possibleField = null;
+                        var lookupResult = LookupResult.GetInstance();
+
+                        LookupMembersInType(
+                            lookupResult,
+                            containingType,
+                            localSymbol.name,
+                            arity: 0,
+                            basesBeingResolved: null,
+                            options: LookupOptions.Default,
+                            originalBinder: this,
+                            diagnose: false
+                        );
+
+                        possibleField = lookupResult.singleSymbolOrDefault as FieldSymbol;
+                        lookupResult.Free();
+
+                        // TODO error
+                        // if (possibleField is not null) {
+                        //     Error(diagnostics, ErrorCode.ERR_VariableUsedBeforeDeclarationAndHidesField, node, node, possibleField);
+                        // } else {
+                        //     Error(diagnostics, ErrorCode.ERR_VariableUsedBeforeDeclaration, node, node);
+                        // }
+
+                        type = new ExtendedErrorTypeSymbol(
+                            compilation,
+                            "var",
+                            0,
+                            error: null,
+                            variableUsedBeforeDeclaration: true
+                        );
+
+                        isNullableUnknown = true;
+                    } else if (localSymbol is SourceDataContainerSymbol { isImplicitlyTyped: true } &&
+                        /*localSymbol.ForbiddenZone?.Contains(node) == true*/ false) {
+                        // TODO this
+                        // A var (type-inferred) local variable has been used in its own initialization (the "forbidden zone").
+                        // There are many cases where this occurs, including:
+                        //
+                        // 1. var x = M(out x);
+                        // 2. M(out var x, out x);
+                        // 3. var (x, y) = (y, x);
+                        //
+                        // localSymbol.ForbiddenDiagnostic provides a suitable diagnostic for whichever case applies.
+                        //
+                        // diagnostics.Add(localSymbol.ForbiddenDiagnostic, node.Location, node);
+                        type = new ExtendedErrorTypeSymbol(
+                            compilation,
+                            "var",
+                            0,
+                            error: null,
+                            variableUsedBeforeDeclaration: true
+                        );
+
+                        isNullableUnknown = true;
+                    } else {
+                        type = localSymbol.type;
+                        isNullableUnknown = false;
+
+                        if (IsBadLocalOrParameterCapture(localSymbol, type, localSymbol.refKind)) {
+                            isError = true;
+
+                            // TODO error
+                            // if (localSymbol.refKind == RefKind.None && type.IsRestrictedType(ignoreSpanLikeTypes: true)) {
+                            //     Error(diagnostics, ErrorCode.ERR_SpecialByRefInLambda, node, type);
+                            // } else {
+                            //     Error(diagnostics, ErrorCode.ERR_AnonDelegateCantUseLocal, node, localSymbol);
+                            // }
+                        }
+                    }
+
+                    var constantValueOpt = localSymbol.isConst && !isInsideNameof && !type.IsErrorType()
+                        ? localSymbol.GetConstantValue(node, localInProgress, diagnostics)
+                        : null;
+
+                    return new BoundDataContainerExpression(localSymbol, constantValue: constantValueOpt);
+                }
+            case SymbolKind.Parameter: {
+                    var parameter = (ParameterSymbol)symbol;
+                    var primaryCtor = parameter.ContainingSymbol as SynthesizedPrimaryConstructor;
+
+                    if (primaryCtor is not null &&
+                        (!IsInDeclaringTypeInstanceMember(primaryCtor) ||
+                         (this.ContainingMember() is MethodSymbol { MethodKind: MethodKind.Constructor } containingMember && (object)containingMember != primaryCtor)) && // We are in a non-primary instance constructor
+                        !IsInsideNameof) {
+                        Error(diagnostics, ErrorCode.ERR_InvalidPrimaryConstructorParameterReference, node, parameter);
+                    } else {
+                        // Records never capture parameters within the type
+                        Debug.Assert(primaryCtor is null ||
+                                     primaryCtor.ContainingSymbol is NamedTypeSymbol { IsRecord: false, IsRecordStruct: false } ||
+                                     (this.ContainingMember() is FieldSymbol || (object)primaryCtor == this.ContainingMember()) ||
+                                     IsInsideNameof);
+
+                        if (IsBadLocalOrParameterCapture(parameter, parameter.Type, parameter.RefKind)) {
+                            isError = true;
+
+                            if (parameter.RefKind != RefKind.None) {
+                                Error(diagnostics, ErrorCode.ERR_AnonDelegateCantUse, node, parameter.Name);
+                            } else if (parameter.Type.IsRestrictedType(ignoreSpanLikeTypes: true)) {
+                                Error(diagnostics, ErrorCode.ERR_SpecialByRefInLambda, node, parameter.Type);
+                            } else {
+                                Debug.Assert(parameter.Type.IsRefLikeOrAllowsRefLikeType());
+                                Error(diagnostics, ErrorCode.ERR_AnonDelegateCantUseRefLike, node, parameter.Name);
+                            }
+                        } else if (primaryCtor is not null) {
+                            // Quick check if this reference itself causes the parameter capture in a field
+                            bool capture = (this.ContainingMember() is MethodSymbol containingMethod && (object)primaryCtor != containingMethod);
+
+                            if (capture &&
+                                (parameter.RefKind != RefKind.None || parameter.Type.IsRestrictedType()) &&
+                                !IsInsideNameof) {
+                                if (parameter.RefKind != RefKind.None) {
+                                    Error(diagnostics, ErrorCode.ERR_UnsupportedPrimaryConstructorParameterCapturingRef, node, parameter.Name);
+                                } else if (parameter.Type.IsRestrictedType(ignoreSpanLikeTypes: true)) {
+                                    Error(diagnostics, ErrorCode.ERR_UnsupportedPrimaryConstructorParameterCapturingRefAny, node, parameter.Type);
+                                } else {
+                                    Debug.Assert(parameter.Type.IsRefLikeOrAllowsRefLikeType());
+                                    Error(diagnostics, ErrorCode.ERR_UnsupportedPrimaryConstructorParameterCapturingRefLike, node, parameter.Name);
+                                }
+                            } else if (primaryCtor is { ThisParameter.RefKind: not RefKind.None } &&
+                                       this.ContainingMemberOrLambda is MethodSymbol { MethodKind: MethodKind.AnonymousFunction or MethodKind.LocalFunction } &&
+                                       !IsInsideNameof) {
+                                // Captured in a lambda.
+
+                                if (capture) {
+                                    // This reference itself causes the parameter capture in a field
+                                    Error(diagnostics, ErrorCode.ERR_AnonDelegateCantUseStructPrimaryConstructorParameterInMember, node);
+                                } else if (primaryCtor.GetCapturedParameters().ContainsKey(parameter)) // check other references in the entire type
+                                  {
+                                    Error(diagnostics, ErrorCode.ERR_AnonDelegateCantUseStructPrimaryConstructorParameterCaptured, node);
+                                }
+                            }
+                        }
+                    }
+
+                    return new BoundParameterExpression(parameter);
+                }
+            case SymbolKind.NamedType:
+            case SymbolKind.ErrorType:
+            case SymbolKind.TemplateParameter:
+                return new BoundTypeExpression((TypeSymbol)symbol);
+            case SymbolKind.Field: {
+                    var receiver = SynthesizeReceiver(node, symbol, diagnostics);
+                    return BindFieldAccess(
+                        node,
+                        receiver,
+                        (FieldSymbol)symbol,
+                        diagnostics,
+                        resultKind,
+                        indexed,
+                        isError
+                    );
+                }
+            default:
+                throw ExceptionUtilities.UnexpectedValue(symbol.kind);
+        }
+
+        static bool IsUsedBeforeDeclaration(SimpleNameSyntax node, DataContainerSymbol localSymbol) {
+            if (!localSymbol.hasSourceLocation)
+                return false;
+
+            var declaration = localSymbol.syntaxReference.node;
+
+            if (node.span.start >= declaration.span.start)
+                return false;
+
+            return node.syntaxTree == declaration.syntaxTree;
+        }
+    }
+
+    private bool IsBadLocalOrParameterCapture(Symbol symbol, TypeSymbol type, RefKind refKind) {
+        if (refKind != RefKind.None) {
+            if (containingMember is MethodSymbol containingMethod &&
+                (object)symbol.containingSymbol != containingMethod) {
+                return (containingMethod.methodKind == MethodKind.LocalFunction) && !isInsideNameof;
+            }
+        }
+
+        return false;
+    }
+
+    private BoundExpression SynthesizeReceiver(SyntaxNode node, Symbol member, BelteDiagnosticQueue diagnostics) {
+        if (!member.RequiresInstanceReceiver())
+            return null;
+
+        var currentType = containingType;
+        var declaringType = member.containingType;
+
+        if (currentType.IsEqualToOrDerivedFrom(declaringType, TypeCompareKind.ConsiderEverything)) {
+            var hasErrors = false;
+
+            if (!isInsideNameof) {
+                BelteDiagnostic diagnosticInfoOpt = null;
+
+                if (inFieldInitializer) {
+                    //can't access "this" in field initializers
+                    // diagnosticInfoOpt = new CSDiagnosticInfo(ErrorCode.ERR_FieldInitRefNonstatic, member);
+                    // TODO error
+                } else if (_inConstructorInitializer) {
+                    //can't access "this" in constructor initializers or attribute arguments
+                    // diagnosticInfoOpt = new CSDiagnosticInfo(ErrorCode.ERR_ObjectRequired, member);
+                    // TODO error
+                } else {
+                    // not an instance member if the container is a type, like when binding default parameter values.
+                    var containingMember = this.containingMember;
+
+                    var locationIsInstanceMember = !containingMember.isStatic &&
+                        (containingMember.kind != SymbolKind.NamedType);
+
+                    if (!locationIsInstanceMember) {
+                        // error CS0120: An object reference is required for the non-static field, method, or property '{0}'
+                        // diagnosticInfoOpt = new CSDiagnosticInfo(ErrorCode.ERR_ObjectRequired, member);
+                        // TODO error
+                    }
+                }
+
+                diagnosticInfoOpt ??= GetDiagnosticIfRefOrOutThisParameterCaptured(node.location);
+                hasErrors = diagnosticInfoOpt is not null;
+
+                if (hasErrors && !isInsideNameof)
+                    diagnostics.Push(diagnosticInfoOpt);
+            }
+
+            return new BoundThisExpression(currentType ?? CreateErrorType());
+        } else {
+            return null;
+        }
+    }
+
+    private void LookupIdentifier(LookupResult lookupResult, SimpleNameSyntax node, bool called) {
+        LookupIdentifier(lookupResult, node.identifier.text, node.arity, called);
+    }
+
+    private void LookupIdentifier(LookupResult lookupResult, string name, int arity, bool called) {
+        var options = LookupOptions.AllMethodsOnArityZero;
+
+        if (called)
+            options |= LookupOptions.MustBeInvocableIfMember;
+
+        if (!isInMethodBody && !isInsideNameof)
+            options |= LookupOptions.MustNotBeMethodTemplateParameter;
+
+        LookupSymbolsWithFallback(lookupResult, name, arity, options: options);
     }
 
     private BoundExpression BindMemberAccess(
@@ -1645,6 +1984,22 @@ internal partial class Binder {
         }
 
         return symbols[0];
+    }
+
+    private Binder LookupSymbolsWithFallback(
+        LookupResult result,
+        string name,
+        int arity,
+        ConsList<TypeSymbol> basesBeingResolved = null,
+        LookupOptions options = LookupOptions.Default) {
+        var binder = LookupSymbolsInternal(result, name, arity, basesBeingResolved, options, false);
+
+        if (result.kind != LookupResultKind.Viable && result.kind != LookupResultKind.Empty) {
+            result.Clear();
+            LookupSymbolsInternal(result, name, arity, basesBeingResolved, options, true);
+        }
+
+        return binder;
     }
 
     internal void LookupSymbolsSimpleName(

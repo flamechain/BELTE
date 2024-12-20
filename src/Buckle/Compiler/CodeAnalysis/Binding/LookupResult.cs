@@ -18,6 +18,8 @@ internal sealed class LookupResult {
 
     internal ArrayBuilder<Symbol> symbols { get; }
 
+    internal Symbol singleSymbolOrDefault => (symbols.Count == 1) ? symbols[0] : null;
+
     internal bool isMultiViable => kind == LookupResultKind.Viable;
 
     internal BelteDiagnostic error { get; private set; }
