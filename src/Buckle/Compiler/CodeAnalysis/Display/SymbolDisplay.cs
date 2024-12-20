@@ -212,13 +212,19 @@ public static class SymbolDisplay {
         DisplayText text,
         TemplateParameterSymbol templateParameter,
         SymbolDisplayFormat format) {
+        var needSpace = false;
+
         if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeType) != 0) {
             DisplayType(text, templateParameter.underlyingType.type, format);
-            text.Write(CreateSpace());
+            needSpace = true;
         }
 
-        if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeName) != 0)
+        if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeName) != 0) {
+            if (needSpace)
+                text.Write(CreateSpace());
+
             text.Write(CreateIdentifier(templateParameter.name));
+        }
 
         if ((format.templateOptions & SymbolDisplayTemplateOptions.IncludeTemplateConstraints) != 0) {
             var constraints = templateParameter.constraintTypes;

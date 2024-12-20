@@ -19,7 +19,7 @@ internal abstract class SourceFieldSymbolWithSyntaxReference : SourceFieldSymbol
         : base(containingType) {
         this.name = name;
         this.syntaxReference = syntaxReference;
-        location = ((FieldDeclarationSyntax)syntaxReference.node).declaration.identifier.location;
+        location = ((VariableDeclarationSyntax)syntaxReference.node).identifier.location;
     }
 
     public override string name { get; }

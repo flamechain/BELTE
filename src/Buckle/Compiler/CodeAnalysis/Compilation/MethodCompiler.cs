@@ -90,8 +90,12 @@ internal sealed class MethodCompiler {
     private static bool HasEntryPointSignature(MethodSymbol method) {
         var returnType = method.returnType;
 
-        if (returnType.specialType != SpecialType.Int && !returnType.IsVoidType())
-            return false;
+        if (returnType.specialType != SpecialType.Int && !returnType.IsVoidType()) {
+            if (returnType.specialType == SpecialType.Nullable &&
+                returnType.GetNullableUnderlyingType().specialType != SpecialType.Int) {
+                return false;
+            }
+        }
 
         if (method.refKind != RefKind.None)
             return false;

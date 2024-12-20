@@ -16,6 +16,8 @@ internal abstract class WrappedNamedTypeSymbol : NamedTypeSymbol {
 
     public override TypeKind typeKind => underlyingNamedType.typeKind;
 
+    public override SpecialType specialType => underlyingNamedType.specialType;
+
     internal override bool mangleName => underlyingNamedType.mangleName;
 
     internal NamedTypeSymbol underlyingNamedType { get; }

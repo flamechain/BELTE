@@ -78,7 +78,7 @@ internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxRef
         else if (type.IsVoidType())
             diagnostics.Push(Error.VoidVariable(errorLocation));
 
-        if (IsNoMoreVisibleThan(type))
+        if (!IsNoMoreVisibleThan(type))
             diagnostics.Push(Error.InconsistentAccessibilityField(errorLocation, type, this));
     }
 }

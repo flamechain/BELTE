@@ -8,6 +8,14 @@ internal static class SpecialTypes {
         { "global::Object", SpecialType.Object },
         { "global::List<type>", SpecialType.List },
         { "global::Dictionary<type,type>", SpecialType.Dictionary },
+        { "global::void", SpecialType.Void },
+        { "global::int", SpecialType.Int },
+        { "global::decimal", SpecialType.Decimal },
+        { "global::bool", SpecialType.Bool },
+        { "global::char", SpecialType.Char },
+        { "global::string", SpecialType.String },
+        { "global::type", SpecialType.Type },
+        { "global::any", SpecialType.Any },
     };
 
     internal static SpecialType GetTypeFromMetadataName(string metadataName) {

@@ -8,6 +8,7 @@ using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
+using Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -364,6 +365,9 @@ internal partial class Binder {
                 return new TypeWithAnnotations(CreateErrorType());
         }
 
+        if (nonNullableType.specialType == SpecialType.Void)
+            return nonNullableType;
+
         return nonNullableType.SetIsAnnotated();
 
         TypeWithAnnotations BindNonNullable() {
@@ -470,6 +474,13 @@ internal partial class Binder {
         // if (errorResult is not null) {
         //     return TypeWithAnnotations.Create(errorResult);
         // }
+
+        if (qualifier is null) {
+            var specialType = SpecialTypes.GetTypeFromMetadataName(string.Concat("global::", name));
+
+            if (specialType != SpecialType.None)
+                return new TypeWithAnnotations(CorLibrary.GetSpecialType(specialType));
+        }
 
         var result = LookupResult.GetInstance();
         var options = LookupOptions.NamespacesOrTypesOnly;
@@ -829,7 +840,8 @@ internal partial class Binder {
             case SyntaxKind.ReferenceType:
                 return BindReferenceType((ReferenceTypeSyntax)node, diagnostics);
             case SyntaxKind.NonNullableType:
-                return BindNonNullableType((NonNullableTypeSyntax)node, diagnostics);
+                // TODO Confirm this is not reachable without err
+                return ErrorExpression(null);
             case SyntaxKind.ParenthesizedExpression:
                 return BindParenthesisExpression((ParenthesisExpressionSyntax)node, diagnostics);
             /*
@@ -881,7 +893,13 @@ internal partial class Binder {
     private BoundErrorExpression ErrorExpression(BoundExpression expression) {
         // This is factored out into a method for debugging purposes
         // TODO consider storing the entire node
-        return new BoundErrorExpression(expression.type);
+        return new BoundErrorExpression(expression?.type ?? CreateErrorType("?"));
+    }
+
+    private BoundExpression BindReferenceType(ReferenceTypeSyntax node, BelteDiagnosticQueue diagnostics) {
+        // TODO error, caller should always resolve Ref
+        // diagnostics.Add(ErrorCode.ERR_UnexpectedToken, firstToken.GetLocation(), firstToken.ValueText);
+        return new BoundTypeExpression(CreateErrorType("ref"));
     }
 
     private BoundExpression BindQualifiedName(QualifiedNameSyntax node, BelteDiagnosticQueue diagnostics) {
@@ -931,8 +949,14 @@ internal partial class Binder {
             switch (boundLeft.kind) {
                 case BoundNodeKind.TypeExpression:
                     if (leftType.typeKind == TypeKind.TemplateParameter) {
-
-                        this.LookupMembersWithFallback(lookupResult, leftType, rightName, rightArity, null, options | LookupOptions.MustNotBeInstance | LookupOptions.MustBeAbstractOrVirtual);
+                        LookupMembersWithFallback(
+                            lookupResult,
+                            leftType,
+                            rightName,
+                            rightArity,
+                            null,
+                            options | LookupOptions.MustNotBeInstance | LookupOptions.MustBeAbstractOrVirtual
+                        );
 
                         if (lookupResult.isMultiViable) {
                             return BindMemberOfType(
@@ -968,7 +992,7 @@ internal partial class Binder {
                             diagnostics
                         );
                     } else {
-                        this.LookupMembersWithFallback(lookupResult, leftType, rightName, rightArity, null, options);
+                        LookupMembersWithFallback(lookupResult, leftType, rightName, rightArity, null, options);
 
                         if (lookupResult.isMultiViable) {
                             return BindMemberOfType(
@@ -1011,8 +1035,69 @@ internal partial class Binder {
 
                     break;
             }
+
+            BindMemberAccessReportError(node, right, rightName, boundLeft, lookupResult.error, diagnostics);
+
+            return BindMemberAccessBadResult(
+                node,
+                rightName,
+                boundLeft,
+                lookupResult.error,
+                lookupResult.symbols.ToImmutable(),
+                lookupResult.kind
+            );
         } finally {
             lookupResult.Free();
+        }
+    }
+
+    private BoundExpression BindMemberAccessBadResult(
+        SyntaxNode node,
+        string nameString,
+        BoundExpression boundLeft,
+        BelteDiagnostic lookupError,
+        ImmutableArray<Symbol> symbols,
+        LookupResultKind lookupKind) {
+        // TODO Could give BoundMethodGroup and ErrorExpression A LOT more information here like
+        // the lookupError, symbols, lookupKind
+        if (symbols.Length > 0 && symbols[0].kind == SymbolKind.Method) {
+            var builder = ArrayBuilder<MethodSymbol>.GetInstance();
+
+            foreach (var s in symbols)
+                if (s is MethodSymbol m) builder.Add(m);
+
+            var methods = builder.ToImmutableAndFree();
+
+            return new BoundMethodGroup(
+                nameString,
+                methods,
+                []
+            );
+        }
+
+        return ErrorExpression(boundLeft);
+    }
+
+    private void BindMemberAccessReportError(
+        SyntaxNode node,
+        SyntaxNode name,
+        string plainName,
+        BoundExpression boundLeft,
+        BelteDiagnostic lookupError,
+        BelteDiagnosticQueue diagnostics) {
+        if (lookupError is not null) {
+            diagnostics.Push(lookupError);
+        } else {
+            // TODO error
+            // if (boundLeft.type is null) {
+            //     Error(diagnostics, ErrorCode.ERR_NoSuchMember, name, boundLeft.Display, plainName);
+            // } else if (boundLeft.kind is BoundNodeKind.TypeExpression or BoundNodeKind.BaseExpression) {
+            //     Error(diagnostics, ErrorCode.ERR_NoSuchMember, name, boundLeft.type, plainName);
+            // } else if (WouldUsingSystemFindExtension(boundLeft.Type, plainName)) {
+            //     Error(diagnostics, ErrorCode.ERR_NoSuchMemberOrExtensionNeedUsing, name, boundLeft.Type, plainName, "System");
+            // } else {
+            //     Error(diagnostics, ErrorCode.ERR_NoSuchMemberOrExtension, name, boundLeft.Type, plainName);
+            // }
         }
     }
 
@@ -1045,23 +1130,34 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         var members = ArrayBuilder<Symbol>.GetInstance();
         BoundExpression result;
-        Symbol symbol = GetSymbolOrMethodGroup(lookupResult, right, plainName, arity, members, diagnostics, out var wasError,
-                                                         qualifierOpt: left is BoundTypeExpression typeExpr ? typeExpr.Type : null);
+        var symbol = GetSymbolOrMethodGroup(
+            lookupResult,
+            right,
+            plainName,
+            arity,
+            members,
+            diagnostics,
+            out var wasError,
+            qualifier: left is BoundTypeExpression typeExpr ? typeExpr.type : null
+        );
 
         if (symbol is null) {
-            result = ConstructBoundMemberGroupAndReportOmittedTypeArguments(
-                node,
-                typeArgumentsSyntax,
-                typeArgumentsWithAnnotations,
-                left,
-                plainName,
-                members,
-                lookupResult,
-                methodGroupFlags,
-                wasError,
-                diagnostics);
+            result = null;
+            // TODO templates
+            // result = ConstructBoundMemberGroupAndReportOmittedTypeArguments(
+            //     node,
+            //     typeArgumentsSyntax,
+            //     typeArgumentsWithAnnotations,
+            //     left,
+            //     plainName,
+            //     members,
+            //     lookupResult,
+            //     methodGroupFlags,
+            //     wasError,
+            //     diagnostics);
         } else {
-            left = ReplaceTypeOrValueReceiver(left, symbol.isStatic || symbol.kind == SymbolKind.NamedType, diagnostics);
+            // TODO ensure this is not needed
+            // left = ReplaceTypeOrValueReceiver(left, symbol.isStatic || symbol.kind == SymbolKind.NamedType, diagnostics);
 
             switch (symbol.kind) {
                 case SymbolKind.NamedType:
@@ -1100,6 +1196,80 @@ internal partial class Binder {
 
         members.Free();
         return result;
+    }
+
+    private Symbol GetSymbolOrMethodGroup(
+        LookupResult result,
+        SyntaxNode node,
+        string plainName,
+        int arity,
+        ArrayBuilder<Symbol> methodGroup,
+        BelteDiagnosticQueue diagnostics,
+        out bool wasError,
+        NamespaceOrTypeSymbol qualifier) {
+        node = GetNameSyntax(node) ?? node;
+        wasError = false;
+        Symbol other = null;
+
+        foreach (var symbol in result.symbols) {
+            var kind = symbol.kind;
+            if (methodGroup.Count > 0) {
+                var existingKind = methodGroup[0].kind;
+
+                if (existingKind != kind) {
+                    if (existingKind == SymbolKind.Method) {
+                        other = symbol;
+                        continue;
+                    }
+
+                    other = methodGroup[0];
+                    methodGroup.Clear();
+                }
+            }
+
+            if (kind == SymbolKind.Method) {
+                methodGroup.Add(symbol);
+            } else {
+                other = symbol;
+            }
+        }
+
+        if ((methodGroup.Count > 0) && methodGroup[0].kind == SymbolKind.Method) {
+            if ((methodGroup[0].kind == SymbolKind.Method) || (other is null)) {
+                if (result.error is not null) {
+                    diagnostics.Push(result.error);
+                    wasError = result.error.info.severity == DiagnosticSeverity.Error;
+                }
+
+                return null;
+            }
+        }
+
+        methodGroup.Clear();
+        return ResultSymbol(result, plainName, arity, node, diagnostics, out wasError, qualifier);
+    }
+
+    private static NameSyntax GetNameSyntax(SyntaxNode syntax) {
+        return GetNameSyntax(syntax, out _);
+    }
+
+    internal static NameSyntax GetNameSyntax(SyntaxNode syntax, out string nameString) {
+        nameString = "";
+
+        while (true) {
+            switch (syntax.kind) {
+                case SyntaxKind.ParenthesizedExpression:
+                    syntax = ((ParenthesisExpressionSyntax)syntax).expression;
+                    continue;
+                case SyntaxKind.CastExpression:
+                    syntax = ((CastExpressionSyntax)syntax).expression;
+                    continue;
+                case SyntaxKind.MemberAccessExpression:
+                    return ((MemberAccessExpressionSyntax)syntax).name;
+                default:
+                    return syntax as NameSyntax;
+            }
+        }
     }
 
     private protected BoundExpression BindFieldAccess(
@@ -1204,23 +1374,89 @@ internal partial class Binder {
         }
     }
 
-    private BoundCallExpression BindCallExpression(CallExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+    private BoundExpression BindCallExpression(CallExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        // TODO This should never happen because lexing would create a nameof keyword token not an identifier?
+        // if (TryBindNameofOperator(node, diagnostics, out var result)) {
+        //     return result; // all of the binding is done by BindNameofOperator
+        // }
 
+        // TODO Calls are the final boss of expressions
+        // AnalyzedArguments analyzedArguments = AnalyzedArguments.GetInstance();
+
+        // if (isArglist) {
+        //     BindArgumentsAndNames(node.ArgumentList, diagnostics, analyzedArguments, allowArglist: false);
+        //     result = BindArgListOperator(node, diagnostics, analyzedArguments);
+        // } else if (receiverIsInvocation(node, out InvocationExpressionSyntax nested)) {
+        //     var invocations = ArrayBuilder<InvocationExpressionSyntax>.GetInstance();
+
+        //     invocations.Push(node);
+        //     node = nested;
+        //     while (receiverIsInvocation(node, out nested)) {
+        //         invocations.Push(node);
+        //         node = nested;
+        //     }
+
+        //     BoundExpression boundExpression = BindMethodGroup(node.Expression, invoked: true, indexed: false, diagnostics: diagnostics);
+
+        //     while (true) {
+        //         result = bindArgumentsAndInvocation(node, boundExpression, analyzedArguments, diagnostics);
+        //         nested = node;
+
+        //         if (!invocations.TryPop(out node)) {
+        //             break;
+        //         }
+
+        //         Debug.Assert(node.Expression.Kind() is SyntaxKind.SimpleMemberAccessExpression);
+        //         var memberAccess = (MemberAccessExpressionSyntax)node.Expression;
+        //         analyzedArguments.Clear();
+        //         CheckContextForPointerTypes(nested, diagnostics, result); // BindExpression does this after calling BindExpressionInternal
+        //         boundExpression = BindMemberAccessWithBoundLeft(memberAccess, result, memberAccess.Name, memberAccess.OperatorToken, invoked: true, indexed: false, diagnostics);
+        //     }
+
+        //     invocations.Free();
+        // } else {
+        //     BoundExpression boundExpression = BindMethodGroup(node.Expression, invoked: true, indexed: false, diagnostics: diagnostics);
+        //     result = bindArgumentsAndInvocation(node, boundExpression, analyzedArguments, diagnostics);
+        // }
+
+        // analyzedArguments.Free();
+        // return result;
+
+        // BoundExpression bindArgumentsAndInvocation(InvocationExpressionSyntax node, BoundExpression boundExpression, AnalyzedArguments analyzedArguments, BindingDiagnosticBag diagnostics) {
+        //     boundExpression = CheckValue(boundExpression, BindValueKind.RValueOrMethodGroup, diagnostics);
+        //     string name = boundExpression.Kind == BoundKind.MethodGroup ? GetName(node.Expression) : null;
+        //     BindArgumentsAndNames(node.ArgumentList, diagnostics, analyzedArguments, allowArglist: true);
+        //     return BindInvocationExpression(node, node.Expression, name, boundExpression, analyzedArguments, diagnostics);
+        // }
+
+        // static bool receiverIsInvocation(InvocationExpressionSyntax node, out InvocationExpressionSyntax nested) {
+        //     if (node.Expression is MemberAccessExpressionSyntax { Expression: InvocationExpressionSyntax receiver, RawKind: (int)SyntaxKind.SimpleMemberAccessExpression } && !receiver.MayBeNameofOperator()) {
+        //         nested = receiver;
+        //         return true;
+        //     }
+
+        //     nested = null;
+        //     return false;
+        // }
+        return ErrorExpression(null);
     }
 
     private BoundExpression BindParenthesisExpression(
         ParenthesisExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
         var value = BindExpression(node.expression, diagnostics);
-        CheckNotType(value, diagnostics);
+        CheckNotType(value, node.expression.location, diagnostics);
         return value;
     }
 
-    private static bool CheckNotType(BoundExpression expression, BelteDiagnosticQueue diagnostics) {
+    private static bool CheckNotType(
+        BoundExpression expression,
+        TextLocation location,
+        BelteDiagnosticQueue diagnostics) {
         switch (expression.kind) {
             case BoundNodeKind.TypeExpression:
                 diagnostics.Push(
-                    Error.CannotUseType(expression.syntax.location, ((BoundTypeExpression)expression).type)
+                    Error.CannotUseType(location, ((BoundTypeExpression)expression).type)
                 );
 
                 return false;
@@ -1409,6 +1645,39 @@ internal partial class Binder {
             LookupSymbolsInternal(result, plainName, arity, basesBeingResolved, options, diagnose);
         else
             LookupMembersInternal(result, qualifier, plainName, arity, basesBeingResolved, options, this, diagnose);
+    }
+
+    private void LookupMembersWithFallback(
+        LookupResult result,
+        NamespaceOrTypeSymbol namespaceOrType,
+        string name,
+        int arity,
+        ConsList<TypeSymbol> basesBeingResolved = null,
+        LookupOptions options = LookupOptions.Default) {
+        LookupMembersInternal(
+            result,
+            namespaceOrType,
+            name,
+            arity,
+            basesBeingResolved,
+            options,
+            this,
+            false
+        );
+
+        if (!result.isMultiViable && !result.isClear) {
+            result.Clear();
+            LookupMembersInternal(
+                result,
+                namespaceOrType,
+                name,
+                arity,
+                basesBeingResolved,
+                options,
+                this,
+                true
+            );
+        }
     }
 
     private protected void LookupMembersInternal(
@@ -1907,8 +2176,6 @@ symIsHidden:;
             case SyntaxKind.ExpressionStatement:
                 return BindExpressionStatement((ExpressionStatementSyntax)node, diagnostics);
             /*
-            case SyntaxKind.ExpressionStatement:
-                return BindExpressionStatement((ExpressionStatementSyntax)syntax);
             case SyntaxKind.LocalDeclarationStatement:
                 var statement = BindLocalDeclarationStatement((LocalDeclarationStatementSyntax)syntax);
                 _shadowingVariable = null;
