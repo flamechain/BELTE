@@ -848,6 +848,11 @@ internal partial class Binder {
                 return ErrorExpression(null);
             case SyntaxKind.ParenthesizedExpression:
                 return BindParenthesisExpression((ParenthesisExpressionSyntax)node, diagnostics);
+            case SyntaxKind.MemberAccessExpression:
+                return BindMemberAccess((MemberAccessExpressionSyntax)node, called, indexed, diagnostics);
+            case SyntaxKind.IdentifierName:
+            case SyntaxKind.TemplateName:
+                return BindIdentifier((SimpleNameSyntax)node, called, indexed, diagnostics);
             /*
             case SyntaxKind.InitializerListExpression:
                 return BindInitializerListExpression((InitializerListExpressionSyntax)expression, initializerListType);
@@ -879,13 +884,6 @@ internal partial class Binder {
                 return BindObjectCreationExpression((ObjectCreationExpressionSyntax)expression);
             case SyntaxKind.ThrowExpression:
                 return BindThrowExpression((ThrowExpressionSyntax)expression);
-            case SyntaxKind.TemplateName:
-            case SyntaxKind.IdentifierName:
-                return BindIdentifier((SimpleNameSyntax)expression, called, allowTypes);
-            case SyntaxKind.MemberAccessExpression:
-                return BindMemberAccessExpression((MemberAccessExpressionSyntax)expression, called);
-            case SyntaxKind.NonNullableType when allowTypes:
-            case SyntaxKind.ReferenceType when allowTypes:
             case SyntaxKind.ArrayType when allowTypes:
                 return BindType((TypeSyntax)expression, explicitly: true);
                 */
@@ -898,6 +896,32 @@ internal partial class Binder {
         // This is factored out into a method for debugging purposes
         // TODO consider storing the entire node
         return new BoundErrorExpression(expression?.type ?? CreateErrorType("?"));
+    }
+
+    private BoundExpression BindIdentifier(
+        SimpleNameSyntax node,
+        bool called,
+        bool indexed,
+        BelteDiagnosticQueue diagnostics) {
+        // TODO
+        return ErrorExpression(null);
+    }
+
+    private BoundExpression BindMemberAccess(
+        MemberAccessExpressionSyntax node,
+        bool called,
+        bool indexed,
+        BelteDiagnosticQueue diagnostics) {
+        var boundLeft = BindExpression(node.expression, diagnostics);
+        return BindMemberAccessWithBoundLeft(
+            node,
+            boundLeft,
+            node.name,
+            node.operatorToken,
+            called,
+            indexed,
+            diagnostics
+        );
     }
 
     private BoundExpression BindReferenceType(ReferenceTypeSyntax node, BelteDiagnosticQueue diagnostics) {
