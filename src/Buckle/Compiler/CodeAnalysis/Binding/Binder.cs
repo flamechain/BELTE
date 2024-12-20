@@ -828,31 +828,18 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics,
         bool called,
         bool indexed) {
-        switch (node.kind) {
-            case SyntaxKind.LiteralExpression:
-                return BindLiteralExpression((LiteralExpressionSyntax)node, diagnostics);
-            case SyntaxKind.ThisExpression:
-                return BindThisExpression((ThisExpressionSyntax)node, diagnostics);
-            case SyntaxKind.BaseExpression:
-                return BindBaseExpression((BaseExpressionSyntax)node, diagnostics);
-            case SyntaxKind.EmptyExpression:
-                return BindEmptyExpression((EmptyExpressionSyntax)node, diagnostics);
-            case SyntaxKind.CallExpression:
-                return BindCallExpression((CallExpressionSyntax)node, diagnostics);
-            case SyntaxKind.QualifiedName:
-                return BindQualifiedName((QualifiedNameSyntax)node, diagnostics);
-            case SyntaxKind.ReferenceType:
-                return BindReferenceType((ReferenceTypeSyntax)node, diagnostics);
-            case SyntaxKind.NonNullableType:
-                // TODO Confirm this is not reachable without err
-                return ErrorExpression(null);
-            case SyntaxKind.ParenthesizedExpression:
-                return BindParenthesisExpression((ParenthesisExpressionSyntax)node, diagnostics);
-            case SyntaxKind.MemberAccessExpression:
-                return BindMemberAccess((MemberAccessExpressionSyntax)node, called, indexed, diagnostics);
-            case SyntaxKind.IdentifierName:
-            case SyntaxKind.TemplateName:
-                return BindIdentifier((SimpleNameSyntax)node, called, indexed, diagnostics);
+        return node.kind switch {
+            SyntaxKind.LiteralExpression => BindLiteralExpression((LiteralExpressionSyntax)node, diagnostics),
+            SyntaxKind.ThisExpression => BindThisExpression((ThisExpressionSyntax)node, diagnostics),
+            SyntaxKind.BaseExpression => BindBaseExpression((BaseExpressionSyntax)node, diagnostics),
+            SyntaxKind.EmptyExpression => BindEmptyExpression((EmptyExpressionSyntax)node, diagnostics),
+            SyntaxKind.CallExpression => BindCallExpression((CallExpressionSyntax)node, diagnostics),
+            SyntaxKind.QualifiedName => BindQualifiedName((QualifiedNameSyntax)node, diagnostics),
+            SyntaxKind.ReferenceType => BindReferenceType((ReferenceTypeSyntax)node, diagnostics),
+            SyntaxKind.NonNullableType => ErrorExpression(null), // TODO Confirm this is not reachable without err
+            SyntaxKind.ParenthesizedExpression => BindParenthesisExpression((ParenthesisExpressionSyntax)node, diagnostics),
+            SyntaxKind.MemberAccessExpression => BindMemberAccess((MemberAccessExpressionSyntax)node, called, indexed, diagnostics),
+            SyntaxKind.IdentifierName or SyntaxKind.TemplateName => BindIdentifier((SimpleNameSyntax)node, called, indexed, diagnostics),
             /*
             case SyntaxKind.InitializerListExpression:
                 return BindInitializerListExpression((InitializerListExpressionSyntax)expression, initializerListType);
@@ -887,9 +874,8 @@ internal partial class Binder {
             case SyntaxKind.ArrayType when allowTypes:
                 return BindType((TypeSyntax)expression, explicitly: true);
                 */
-            default:
-                throw ExceptionUtilities.UnexpectedValue(node.kind);
-        }
+            _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
+        };
     }
 
     private BoundErrorExpression ErrorExpression(BoundExpression expression) {
