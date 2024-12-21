@@ -889,7 +889,6 @@ internal partial class Binder {
         bool called,
         bool indexed,
         BelteDiagnosticQueue diagnostics) {
-        // TODO
         BoundExpression expression = null;
         var hasTemplateArguments = node.arity > 0;
         var templateArgumentList = node is TemplateNameSyntax t ? t.templateArgumentList : default;
@@ -1066,60 +1065,19 @@ internal partial class Binder {
                 }
             case SymbolKind.Parameter: {
                     var parameter = (ParameterSymbol)symbol;
-                    var primaryCtor = parameter.ContainingSymbol as SynthesizedPrimaryConstructor;
 
-                    if (primaryCtor is not null &&
-                        (!IsInDeclaringTypeInstanceMember(primaryCtor) ||
-                         (this.ContainingMember() is MethodSymbol { MethodKind: MethodKind.Constructor } containingMember && (object)containingMember != primaryCtor)) && // We are in a non-primary instance constructor
-                        !IsInsideNameof) {
-                        Error(diagnostics, ErrorCode.ERR_InvalidPrimaryConstructorParameterReference, node, parameter);
-                    } else {
-                        // Records never capture parameters within the type
-                        Debug.Assert(primaryCtor is null ||
-                                     primaryCtor.ContainingSymbol is NamedTypeSymbol { IsRecord: false, IsRecordStruct: false } ||
-                                     (this.ContainingMember() is FieldSymbol || (object)primaryCtor == this.ContainingMember()) ||
-                                     IsInsideNameof);
+                    if (IsBadLocalOrParameterCapture(parameter, parameter.type, parameter.refKind)) {
+                        isError = true;
 
-                        if (IsBadLocalOrParameterCapture(parameter, parameter.Type, parameter.RefKind)) {
-                            isError = true;
-
-                            if (parameter.RefKind != RefKind.None) {
-                                Error(diagnostics, ErrorCode.ERR_AnonDelegateCantUse, node, parameter.Name);
-                            } else if (parameter.Type.IsRestrictedType(ignoreSpanLikeTypes: true)) {
-                                Error(diagnostics, ErrorCode.ERR_SpecialByRefInLambda, node, parameter.Type);
-                            } else {
-                                Debug.Assert(parameter.Type.IsRefLikeOrAllowsRefLikeType());
-                                Error(diagnostics, ErrorCode.ERR_AnonDelegateCantUseRefLike, node, parameter.Name);
-                            }
-                        } else if (primaryCtor is not null) {
-                            // Quick check if this reference itself causes the parameter capture in a field
-                            bool capture = (this.ContainingMember() is MethodSymbol containingMethod && (object)primaryCtor != containingMethod);
-
-                            if (capture &&
-                                (parameter.RefKind != RefKind.None || parameter.Type.IsRestrictedType()) &&
-                                !IsInsideNameof) {
-                                if (parameter.RefKind != RefKind.None) {
-                                    Error(diagnostics, ErrorCode.ERR_UnsupportedPrimaryConstructorParameterCapturingRef, node, parameter.Name);
-                                } else if (parameter.Type.IsRestrictedType(ignoreSpanLikeTypes: true)) {
-                                    Error(diagnostics, ErrorCode.ERR_UnsupportedPrimaryConstructorParameterCapturingRefAny, node, parameter.Type);
-                                } else {
-                                    Debug.Assert(parameter.Type.IsRefLikeOrAllowsRefLikeType());
-                                    Error(diagnostics, ErrorCode.ERR_UnsupportedPrimaryConstructorParameterCapturingRefLike, node, parameter.Name);
-                                }
-                            } else if (primaryCtor is { ThisParameter.RefKind: not RefKind.None } &&
-                                       this.ContainingMemberOrLambda is MethodSymbol { MethodKind: MethodKind.AnonymousFunction or MethodKind.LocalFunction } &&
-                                       !IsInsideNameof) {
-                                // Captured in a lambda.
-
-                                if (capture) {
-                                    // This reference itself causes the parameter capture in a field
-                                    Error(diagnostics, ErrorCode.ERR_AnonDelegateCantUseStructPrimaryConstructorParameterInMember, node);
-                                } else if (primaryCtor.GetCapturedParameters().ContainsKey(parameter)) // check other references in the entire type
-                                  {
-                                    Error(diagnostics, ErrorCode.ERR_AnonDelegateCantUseStructPrimaryConstructorParameterCaptured, node);
-                                }
-                            }
-                        }
+                        // TODO error
+                        // if (parameter.refKind != RefKind.None) {
+                        //     Error(diagnostics, ErrorCode.ERR_AnonDelegateCantUse, node, parameter.Name);
+                        // } else if (parameter.Type.IsRestrictedType(ignoreSpanLikeTypes: true)) {
+                        //     Error(diagnostics, ErrorCode.ERR_SpecialByRefInLambda, node, parameter.Type);
+                        // } else {
+                        //     Debug.Assert(parameter.Type.IsRefLikeOrAllowsRefLikeType());
+                        //     Error(diagnostics, ErrorCode.ERR_AnonDelegateCantUseRefLike, node, parameter.Name);
+                        // }
                     }
 
                     return new BoundParameterExpression(parameter);
@@ -2340,6 +2298,16 @@ symIsHidden:;
         }
     }
 
+    internal static ImmutableArray<Symbol> GetCandidateMembers(
+        NamespaceOrTypeSymbol nsOrType,
+        LookupOptions options,
+        Binder originalBinder) {
+        if ((options & LookupOptions.NamespacesOrTypesOnly) != 0 && nsOrType is TypeSymbol)
+            return StaticCast<Symbol>.From(nsOrType.GetTypeMembersUnordered());
+        else
+            return nsOrType.GetMembersUnordered();
+    }
+
     private Binder LookupSymbolsInternal(
         LookupResult result,
         string name,
@@ -2379,6 +2347,96 @@ symIsHidden:;
         LookupSymbolsInfo info,
         LookupOptions options,
         Binder originalBinder) { }
+
+    internal void AddMemberLookupSymbolsInfo(
+        LookupSymbolsInfo result,
+        NamespaceOrTypeSymbol namespaceOrType,
+        LookupOptions options,
+        Binder originalBinder) {
+        if (namespaceOrType.isNamespace)
+            AddMemberLookupSymbolsInfoInNamespace(result, (NamespaceSymbol)namespaceOrType, options, originalBinder);
+        else
+            AddMemberLookupSymbolsInfoInType(result, (TypeSymbol)namespaceOrType, options, originalBinder);
+    }
+
+    private void AddMemberLookupSymbolsInfoInType(
+        LookupSymbolsInfo result,
+        TypeSymbol type,
+        LookupOptions options,
+        Binder originalBinder) {
+        switch (type.typeKind) {
+            case TypeKind.TemplateParameter:
+                AddMemberLookupSymbolsInfoInTemplateParameter(
+                    result,
+                    (TemplateParameterSymbol)type,
+                    options,
+                    originalBinder
+                );
+
+                break;
+            case TypeKind.Class:
+            case TypeKind.Struct:
+            case TypeKind.Array:
+                AddMemberLookupSymbolsInfoInClass(result, type, options, originalBinder, type);
+                break;
+        }
+    }
+
+    private void AddMemberLookupSymbolsInfoInTemplateParameter(
+        LookupSymbolsInfo result,
+        TemplateParameterSymbol type,
+        LookupOptions options,
+        Binder originalBinder) {
+        var effectiveBaseClass = type.effectiveBaseClass;
+        AddMemberLookupSymbolsInfoInClass(result, effectiveBaseClass, options, originalBinder, effectiveBaseClass);
+    }
+
+    private void AddMemberLookupSymbolsInfoInClass(
+        LookupSymbolsInfo result,
+        TypeSymbol type,
+        LookupOptions options,
+        Binder originalBinder,
+        TypeSymbol accessThroughType) {
+        PooledHashSet<NamedTypeSymbol> visited = null;
+
+        while (type is not null && !type.IsVoidType()) {
+            AddMemberLookupSymbolsInfoWithoutInheritance(result, type, options, originalBinder, accessThroughType);
+            type = type.GetNextBaseType(null, ref visited);
+        }
+
+        visited?.Free();
+    }
+
+    private static void AddMemberLookupSymbolsInfoWithoutInheritance(
+        LookupSymbolsInfo result,
+        TypeSymbol type,
+        LookupOptions options,
+        Binder originalBinder,
+        TypeSymbol accessThroughType) {
+        var candidateMembers = result.filterName is not null
+            ? GetCandidateMembers(type, result.filterName, options, originalBinder)
+            : GetCandidateMembers(type, options, originalBinder);
+
+        foreach (var symbol in candidateMembers) {
+            if (originalBinder.CanAddLookupSymbolInfo(symbol, options, result, accessThroughType))
+                result.AddSymbol(symbol, symbol.name, symbol.GetArity());
+        }
+    }
+
+    private static void AddMemberLookupSymbolsInfoInNamespace(
+        LookupSymbolsInfo result,
+        NamespaceSymbol ns,
+        LookupOptions options,
+        Binder originalBinder) {
+        var candidateMembers = result.filterName is not null
+            ? GetCandidateMembers(ns, result.filterName, options, originalBinder)
+            : GetCandidateMembers(ns, options, originalBinder);
+
+        foreach (var symbol in candidateMembers) {
+            if (originalBinder.CanAddLookupSymbolInfo(symbol, options, result, null))
+                result.AddSymbol(symbol, symbol.name, symbol.GetArity());
+        }
+    }
 
     internal bool CanAddLookupSymbolInfo(
         Symbol symbol,

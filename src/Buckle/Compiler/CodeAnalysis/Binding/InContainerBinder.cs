@@ -20,6 +20,25 @@ internal class InContainerBinder : Binder {
         return IsSymbolAccessibleConditional(symbol, compilation.globalNamespaceInternal);
     }
 
+
+    internal override void LookupSymbolsInSingleBinder(
+        LookupResult result,
+        string name,
+        int arity,
+        ConsList<TypeSymbol> basesBeingResolved,
+        LookupOptions options,
+        Binder originalBinder,
+        bool diagnose) {
+        LookupMembersInternal(result, container, name, arity, basesBeingResolved, options, originalBinder, diagnose);
+    }
+
+    internal override void AddLookupSymbolsInfoInSingleBinder(
+        LookupSymbolsInfo result,
+        LookupOptions options,
+        Binder originalBinder) {
+        AddMemberLookupSymbolsInfo(result, container, options, originalBinder);
+    }
+
     private protected override SourceDataContainerSymbol LookupLocal(SyntaxToken identifier) {
         return null;
     }

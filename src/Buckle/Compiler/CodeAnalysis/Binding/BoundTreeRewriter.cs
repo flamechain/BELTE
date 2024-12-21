@@ -192,7 +192,7 @@ internal abstract class BoundTreeRewriter {
             case BoundNodeKind.InitializerDictionaryExpression:
                 return RewriteInitializerDictionaryExpression((BoundInitializerDictionaryExpression)expression);
             case BoundNodeKind.DataContainerExpression:
-                return RewriteVariableExpression((BoundDataContainerExpression)expression);
+                return RewriteDataContainerExpression((BoundDataContainerExpression)expression);
             case BoundNodeKind.AssignmentExpression:
                 return RewriteAssignmentExpression((BoundAssignmentExpression)expression);
             case BoundNodeKind.UnaryExpression:
@@ -241,6 +241,8 @@ internal abstract class BoundTreeRewriter {
                 return RewriteThrowExpression((BoundThrowExpression)expression);
             case BoundNodeKind.TypeExpression:
                 return RewriteTypeExpression((BoundTypeExpression)expression);
+            case BoundNodeKind.ParameterExpression:
+                return RewriteParameterExpression((BoundParameterExpression)expression);
             default:
                 throw new BelteInternalException($"RewriteExpression: unexpected expression type '{expression.kind}'");
         }
@@ -458,7 +460,11 @@ internal abstract class BoundTreeRewriter {
         return expression;
     }
 
-    private protected virtual BoundExpression RewriteVariableExpression(BoundDataContainerExpression expression) {
+    private protected virtual BoundExpression RewriteDataContainerExpression(BoundDataContainerExpression expression) {
+        return expression;
+    }
+
+    private protected virtual BoundExpression RewriteParameterExpression(BoundParameterExpression expression) {
         return expression;
     }
 

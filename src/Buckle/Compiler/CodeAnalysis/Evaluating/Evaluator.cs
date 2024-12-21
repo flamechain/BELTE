@@ -110,18 +110,18 @@ internal sealed class Evaluator {
         return new EvaluatorObject(evaluatorObject.value, evaluatorObject.type);
     }
 
-    private EvaluatorObject Get(DataContainerSymbol variable) {
-        if (variable.kind == SymbolKind.Global) {
-            if (_globals.TryGetValue(variable, out var evaluatorObject))
+    private EvaluatorObject Get(Symbol symbol) {
+        if (symbol is DataContainerSymbol d && d.kind == SymbolKind.Global) {
+            if (_globals.TryGetValue(d, out var evaluatorObject))
                 return evaluatorObject;
         } else {
             foreach (var frame in _locals) {
-                if (frame.TryGetValue(variable, out var evaluatorObject))
+                if (frame.TryGetValue(symbol, out var evaluatorObject))
                     return evaluatorObject;
             }
         }
 
-        throw new BelteInternalException($"Get: '{variable.name}' was not found in any accessible scopes");
+        throw ExceptionUtilities.Unreachable();
     }
 
     private EvaluatorObject GetFromScopeWithFallback(
@@ -241,6 +241,9 @@ internal sealed class Evaluator {
             BoundNodeKind.ThisExpression => EvaluateThisExpression(),
             BoundNodeKind.BaseExpression => EvaluateBaseExpression(),
             BoundNodeKind.CastExpression => EvaluateCastExpression((BoundCastExpression)expression, abort),
+            BoundNodeKind.DataContainerExpression => EvaluateDataContainerExpression((BoundDataContainerExpression)expression),
+            BoundNodeKind.ParameterExpression => EvaluateParameterExpression((BoundParameterExpression)expression),
+            BoundNodeKind.FieldAccessExpression => EvaluateFieldAccessExpression((BoundFieldAccessExpression)expression, abort),
             _ => throw new BelteInternalException($"EvaluateExpression: unexpected node '{expression.kind}'"),
         };
     }
@@ -252,6 +255,21 @@ internal sealed class Evaluator {
 
         var type = CorLibrary.GetSpecialType(constantValue.specialType);
         return new EvaluatorObject(constantValue.value, type);
+    }
+
+    private EvaluatorObject EvaluateDataContainerExpression(BoundDataContainerExpression expression) {
+        return new EvaluatorObject(expression.dataContainer);
+    }
+
+    private EvaluatorObject EvaluateParameterExpression(BoundParameterExpression expression) {
+        return new EvaluatorObject(expression.parameter);
+    }
+
+    private EvaluatorObject EvaluateFieldAccessExpression(
+        BoundFieldAccessExpression expression,
+        ValueWrapper<bool> abort) {
+        var operand = Dereference(EvaluateExpression(expression.receiver, abort), true);
+        return operand.members[expression.field];
     }
 
     private EvaluatorObject EvaluateThisExpression() {

@@ -189,7 +189,7 @@ internal abstract class BoundTreeExpander {
                     (BoundInitializerDictionaryExpression)expression, out replacement
                 );
             case BoundNodeKind.DataContainerExpression:
-                return ExpandVariableExpression((BoundDataContainerExpression)expression, out replacement);
+                return ExpandDataContainerExpression((BoundDataContainerExpression)expression, out replacement);
             case BoundNodeKind.AssignmentExpression:
                 return ExpandAssignmentExpression((BoundAssignmentExpression)expression, out replacement);
             case BoundNodeKind.UnaryExpression:
@@ -242,9 +242,18 @@ internal abstract class BoundTreeExpander {
                 return ExpandThrowExpression((BoundThrowExpression)expression, out replacement);
             case BoundNodeKind.TypeExpression:
                 return ExpandTypeExpression((BoundTypeExpression)expression, out replacement);
+            case BoundNodeKind.ParameterExpression:
+                return ExpandParameterExpression((BoundParameterExpression)expression, out replacement);
             default:
                 throw new BelteInternalException($"ExpandExpression: unexpected expression type '{expression.kind}'");
         }
+    }
+
+    private protected virtual List<BoundStatement> ExpandParameterExpression(
+        BoundParameterExpression expression,
+        out BoundExpression replacement) {
+        replacement = expression;
+        return [];
     }
 
     private protected virtual List<BoundStatement> ExpandTypeExpression(
@@ -390,7 +399,7 @@ internal abstract class BoundTreeExpander {
         return [];
     }
 
-    private protected virtual List<BoundStatement> ExpandVariableExpression(
+    private protected virtual List<BoundStatement> ExpandDataContainerExpression(
         BoundDataContainerExpression expression,
         out BoundExpression replacement) {
         replacement = expression;

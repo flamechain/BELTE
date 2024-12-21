@@ -50,15 +50,12 @@ public sealed class EvaluatorObject {
     /// <param name="isExplicitReference">
     /// If this is just a variable, or if it explicitly a reference expression.
     /// </param>
-    internal EvaluatorObject(DataContainerSymbol reference, bool isExplicitReference = false) {
+    internal EvaluatorObject(Symbol reference, bool isExplicitReference = false) {
         value = null;
         isReference = true;
         this.reference = reference;
         this.isExplicitReference = isExplicitReference;
         members = null;
-
-        // TODO is there ever a case where this isn't true?
-        type = reference.type;
     }
 
     internal object value { get; set; }
@@ -67,7 +64,7 @@ public sealed class EvaluatorObject {
 
     internal bool isExplicitReference { get; set; }
 
-    internal DataContainerSymbol reference { get; set; }
+    internal Symbol reference { get; set; }
 
     internal Dictionary<Symbol, EvaluatorObject> members { get; set; }
 

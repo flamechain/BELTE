@@ -20,4 +20,17 @@ internal static class SymbolExtensions {
 
         return SyntaxTree.Dummy.GetRoot();
     }
+
+    internal static int GetArity(this Symbol symbol) {
+        if (symbol is not null) {
+            switch (symbol.kind) {
+                case SymbolKind.NamedType:
+                    return ((NamedTypeSymbol)symbol).arity;
+                case SymbolKind.Method:
+                    return ((MethodSymbol)symbol).arity;
+            }
+        }
+
+        return 0;
+    }
 }

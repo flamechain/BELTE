@@ -336,4 +336,64 @@ internal class LocalScopeBinder : Binder {
         // TODO error
         return false;
     }
+
+    internal override void LookupSymbolsInSingleBinder(
+        LookupResult result,
+        string name,
+        int arity,
+        ConsList<TypeSymbol> basesBeingResolved,
+        LookupOptions options,
+        Binder originalBinder,
+        bool diagnose) {
+        var localsMap = _localsMap;
+
+        if (localsMap is not null) {
+            if (localsMap.TryGetValue(name, out var localSymbol)) {
+                result.MergeEqual(originalBinder.CheckViability(
+                    localSymbol,
+                    arity,
+                    options,
+                    null,
+                    diagnose,
+                    basesBeingResolved
+                ));
+            }
+        }
+
+        var localFunctionsMap = _localFunctionsMap;
+
+        if (localFunctionsMap is not null && options.CanConsiderLocals()) {
+            if (localFunctionsMap.TryGetValue(name, out var localSymbol)) {
+                result.MergeEqual(originalBinder.CheckViability(
+                    localSymbol,
+                    arity,
+                    options,
+                    null,
+                    diagnose,
+                    basesBeingResolved
+                ));
+            }
+        }
+    }
+
+    internal override void AddLookupSymbolsInfoInSingleBinder(
+        LookupSymbolsInfo result,
+        LookupOptions options,
+        Binder originalBinder) {
+        if (options.CanConsiderLocals()) {
+            if (_localsMap is not null) {
+                foreach (var local in _localsMap) {
+                    if (originalBinder.CanAddLookupSymbolInfo(local.Value, options, result, null))
+                        result.AddSymbol(local.Value, local.Key, 0);
+                }
+            }
+
+            if (_localFunctionsMap is not null) {
+                foreach (var local in _localFunctionsMap) {
+                    if (originalBinder.CanAddLookupSymbolInfo(local.Value, options, result, null))
+                        result.AddSymbol(local.Value, local.Key, 0);
+                }
+            }
+        }
+    }
 }

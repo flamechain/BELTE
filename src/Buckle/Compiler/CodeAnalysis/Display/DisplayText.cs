@@ -171,7 +171,7 @@ public sealed class DisplayText {
                 DisplayBinaryExpression(text, (BoundBinaryExpression)node);
                 break;
             case BoundNodeKind.DataContainerExpression:
-                DisplayDataContainer(text, (BoundDataContainerExpression)node);
+                DisplayDataContainerExpression(text, (BoundDataContainerExpression)node);
                 break;
             case BoundNodeKind.AssignmentExpression:
                 DisplayAssignmentExpression(text, (BoundAssignmentExpression)node);
@@ -238,6 +238,15 @@ public sealed class DisplayText {
                 break;
             case BoundNodeKind.FieldEqualsValue:
                 DisplayFieldEqualsValue(text, (BoundFieldEqualsValue)node);
+                break;
+            case BoundNodeKind.ParameterExpression:
+                DisplayParameterExpression(text, (BoundParameterExpression)node);
+                break;
+            case BoundNodeKind.ParameterEqualsValue:
+                DisplayParameterEqualsValue(text, (BoundParameterEqualsValue)node);
+                break;
+            case BoundNodeKind.TemplateParameterEqualsValue:
+                DisplayTemplateParameterEqualsValue(text, (BoundTemplateParameterEqualsValue)node);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
@@ -789,8 +798,12 @@ public sealed class DisplayText {
         DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.QuestionQuestionToken);
     }
 
-    private static void DisplayDataContainer(DisplayText text, BoundDataContainerExpression node) {
+    private static void DisplayDataContainerExpression(DisplayText text, BoundDataContainerExpression node) {
         SymbolDisplay.AppendToDisplayText(text, node.dataContainer, SymbolDisplayFormat.Everything);
+    }
+
+    private static void DisplayParameterExpression(DisplayText text, BoundParameterExpression node) {
+        SymbolDisplay.AppendToDisplayText(text, node.parameter, SymbolDisplayFormat.Everything);
     }
 
     private static void DisplayUnaryExpression(DisplayText text, BoundUnaryExpression node) {
@@ -804,11 +817,23 @@ public sealed class DisplayText {
     }
 
     private static void DisplayFieldEqualsValue(DisplayText text, BoundFieldEqualsValue node) {
-        SymbolDisplay.AppendToDisplayText(text, node.field, SymbolDisplayFormat.Everything);
+        DisplayEqualsValueCore(text, node.field, node.value);
+    }
+
+    private static void DisplayParameterEqualsValue(DisplayText text, BoundParameterEqualsValue node) {
+        DisplayEqualsValueCore(text, node.parameter, node.value);
+    }
+
+    private static void DisplayTemplateParameterEqualsValue(DisplayText text, BoundTemplateParameterEqualsValue node) {
+        DisplayEqualsValueCore(text, node.parameter, node.value);
+    }
+
+    private static void DisplayEqualsValueCore(DisplayText text, Symbol symbol, BoundExpression value) {
+        SymbolDisplay.AppendToDisplayText(text, symbol, SymbolDisplayFormat.Everything);
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.EqualsToken));
         text.Write(CreateSpace());
-        DisplayNode(text, node.value);
+        DisplayNode(text, value);
         text.Write(CreateLine());
     }
 }
