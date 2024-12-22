@@ -54,8 +54,11 @@ public static class SymbolDisplay {
             case SymbolKind.Field:
                 DisplayField(text, (FieldSymbol)symbol, format);
                 break;
-            case SymbolKind.NamedType:
+            case SymbolKind.NamedType when symbol is not ConstructedNamedTypeSymbol:
                 DisplayNamedType(text, (NamedTypeSymbol)symbol, format);
+                break;
+            case SymbolKind.NamedType:
+                DisplayType(text, (NamedTypeSymbol)symbol, format);
                 break;
             case SymbolKind.TemplateParameter:
                 DisplayTemplateParameter(text, (TemplateParameterSymbol)symbol, format);

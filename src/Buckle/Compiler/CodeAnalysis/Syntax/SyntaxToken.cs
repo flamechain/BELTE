@@ -2,6 +2,7 @@ using System;
 using Buckle.CodeAnalysis.Display;
 using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 using Buckle.CodeAnalysis.Text;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
@@ -111,12 +112,12 @@ public sealed class SyntaxToken {
     internal TextLocation location => syntaxTree is not null ? new TextLocation(syntaxTree.text, span) : null;
 
     /// <summary>
-    /// Determintes whether this token has any leading trivia.
+    /// Determines whether this token has any leading trivia.
     /// </summary>
     internal bool hasLeadingTrivia => leadingTrivia.Count > 0;
 
     /// <summary>
-    /// Determintes whether this token has any trailing trivia.
+    /// Determines whether this token has any trailing trivia.
     /// </summary>
     internal bool hasTrailingTrivia => trailingTrivia.Count > 0;
 
@@ -170,5 +171,31 @@ public sealed class SyntaxToken {
         }
 
         text.Write(CreatePunctuation("⟩"));
+    }
+
+    public static bool operator ==(SyntaxToken left, SyntaxToken right) {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(SyntaxToken left, SyntaxToken right) {
+        return !left.Equals(right);
+    }
+
+    public bool Equals(SyntaxToken other) {
+        if (other is null)
+            return false;
+
+        return parent == other.parent &&
+               node == other.node &&
+               position == other.position &&
+               index == other.index;
+    }
+
+    public override bool Equals(object obj) {
+        return obj is SyntaxToken token && Equals(token);
+    }
+
+    public override int GetHashCode() {
+        return Hash.Combine(parent, Hash.Combine(node, Hash.Combine(position, index)));
     }
 }

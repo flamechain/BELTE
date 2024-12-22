@@ -35,6 +35,8 @@ internal sealed class Evaluator {
         _program = program;
         _enclosingTypes = new Stack<EvaluatorObject>();
         _locals = new Stack<Dictionary<Symbol, EvaluatorObject>>();
+        _locals.Push([]);
+        exceptions = [];
     }
 
     /// <summary>
@@ -107,7 +109,23 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject Copy(EvaluatorObject evaluatorObject) {
-        return new EvaluatorObject(evaluatorObject.value, evaluatorObject.type);
+        if (evaluatorObject.reference is not null && !evaluatorObject.isExplicitReference)
+            return Copy(Get(evaluatorObject.reference));
+        else if (evaluatorObject.reference is not null)
+            return new EvaluatorObject(evaluatorObject.reference, isExplicitReference: true);
+        else if (evaluatorObject.members is not null)
+            return new EvaluatorObject(Copy(evaluatorObject.members), evaluatorObject.type);
+        else
+            return new EvaluatorObject(evaluatorObject.value, evaluatorObject.type);
+    }
+
+    private Dictionary<Symbol, EvaluatorObject> Copy(Dictionary<Symbol, EvaluatorObject> members) {
+        var newMembers = new Dictionary<Symbol, EvaluatorObject>();
+
+        foreach (var member in members)
+            newMembers.Add(member.Key, Copy(member.Value));
+
+        return newMembers;
     }
 
     private EvaluatorObject Get(Symbol symbol) {
@@ -193,9 +211,9 @@ internal sealed class Evaluator {
             }
 
             return _lastValue;
-        } catch (Exception e) when (e is not BelteInternalException) {
+            // } catch (Exception e) when (e is not BelteInternalException) {
             // TODO temp for exception tracing, delete
-            // } catch (BelteInternalException e) {
+        } catch (BelteInternalException e) {
             if (abort)
                 return EvaluatorObject.Null;
 

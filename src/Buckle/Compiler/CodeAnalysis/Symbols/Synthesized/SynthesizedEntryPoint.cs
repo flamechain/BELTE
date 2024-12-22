@@ -2,17 +2,30 @@ using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class SynthesizedEntryPoint : MethodSymbol {
+    private readonly BlockStatementSyntax _synthesizedBody;
+    private readonly MethodDeclarationSyntax _synthesizedDeclaration;
+
+    private TypeWithAnnotations _returnType;
+
     internal SynthesizedEntryPoint(
         Symbol containingSymbol,
         TypeWithAnnotations returnType,
         ImmutableArray<GlobalStatementSyntax> syntax) {
         this.containingSymbol = containingSymbol;
-        returnTypeWithAnnotations = returnType;
-        statements = syntax;
+        _returnType = returnType;
+
+        var bodyBuilder = ArrayBuilder<StatementSyntax>.GetInstance();
+
+        foreach (var statement in syntax)
+            bodyBuilder.Add(statement.statement);
+
+        _synthesizedBody = SyntaxFactory.BlockWithParent(bodyBuilder.ToArrayAndFree());
+        _synthesizedDeclaration = SyntaxFactory.MethodWithParent(_synthesizedBody);
     }
 
     public override string name => WellKnownMemberNames.EntryPointMethodName;
@@ -33,7 +46,7 @@ internal sealed class SynthesizedEntryPoint : MethodSymbol {
 
     internal override Symbol containingSymbol { get; }
 
-    internal override TypeWithAnnotations returnTypeWithAnnotations { get; }
+    internal override TypeWithAnnotations returnTypeWithAnnotations => _returnType;
 
     internal override ImmutableArray<ParameterSymbol> parameters => [];
 
@@ -63,5 +76,14 @@ internal sealed class SynthesizedEntryPoint : MethodSymbol {
 
     internal override TextLocation location => null;
 
-    internal ImmutableArray<GlobalStatementSyntax> statements { get; }
+    internal MethodDeclarationSyntax body => _synthesizedDeclaration;
+
+    internal ExecutableCodeBinder TryGetBodyBinder() {
+        var inMethodBinder = declaringCompilation.GetBinder(_synthesizedBody);
+        return inMethodBinder is null ? null : new ExecutableCodeBinder(_synthesizedDeclaration, this, inMethodBinder);
+    }
+
+    internal void CorrectReturnType(TypeWithAnnotations type) {
+        _returnType = type;
+    }
 }

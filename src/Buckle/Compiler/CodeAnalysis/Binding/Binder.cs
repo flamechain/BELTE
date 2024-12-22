@@ -2474,8 +2474,56 @@ symIsHidden:;
         TypeSymbol accessThroughType,
         bool diagnose,
         ConsList<TypeSymbol> basesBeingResolved = null) {
-        // TODO
-        return default;
+        bool inaccessibleViaQualifier;
+        BelteDiagnostic diagInfo;
+
+        if ((options & LookupOptions.MustNotBeParameter) != 0 && symbol is ParameterSymbol) {
+            return LookupResult.Empty();
+        } else if (!IsInScopeOfAssociatedSyntaxTree(symbol)) {
+            return LookupResult.Empty();
+        } else if ((options & (LookupOptions.MustNotBeInstance | LookupOptions.MustBeAbstractOrVirtual)) ==
+            (LookupOptions.MustNotBeInstance | LookupOptions.MustBeAbstractOrVirtual) &&
+            (symbol is not TypeSymbol && IsInstance(symbol) || !(symbol.isAbstract || symbol.isVirtual))) {
+            return LookupResult.Empty();
+            // } else if (WrongArity(symbol, arity, diagnose, options, out diagInfo)) {
+            //     return LookupResult.WrongArity(symbol, diagInfo);
+        } else if ((options & LookupOptions.NamespacesOrTypesOnly) != 0 && symbol is not NamespaceOrTypeSymbol) {
+            return LookupResult.NotTypeOrNamespace(symbol, symbol, diagnose);
+        } else if ((options & LookupOptions.MustBeInvocableIfMember) != 0
+              && IsNonInvocableMember(symbol)) {
+            return LookupResult.NotInvocable(symbol, symbol, diagnose);
+        } else if (!IsAccessible(
+            symbol,
+            RefineAccessThroughType(options, accessThroughType),
+            out inaccessibleViaQualifier,
+            basesBeingResolved)) {
+            // TODO error
+            // if (!diagnose) {
+            //     diagInfo = null;
+            // } else if (inaccessibleViaQualifier) {
+            //     diagInfo = new CSDiagnosticInfo(ErrorCode.ERR_BadProtectedAccess, symbol, accessThroughType, this.ContainingType);
+            // } else if (IsBadIvtSpecification()) {
+            //     diagInfo = new CSDiagnosticInfo(ErrorCode.ERR_FriendRefNotEqualToThis, symbol.ContainingAssembly.Identity.ToString(), AssemblyIdentity.PublicKeyToString(this.Compilation.Assembly.PublicKey));
+            // } else {
+            //     diagInfo = new CSDiagnosticInfo(ErrorCode.ERR_BadAccess, new[] { symbol }, ImmutableArray.Create<Symbol>(symbol), additionalLocations: ImmutableArray<Location>.Empty);
+            // }
+
+            return LookupResult.Inaccessible(symbol, null/*diagInfo*/);
+            // } else if (symbol.MustCallMethodsDirectly()) {
+            //     diagInfo = diagnose ? MakeCallMethodsDirectlyDiagnostic(symbol) : null;
+            //     return LookupResult.NotReferencable(symbol, diagInfo);
+        } else if ((options & LookupOptions.MustBeInstance) != 0 && !IsInstance(symbol)) {
+            // diagInfo = diagnose ? new CSDiagnosticInfo(ErrorCode.ERR_ObjectRequired, symbol) : null;
+            return LookupResult.StaticInstanceMismatch(symbol, null);
+        } else if ((options & LookupOptions.MustNotBeInstance) != 0 && IsInstance(symbol)) {
+            // diagInfo = diagnose ? new CSDiagnosticInfo(ErrorCode.ERR_ObjectProhibited, symbol) : null;
+            return LookupResult.StaticInstanceMismatch(symbol, null);
+        } else if ((options & LookupOptions.MustNotBeNamespace) != 0 && symbol.kind == SymbolKind.Namespace) {
+            // diagInfo = diagnose ? new CSDiagnosticInfo(ErrorCode.ERR_BadSKunknown, symbol, symbol.GetKindText()) : null;
+            return LookupResult.NotTypeOrNamespace(symbol, null);
+        } else {
+            return LookupResult.Good(symbol);
+        }
     }
 
     internal bool IsNonInvocableMember(Symbol symbol) {
@@ -2595,15 +2643,11 @@ symIsHidden:;
     #region Statements
 
     internal BoundStatement BindStatement(StatementSyntax node, BelteDiagnosticQueue diagnostics) {
-        switch (node.kind) {
-            case SyntaxKind.BlockStatement:
-                return BindBlockStatement((BlockStatementSyntax)node, diagnostics);
-            case SyntaxKind.ReturnStatement:
-                return BindReturnStatement((ReturnStatementSyntax)node, diagnostics);
-            case SyntaxKind.ExpressionStatement:
-                return BindExpressionStatement((ExpressionStatementSyntax)node, diagnostics);
-            case SyntaxKind.LocalDeclarationStatement:
-                return BindLocalDeclarationStatement((LocalDeclarationStatementSyntax)node, diagnostics);
+        return node.kind switch {
+            SyntaxKind.BlockStatement => BindBlockStatement((BlockStatementSyntax)node, diagnostics),
+            SyntaxKind.ReturnStatement => BindReturnStatement((ReturnStatementSyntax)node, diagnostics),
+            SyntaxKind.ExpressionStatement => BindExpressionStatement((ExpressionStatementSyntax)node, diagnostics),
+            SyntaxKind.LocalDeclarationStatement => BindLocalDeclarationStatement((LocalDeclarationStatementSyntax)node, diagnostics),
             /*
             case SyntaxKind.LocalDeclarationStatement:
                 var statement = BindLocalDeclarationStatement((LocalDeclarationStatementSyntax)syntax);
@@ -2626,9 +2670,8 @@ symIsHidden:;
             case SyntaxKind.LocalFunctionStatement:
                 return new BoundBlockStatement([]);
             */
-            default:
-                throw ExceptionUtilities.UnexpectedValue(node.kind);
-        }
+            _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
+        };
     }
 
     private BoundLocalDeclarationStatement BindLocalDeclarationStatement(
@@ -2955,21 +2998,25 @@ symIsHidden:;
 
         if (returnType is not null) {
             if (returnType.IsVoidType()) {
-                if (argument is not null) {
+                if (argument is not null && containingMember is not SynthesizedEntryPoint) {
                     hasErrors = true;
                     diagnostics.Push(Error.UnexpectedReturnValue(node.keyword.location));
                     // TODO confirm this error has enough info, maybe include containingMember?
                 }
             } else {
                 if (argument is null) {
-                    hasErrors = true;
-                    diagnostics.Push(Error.MissingReturnValue(node.keyword.location));
+                    if (containingMember is not SynthesizedEntryPoint) {
+                        hasErrors = true;
+                        diagnostics.Push(Error.MissingReturnValue(node.keyword.location));
+                    }
                 } else {
                     argument = CreateReturnConversion(node, diagnostics, argument, signatureRefKind, returnType);
                 }
             }
         } else {
-            if (argument?.type is not null && argument.type.IsVoidType()) {
+            if (argument?.type is not null &&
+                argument.type.IsVoidType() &&
+                containingMember is not SynthesizedEntryPoint) {
                 diagnostics.Push(Error.UnexpectedReturnValue(node.expression.location));
                 hasErrors = true;
             }

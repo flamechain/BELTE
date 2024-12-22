@@ -87,6 +87,17 @@ public static partial class SyntaxFactory {
     }
 
     /// <summary>
+    /// Creates an empty <see cref="ParameterListSyntax" />.
+    /// </summary>
+    public static ParameterListSyntax ParameterList() {
+        return ParameterList(
+            Token(SyntaxKind.OpenParenToken),
+            SeparatedList<ParameterSyntax>(),
+            Token(SyntaxKind.CloseParenToken)
+        );
+    }
+
+    /// <summary>
     /// Creates an empty <see cref="TemplateConstraintClauseListSyntax" />.
     /// </summary>
     public static TemplateConstraintClauseListSyntax ConstraintClauseList() {
@@ -124,7 +135,35 @@ public static partial class SyntaxFactory {
         return BlockStatement(
             Token(SyntaxKind.OpenBraceToken),
             List(statements),
-            Token(SyntaxKind.CloseBraceToken)
+            Token(SyntaxKind.CloseBraceToken),
+            statements[0],
+            statements[0].position
+        );
+    }
+
+    internal static BlockStatementSyntax BlockWithParent(params StatementSyntax[] statements) {
+        return BlockStatement(
+            Token(SyntaxKind.OpenBraceToken),
+            List(statements),
+            Token(SyntaxKind.CloseBraceToken),
+            statements[0],
+            statements[0].position
+        );
+    }
+
+    internal static MethodDeclarationSyntax MethodWithParent(BlockStatementSyntax body) {
+        return MethodDeclaration(
+            List<AttributeListSyntax>(),
+            SyntaxTokenList.Empty,
+            IdentifierName(""),
+            Identifier(""),
+            TemplateParameterList(),
+            ParameterList(),
+            ConstraintClauseList(),
+            body,
+            Token(SyntaxKind.SemicolonToken),
+            body.statements[0],
+            body.statements[0].position
         );
     }
 

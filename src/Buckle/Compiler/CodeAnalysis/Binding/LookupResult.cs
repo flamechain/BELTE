@@ -30,6 +30,37 @@ internal sealed class LookupResult {
         return new SingleLookupResult(LookupResultKind.Viable, symbol, null);
     }
 
+    internal static SingleLookupResult Empty() {
+        return new SingleLookupResult(LookupResultKind.Empty, null, null);
+    }
+
+    internal static SingleLookupResult WrongArity(Symbol symbol, BelteDiagnostic error) {
+        return new SingleLookupResult(LookupResultKind.WrongTemplate, symbol, error);
+    }
+
+    internal static SingleLookupResult NotTypeOrNamespace(Symbol symbol, BelteDiagnostic error) {
+        return new SingleLookupResult(LookupResultKind.NotAType, symbol, error);
+    }
+
+    internal static SingleLookupResult NotTypeOrNamespace(Symbol unwrappedSymbol, Symbol symbol, bool diagnose) {
+        // TODO error
+        // var diagInfo = diagnose ? new CSDiagnosticInfo(ErrorCode.ERR_BadSKknown, unwrappedSymbol.Name, unwrappedSymbol.GetKindText(), MessageID.IDS_SK_TYPE.Localize()) : null;
+        return new SingleLookupResult(LookupResultKind.NotAType, symbol, null);
+    }
+
+    internal static SingleLookupResult StaticInstanceMismatch(Symbol symbol, BelteDiagnostic error) {
+        return new SingleLookupResult(LookupResultKind.StaticInstanceMismatch, symbol, error);
+    }
+
+    internal static SingleLookupResult Inaccessible(Symbol symbol, BelteDiagnostic error) {
+        return new SingleLookupResult(LookupResultKind.Inaccessible, symbol, error);
+    }
+
+    internal static SingleLookupResult NotInvocable(Symbol unwrappedSymbol, Symbol symbol, bool diagnose) {
+        // var diagInfo = diagnose ? new CSDiagnosticInfo(ErrorCode.ERR_NonInvocableMemberCalled, unwrappedSymbol) : null;
+        return new SingleLookupResult(LookupResultKind.NotInvocable, symbol, /*diagInfo*/ null);
+    }
+
     internal void Clear() {
         kind = LookupResultKind.Empty;
         symbols.Clear();

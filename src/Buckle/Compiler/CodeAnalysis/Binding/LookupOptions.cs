@@ -15,5 +15,5 @@ internal enum LookupOptions : int {
     AllNamedTypesOnArityZero = 1 << 8,
     MustNotBeMethodTemplateParameter = 1 << 9,
     MustBeAbstractOrVirtual = 1 << 10,
-    MostNotBeParameter = 1 << 11
+    MustNotBeParameter = 1 << 11
 }

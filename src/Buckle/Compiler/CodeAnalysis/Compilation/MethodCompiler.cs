@@ -283,20 +283,9 @@ internal sealed class MethodCompiler {
             var statement = new BoundExpressionStatement(baseConstructorCall);
             body = new BoundBlockStatement([statement], [], []);
         } else if (method is SynthesizedEntryPoint entryPoint) {
-            var bodyBuilder = ArrayBuilder<BoundStatement>.GetInstance();
-
-            for (var i = 0; i < entryPoint.statements.Length; i++) {
-                var statement = entryPoint.statements[i];
-                var statementBinder = state.compilation.GetBinder(statement);
-                var boundStatement = statementBinder.BindStatement(statement.statement, diagnostics);
-
-                if (i == entryPoint.statements.Length - 1 && boundStatement is BoundExpressionStatement e)
-                    boundStatement = new BoundReturnStatement(RefKind.None, e.expression);
-
-                bodyBuilder.Add(boundStatement);
-            }
-
-            body = new BoundBlockStatement(bodyBuilder.ToImmutableAndFree(), [], []);
+            var bodyBinder = entryPoint.TryGetBodyBinder();
+            var methodBody = bodyBinder.BindMethodBody(entryPoint.body, diagnostics);
+            body = ((BoundNonConstructorMethodBody)methodBody).body;
         }
 
         var constructorInitializer = BindImplicitConstructorInitializerIfAny(method, state, syntaxNode, diagnostics);
