@@ -7,7 +7,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxReference {
     internal SourceMemberFieldSymbol(
-        SourceMemberContainerTypeSymbol containingType,
+        NamedTypeSymbol containingType,
         DeclarationModifiers modifiers,
         string name,
         SyntaxReference syntaxReference)

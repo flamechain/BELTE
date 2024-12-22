@@ -56,8 +56,9 @@ internal sealed class InMethodBinder : LocalScopeBinder {
             _lazyParameterMap = parameterMap;
         }
 
-        foreach (var parameterSymbol in parameterMap[name]) {
-            result.MergeEqual(originalBinder.CheckViability(parameterSymbol, arity, options, null, diagnose));
+        if (parameterMap.TryGetValue(name, out var parameterSymbols)) {
+            foreach (var parameterSymbol in parameterSymbols)
+                result.MergeEqual(originalBinder.CheckViability(parameterSymbol, arity, options, null, diagnose));
         }
     }
 

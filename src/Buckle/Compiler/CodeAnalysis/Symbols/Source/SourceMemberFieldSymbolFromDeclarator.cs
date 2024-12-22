@@ -10,7 +10,7 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
     private TypeAndRefKind _lazyTypeAndRefKind;
 
     internal SourceMemberFieldSymbolFromDeclarator(
-        SourceMemberContainerTypeSymbol containingType,
+        NamedTypeSymbol containingType,
         VariableDeclarationSyntax declaration,
         DeclarationModifiers modifiers,
         bool modifierErrors,

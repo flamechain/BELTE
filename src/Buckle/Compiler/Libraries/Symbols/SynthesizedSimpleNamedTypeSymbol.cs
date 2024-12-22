@@ -23,19 +23,6 @@ internal sealed class SynthesizedSimpleNamedTypeSymbol : NamedTypeSymbol {
         _modifiers = modifiers;
     }
 
-    internal SynthesizedSimpleNamedTypeSymbol(
-        Symbol container,
-        string name,
-        TypeKind typeKind,
-        NamedTypeSymbol baseType,
-        DeclarationModifiers modifiers) {
-        containingSymbol = container;
-        this.name = name;
-        this.typeKind = typeKind;
-        this.baseType = baseType;
-        _modifiers = modifiers;
-    }
-
     public override string name { get; }
 
     public override ImmutableArray<TemplateParameterSymbol> templateParameters => [];
@@ -58,7 +45,7 @@ internal sealed class SynthesizedSimpleNamedTypeSymbol : NamedTypeSymbol {
 
     internal override NamedTypeSymbol baseType { get; }
 
-    internal override Symbol containingSymbol { get; }
+    internal override Symbol containingSymbol => null;
 
     internal override bool isStatic => (_modifiers & DeclarationModifiers.Static) != 0;
 

@@ -161,7 +161,6 @@ public static class SymbolDisplay {
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0) {
             DisplayModifiers(text, field);
             DisplayConstExprRef(text, field.isConst, field.isConstExpr, field.refKind);
-            text.Write(CreateSpace());
         }
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeType) != 0) {
@@ -413,7 +412,9 @@ public static class SymbolDisplay {
         }
 
         DisplayContainedNames(text, symbol, format);
-        text.Write(CreateIdentifier(symbol.name));
+
+        if (symbol is not GlobalNamespaceSymbol)
+            text.Write(CreateIdentifier(symbol.name));
     }
 
     private static void DisplayModifiers(DisplayText text, Symbol symbol) {

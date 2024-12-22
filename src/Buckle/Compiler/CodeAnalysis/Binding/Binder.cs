@@ -2009,17 +2009,34 @@ internal partial class Binder {
 
     private protected void LookupMembersInternal(
         LookupResult result,
-        NamespaceOrTypeSymbol nsOrType,
+        NamespaceOrTypeSymbol namespaceOrType,
         string name,
         int arity,
         ConsList<TypeSymbol> basesBeingResolved,
         LookupOptions options,
         Binder originalBinder,
         bool diagnose) {
-        if (nsOrType.isNamespace) {
-            LookupMembersInNamespace(result, (NamespaceSymbol)nsOrType, name, arity, options, originalBinder, diagnose);
+        if (namespaceOrType.isNamespace) {
+            LookupMembersInNamespace(
+                result,
+                (NamespaceSymbol)namespaceOrType,
+                name,
+                arity,
+                options,
+                originalBinder,
+                diagnose
+            );
         } else {
-            LookupMembersInType(result, (TypeSymbol)nsOrType, name, arity, basesBeingResolved, options, originalBinder, diagnose);
+            LookupMembersInType(
+                result,
+                (TypeSymbol)namespaceOrType,
+                name,
+                arity,
+                basesBeingResolved,
+                options,
+                originalBinder,
+                diagnose
+            );
         }
     }
 
@@ -2080,14 +2097,14 @@ internal partial class Binder {
     }
 
     private void LookupMembersInClass(
-            LookupResult result,
-            TypeSymbol type,
-            string name,
-            int arity,
-            ConsList<TypeSymbol> basesBeingResolved,
-            LookupOptions options,
-            Binder originalBinder,
-            bool diagnose) {
+        LookupResult result,
+        TypeSymbol type,
+        string name,
+        int arity,
+        ConsList<TypeSymbol> basesBeingResolved,
+        LookupOptions options,
+        Binder originalBinder,
+        bool diagnose) {
         LookupMembersInClass(result, type, name, arity, basesBeingResolved, options, originalBinder, type, diagnose);
     }
 
@@ -2291,11 +2308,10 @@ symIsHidden:;
         string name,
         LookupOptions options,
         Binder originalBinder) {
-        if ((options & LookupOptions.NamespacesOrTypesOnly) != 0 && nsOrType is TypeSymbol) {
+        if ((options & LookupOptions.NamespacesOrTypesOnly) != 0 && nsOrType is TypeSymbol)
             return nsOrType.GetTypeMembers(name).Cast<NamedTypeSymbol, Symbol>();
-        } else {
+        else
             return nsOrType.GetMembers(name);
-        }
     }
 
     internal static ImmutableArray<Symbol> GetCandidateMembers(

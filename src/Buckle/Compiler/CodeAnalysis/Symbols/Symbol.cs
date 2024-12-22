@@ -269,7 +269,6 @@ internal abstract class Symbol : ISymbol {
                     }
 
                     return method.thisParameter;
-
                 case SymbolKind.Field:
                     type = symbol.containingType;
                     break;

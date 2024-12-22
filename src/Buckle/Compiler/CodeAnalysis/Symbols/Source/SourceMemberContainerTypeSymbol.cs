@@ -461,7 +461,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         }
     }
 
-    private void AddDeclaredNonTypeMembers(DeclaredMembersAndInitializersBuilder builder, BelteDiagnosticQueue diagnostics) {
+    private void AddDeclaredNonTypeMembers(
+        DeclaredMembersAndInitializersBuilder builder,
+        BelteDiagnosticQueue diagnostics) {
         if (_lazyMembersAndInitializers is not null)
             return;
 

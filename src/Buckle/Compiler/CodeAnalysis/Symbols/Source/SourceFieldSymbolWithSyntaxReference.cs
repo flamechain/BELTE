@@ -13,7 +13,7 @@ internal abstract class SourceFieldSymbolWithSyntaxReference : SourceFieldSymbol
     private ConstantValue _lazyConstantValue = ConstantValue.Unset;
 
     private protected SourceFieldSymbolWithSyntaxReference(
-        SourceMemberContainerTypeSymbol containingType,
+        NamedTypeSymbol containingType,
         string name,
         SyntaxReference syntaxReference)
         : base(containingType) {

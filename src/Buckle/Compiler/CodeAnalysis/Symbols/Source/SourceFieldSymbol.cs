@@ -3,17 +3,15 @@ using Buckle.Diagnostics;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class SourceFieldSymbol : FieldSymbolWithModifiers {
-    private readonly SourceMemberContainerTypeSymbol _containingType;
-
-    private protected SourceFieldSymbol(SourceMemberContainerTypeSymbol containingType) {
-        _containingType = containingType;
+    private protected SourceFieldSymbol(NamedTypeSymbol containingType) {
+        this.containingType = containingType;
     }
 
     public abstract override string name { get; }
 
-    internal sealed override Symbol containingSymbol => _containingType;
+    internal sealed override Symbol containingSymbol => containingType;
 
-    internal override NamedTypeSymbol containingType => _containingType;
+    internal override NamedTypeSymbol containingType { get; }
 
     internal sealed override bool requiresCompletion => true;
 

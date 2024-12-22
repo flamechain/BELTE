@@ -82,6 +82,32 @@ internal sealed partial class BinderFactory {
             return result;
         }
 
+        internal override Binder VisitGlobalStatement(GlobalStatementSyntax node) {
+            if (node.parent.kind == SyntaxKind.CompilationUnit) {
+                var compilationUnit = (CompilationUnitSyntax)node.parent;
+
+                if (compilationUnit != _syntaxTree.GetRoot())
+                    throw new ArgumentOutOfRangeException(nameof(node), "node not part of tree");
+
+                var key = CreateBinderCacheKey(compilationUnit, NodeUsage.MethodBody);
+
+                if (!_binderCache.TryGetValue(key, out var result)) {
+                    var simpleProgram = SynthesizedEntryPoint.GetEntryPoint(
+                        _compilation,
+                        (CompilationUnitSyntax)node.parent
+                    );
+
+                    var bodyBinder = simpleProgram.TryGetBodyBinder();
+                    result = bodyBinder.GetBinder(compilationUnit);
+                    _binderCache.TryAdd(key, result);
+                }
+
+                return result;
+            }
+
+            return base.VisitGlobalStatement(node);
+        }
+
         private Binder VisitTypeDeclarationCore(TypeDeclarationSyntax node) {
             if (!LookupPosition.IsInTypeDeclaration(_position, node))
                 return VisitCore(node.parent);

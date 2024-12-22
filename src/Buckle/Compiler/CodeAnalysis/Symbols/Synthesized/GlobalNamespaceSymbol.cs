@@ -26,6 +26,8 @@ internal sealed class GlobalNamespaceSymbol : NamespaceSymbol {
         _declarations = mergedDeclarations;
     }
 
+    public override string name => "global";
+
     internal override NamespaceExtent extent { get; }
 
     internal override SyntaxReference syntaxReference => null;
@@ -163,10 +165,16 @@ done:
         BelteDiagnosticQueue diagnostics) {
         var builder = NameToObjectPool.Allocate();
         var globals = new Dictionary<SourceText, ArrayBuilder<GlobalStatementSyntax>>();
+        var fields = new List<GlobalStatementSyntax>();
         var methods = new List<MethodDeclarationSyntax>();
 
         foreach (var declaration in _declarations) {
             if (declaration is GlobalStatementSyntax g) {
+                if (g.statement is LocalDeclarationStatementSyntax) {
+                    fields.Add(g);
+                    continue;
+                }
+
                 var sourceText = g.location.text;
 
                 if (globals.TryGetValue(sourceText, out var value)) {
@@ -184,36 +192,7 @@ done:
             }
         }
 
-        if (globals.Count > 0 || methods.Count > 0) {
-            var returnType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void));
-            var program = new SynthesizedSimpleNamedTypeSymbol(
-                this,
-                WellKnownMemberNames.TopLevelStatementsEntryPointTypeName,
-                TypeKind.Class,
-                CorLibrary.GetSpecialType(SpecialType.Object),
-                DeclarationModifiers.Static
-            );
-
-            var membersBuilder = ArrayBuilder<Symbol>.GetInstance();
-
-            foreach (var keyValuePair in globals) {
-                var entryPoint = new SynthesizedEntryPoint(
-                    program,
-                    returnType,
-                    keyValuePair.Value.ToImmutableAndFree()
-                );
-
-                membersBuilder.Add(entryPoint);
-            }
-
-            foreach (var method in methods) {
-                var methodSymbol = SourceOrdinaryMethodSymbol.CreateMethodSymbol(program, method, diagnostics);
-                membersBuilder.Add(methodSymbol);
-            }
-
-            var symbol = new SynthesizedFinishedNamedTypeSymbol(program, this, membersBuilder.ToImmutableAndFree());
-            ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(builder, symbol.name.AsMemory(), symbol);
-        }
+        BuildProgram(diagnostics, builder, globals, fields, methods);
 
         var result = new Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>>(
             builder.Count,
@@ -229,6 +208,65 @@ done:
 
         builder.Free();
         return result;
+    }
+
+    private void BuildProgram(
+        BelteDiagnosticQueue diagnostics,
+        PooledDictionary<ReadOnlyMemory<char>, object> builder,
+        Dictionary<SourceText, ArrayBuilder<GlobalStatementSyntax>> globals,
+        List<GlobalStatementSyntax> fields,
+        List<MethodDeclarationSyntax> methods) {
+        if (globals.Count > 0 || methods.Count > 0 || fields.Count > 0) {
+            var returnType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void));
+            var program = new SynthesizedProgram(
+                this,
+                WellKnownMemberNames.TopLevelStatementsEntryPointTypeName,
+                TypeKind.Class,
+                CorLibrary.GetSpecialType(SpecialType.Object),
+                DeclarationModifiers.Static
+            );
+
+            var membersBuilder = ArrayBuilder<Symbol>.GetInstance();
+
+            foreach (var keyValuePair in globals) {
+                var entryPoint = new SynthesizedEntryPoint(
+                    program,
+                    returnType,
+                    keyValuePair.Value.ToImmutableAndFree(),
+                    _declarations[0].syntaxTree.GetCompilationUnitRoot()
+                );
+
+                membersBuilder.Add(entryPoint);
+            }
+
+            foreach (var method in methods) {
+                var methodSymbol = SourceOrdinaryMethodSymbol.CreateMethodSymbol(program, method, diagnostics);
+                membersBuilder.Add(methodSymbol);
+            }
+
+            foreach (var statement in fields) {
+                var localDeclaration = (LocalDeclarationStatementSyntax)statement.statement;
+                var modifiers = SourceMemberFieldSymbol.MakeModifiers(
+                    localDeclaration.declaration.identifier,
+                    localDeclaration.modifiers,
+                    diagnostics,
+                    out var modifierErrors
+                );
+
+                var fieldSymbol = new SourceMemberFieldSymbolFromDeclarator(
+                    program,
+                    localDeclaration.declaration,
+                    modifiers,
+                    modifierErrors,
+                    diagnostics
+                );
+
+                membersBuilder.Add(fieldSymbol);
+            }
+
+            program.FinishProgram(membersBuilder.ToImmutableAndFree());
+            ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(builder, program.name.AsMemory(), program);
+        }
     }
 
     private NamespaceOrTypeSymbol BuildSymbol(MemberDeclarationSyntax declaration, BelteDiagnosticQueue diagnostics) {

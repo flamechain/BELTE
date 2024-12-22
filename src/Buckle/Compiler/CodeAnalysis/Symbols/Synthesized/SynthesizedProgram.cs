@@ -3,30 +3,36 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
-using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Binding;
-using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
-namespace Buckle.Libraries;
+namespace Buckle.CodeAnalysis.Symbols;
 
-internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbol {
+internal sealed class SynthesizedProgram : NamedTypeSymbol {
+    private readonly DeclarationModifiers _modifiers;
+
     private ImmutableArray<Symbol> _allMembers;
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> _nameToMembersMap;
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> _nameToTypeMembersMap;
     private bool _allMembersIsSorted;
 
-    internal SynthesizedFinishedNamedTypeSymbol(
-        NamedTypeSymbol underlyingType,
-        Symbol containingSymbol,
-        ImmutableArray<Symbol>? members = null,
-        bool isSimpleProgram = false)
-        : base(underlyingType) {
-        this.containingSymbol = containingSymbol;
-        _allMembers = members ?? underlyingType.GetMembers();
-        this.isSimpleProgram = isSimpleProgram;
+    internal SynthesizedProgram(
+        Symbol container,
+        string name,
+        TypeKind typeKind,
+        NamedTypeSymbol baseType,
+        DeclarationModifiers modifiers) {
+        containingSymbol = container;
+        this.name = name;
+        this.typeKind = typeKind;
+        this.baseType = baseType;
+        _modifiers = modifiers;
     }
+
+    public override string name { get; }
 
     public override ImmutableArray<TemplateParameterSymbol> templateParameters => [];
 
@@ -34,15 +40,37 @@ internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbo
 
     public override ImmutableArray<TypeOrConstant> templateArguments => [];
 
+    public override int arity => 0;
+
+    public override TypeKind typeKind { get; }
+
+    internal override bool mangleName => false;
+
+    internal override Accessibility declaredAccessibility => ModifierHelpers.EffectiveAccessibility(_modifiers);
+
+    internal override NamedTypeSymbol baseType { get; }
+
+    internal override Symbol containingSymbol { get; }
+
+    internal override bool isStatic => (_modifiers & DeclarationModifiers.Static) != 0;
+
+    internal override bool isAbstract => (_modifiers & DeclarationModifiers.Abstract) != 0;
+
+    internal override bool isSealed => (_modifiers & DeclarationModifiers.Sealed) != 0;
+
+    internal override SyntaxReference syntaxReference => null;
+
+    internal override TextLocation location => null;
+
     internal override IEnumerable<string> memberNames => GetMembers().Select(m => m.name);
 
     internal override NamedTypeSymbol constructedFrom => this;
 
-    internal override NamedTypeSymbol baseType => underlyingNamedType.baseType;
+    internal override bool isSimpleProgram => true;
 
-    internal override Symbol containingSymbol { get; }
-
-    internal override bool isSimpleProgram { get; }
+    internal void FinishProgram(ImmutableArray<Symbol> members) {
+        _allMembers = members;
+    }
 
     internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
         return baseType;
@@ -86,7 +114,7 @@ internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbo
         if (_nameToTypeMembersMap is null) {
             Interlocked.CompareExchange(
                 ref _nameToTypeMembersMap,
-                CodeAnalysis.ImmutableArrayExtensions
+                ImmutableArrayExtensions
                     .GetTypesFromMemberMap<ReadOnlyMemory<char>, Symbol, NamedTypeSymbol>(
                         GetNameToMembersMap(),
                         ReadOnlyMemoryOfCharComparer.Instance
@@ -102,7 +130,7 @@ internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbo
         var builder = NameToObjectPool.Allocate();
 
         foreach (var symbol in _allMembers) {
-            CodeAnalysis.ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(
+            ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(
                 builder,
                 symbol.name.AsMemory(),
                 symbol

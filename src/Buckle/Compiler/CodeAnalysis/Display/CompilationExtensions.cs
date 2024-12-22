@@ -1,4 +1,3 @@
-using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -15,15 +14,25 @@ public static class CompilationExtensions {
     /// </summary>
     /// <param name="text">Out.</param>
     public static void EmitTree(this Compilation compilation, DisplayText text) {
-        var entryPoint = compilation.entryPoint;
+        var program = compilation.boundProgram;
+        var isFirst = true;
 
-        if (entryPoint is not null) {
-            EmitTree(compilation, entryPoint, text);
-        } else {
-            var program = compilation.boundProgram;
+        foreach (var type in program.types) {
+            if (isFirst)
+                isFirst = false;
+            else
+                text.Write(CreateLine());
 
-            foreach (var pair in program.methodBodies.OrderBy(p => p.Key.name))
-                EmitTree(compilation, pair.Key, text);
+            EmitTree(compilation, type, text);
+        }
+
+        foreach (var pair in program.methodBodies) {
+            if (isFirst)
+                isFirst = false;
+            else
+                text.Write(CreateLine());
+
+            EmitTree(compilation, pair.Key, text);
         }
     }
 
