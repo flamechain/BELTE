@@ -103,9 +103,8 @@ internal class LocalScopeBinder : Binder {
         SyntaxList<StatementSyntax> statements,
         Binder enclosingBinder) {
         var locals = ArrayBuilder<DataContainerSymbol>.GetInstance(DefaultLocalSymbolArrayCapacity);
-        foreach (var statement in statements) {
+        foreach (var statement in statements)
             BuildLocals(enclosingBinder, statement, locals);
-        }
 
         return locals.ToImmutableAndFree();
     }

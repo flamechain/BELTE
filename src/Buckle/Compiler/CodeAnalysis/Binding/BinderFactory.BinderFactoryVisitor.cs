@@ -97,7 +97,7 @@ internal sealed partial class BinderFactory {
                         (CompilationUnitSyntax)node.parent
                     );
 
-                    var bodyBinder = simpleProgram.TryGetBodyBinder();
+                    var bodyBinder = simpleProgram.GetBodyBinder();
                     result = bodyBinder.GetBinder(compilationUnit);
                     _binderCache.TryAdd(key, result);
                 }

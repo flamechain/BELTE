@@ -9,9 +9,6 @@ using Buckle.CodeAnalysis.Text;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class SynthesizedEntryPoint : SynthesizedInstanceMethodSymbol {
-    private readonly BlockStatementSyntax _synthesizedBody;
-    private readonly MethodDeclarationSyntax _synthesizedDeclaration;
-
     private WeakReference<ExecutableCodeBinder> _weakBodyBinder;
     private TypeWithAnnotations _returnType;
 
@@ -22,18 +19,9 @@ internal sealed class SynthesizedEntryPoint : SynthesizedInstanceMethodSymbol {
         CompilationUnitSyntax syntaxNode) {
         this.containingSymbol = containingSymbol;
         _returnType = returnType;
-
         statements = syntax;
-
-        // var bodyBuilder = ArrayBuilder<StatementSyntax>.GetInstance();
-
-        // foreach (var statement in syntax)
-        //     bodyBuilder.Add(statement.statement);
-
-        // _synthesizedBody = SyntaxFactory.BlockWithParent(bodyBuilder.ToArrayAndFree());
-        // _synthesizedDeclaration = SyntaxFactory.MethodWithParent(_synthesizedBody);
         syntaxReference = new SyntaxReference(syntaxNode);
-        this.syntaxNode = syntaxNode;
+        compilationUnit = syntaxNode;
     }
 
     public override string name => WellKnownMemberNames.EntryPointMethodName;
@@ -84,19 +72,13 @@ internal sealed class SynthesizedEntryPoint : SynthesizedInstanceMethodSymbol {
 
     internal override TextLocation location => null;
 
-    // internal MethodDeclarationSyntax body => _synthesizedDeclaration;
-
     internal SyntaxTree syntaxTree => syntaxNode.syntaxTree;
 
-    internal SyntaxNode syntaxNode { get; }
+    internal SyntaxNode syntaxNode => compilationUnit;
+
+    internal CompilationUnitSyntax compilationUnit { get; }
 
     internal ImmutableArray<GlobalStatementSyntax> statements { get; }
-
-    internal ExecutableCodeBinder TryGetBodyBinder() {
-        // var inMethodBinder = declaringCompilation.GetBinder(_synthesizedBody);
-        // return inMethodBinder is null ? null : new ExecutableCodeBinder(_synthesizedDeclaration, this, inMethodBinder);
-        return GetBodyBinder();
-    }
 
     internal ExecutableCodeBinder GetBodyBinder() {
         ref var weakBinder = ref _weakBodyBinder;
@@ -109,7 +91,9 @@ internal sealed class SynthesizedEntryPoint : SynthesizedInstanceMethodSymbol {
 
             var newBinder = CreateBodyBinder();
 
-            if (Interlocked.CompareExchange(ref weakBinder, new WeakReference<ExecutableCodeBinder>(newBinder), previousWeakReference) == previousWeakReference) {
+            if (Interlocked.CompareExchange(
+                ref weakBinder,
+                new WeakReference<ExecutableCodeBinder>(newBinder), previousWeakReference) == previousWeakReference) {
                 return newBinder;
             }
         }
@@ -122,7 +106,7 @@ internal sealed class SynthesizedEntryPoint : SynthesizedInstanceMethodSymbol {
         var globalNamespace = compilation.globalNamespaceInternal;
         result = new InContainerBinder(globalNamespace, result);
         result = new InContainerBinder(containingType, result);
-        result = new InMethodBinder(this, result);
+        result = new SimpleProgramBinder(result, this);
         return new ExecutableCodeBinder(syntaxNode, this, result);
     }
 

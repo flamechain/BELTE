@@ -12,7 +12,6 @@ internal sealed class InMethodBinder : LocalScopeBinder {
     private readonly MethodSymbol _methodSymbol;
     private Dictionary<string, Symbol> _lazyDefinitionMap;
 
-
     internal InMethodBinder(MethodSymbol owner, Binder enclosing)
         : base(enclosing, enclosing.flags & ~BinderFlags.AllClearedAtExecutableCodeBoundary) {
         _methodSymbol = owner;

@@ -283,7 +283,7 @@ internal sealed class MethodCompiler {
             var statement = new BoundExpressionStatement(baseConstructorCall);
             body = new BoundBlockStatement([statement], [], []);
         } else if (method is SynthesizedEntryPoint entryPoint) {
-            var bodyBinder = entryPoint.TryGetBodyBinder();
+            var bodyBinder = entryPoint.GetBodyBinder();
             var bodyBuilder = ArrayBuilder<BoundStatement>.GetInstance();
 
             for (var i = 0; i < entryPoint.statements.Length; i++) {

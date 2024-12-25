@@ -165,16 +165,10 @@ done:
         BelteDiagnosticQueue diagnostics) {
         var builder = NameToObjectPool.Allocate();
         var globals = new Dictionary<SourceText, ArrayBuilder<GlobalStatementSyntax>>();
-        var fields = new List<GlobalStatementSyntax>();
         var methods = new List<MethodDeclarationSyntax>();
 
         foreach (var declaration in _declarations) {
             if (declaration is GlobalStatementSyntax g) {
-                if (g.statement is LocalDeclarationStatementSyntax) {
-                    fields.Add(g);
-                    continue;
-                }
-
                 var sourceText = g.location.text;
 
                 if (globals.TryGetValue(sourceText, out var value)) {
@@ -192,7 +186,7 @@ done:
             }
         }
 
-        BuildProgram(diagnostics, builder, globals, fields, methods);
+        BuildProgram(diagnostics, builder, globals, methods);
 
         var result = new Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>>(
             builder.Count,
@@ -214,9 +208,8 @@ done:
         BelteDiagnosticQueue diagnostics,
         PooledDictionary<ReadOnlyMemory<char>, object> builder,
         Dictionary<SourceText, ArrayBuilder<GlobalStatementSyntax>> globals,
-        List<GlobalStatementSyntax> fields,
         List<MethodDeclarationSyntax> methods) {
-        if (globals.Count > 0 || methods.Count > 0 || fields.Count > 0) {
+        if (globals.Count > 0 || methods.Count > 0) {
             var returnType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void));
             var program = new SynthesizedProgram(
                 this,
@@ -242,26 +235,6 @@ done:
             foreach (var method in methods) {
                 var methodSymbol = SourceOrdinaryMethodSymbol.CreateMethodSymbol(program, method, diagnostics);
                 membersBuilder.Add(methodSymbol);
-            }
-
-            foreach (var statement in fields) {
-                var localDeclaration = (LocalDeclarationStatementSyntax)statement.statement;
-                var modifiers = SourceMemberFieldSymbol.MakeModifiers(
-                    localDeclaration.declaration.identifier,
-                    localDeclaration.modifiers,
-                    diagnostics,
-                    out var modifierErrors
-                );
-
-                var fieldSymbol = new SourceMemberFieldSymbolFromDeclarator(
-                    program,
-                    localDeclaration.declaration,
-                    modifiers,
-                    modifierErrors,
-                    diagnostics
-                );
-
-                membersBuilder.Add(fieldSymbol);
             }
 
             program.FinishProgram(membersBuilder.ToImmutableAndFree());

@@ -31,11 +31,11 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
     }
 
     internal static Dictionary<SyntaxNode, Binder> BuildMap(
-        Symbol containingMemberOrLambda,
+        Symbol containingMember,
         SyntaxNode syntax,
         Binder enclosing,
         Action<Binder, SyntaxNode> binderUpdatedHandler = null) {
-        var builder = new LocalBinderFactory(containingMemberOrLambda, syntax, enclosing);
+        var builder = new LocalBinderFactory(containingMember, syntax, enclosing);
 
         if (syntax is ExpressionSyntax expressionSyntax) {
             enclosing = new ExpressionVariableBinder(syntax, enclosing);
@@ -46,14 +46,17 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
             builder.AddToMap(syntax, enclosing);
             builder.Visit(expressionSyntax, enclosing);
         } else if (syntax.kind != SyntaxKind.BlockStatement && syntax is StatementSyntax statement) {
-            enclosing = builder.GetBinderForPossibleEmbeddedStatement(statement, enclosing, out var embeddedScopeDesignator);
+            enclosing = builder.GetBinderForPossibleEmbeddedStatement(
+                statement,
+                enclosing,
+                out var embeddedScopeDesignator
+            );
 
             if (binderUpdatedHandler is not null)
                 binderUpdatedHandler(enclosing, embeddedScopeDesignator);
 
-            if (embeddedScopeDesignator != null) {
+            if (embeddedScopeDesignator is not null)
                 builder.AddToMap(embeddedScopeDesignator, enclosing);
-            }
 
             builder.Visit(statement, enclosing);
         } else {
