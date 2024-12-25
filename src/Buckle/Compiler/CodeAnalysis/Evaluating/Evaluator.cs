@@ -73,38 +73,36 @@ internal sealed class Evaluator {
         return evaluatorObject.value;
     }
 
-    private void Create(DataContainerSymbol left, EvaluatorObject right) {
-        if (left.kind == SymbolKind.Global) {
+    private void Create(DataContainerSymbol symbol, EvaluatorObject value) {
+        if (symbol.isGlobal) {
             var set = false;
 
             foreach (var global in _globals) {
-                if (global.Key.name == left.name) {
+                if (global.Key.name == symbol.name) {
                     _globals.Remove(global.Key);
-                    _globals[left] = Copy(right);
+                    _globals[symbol] = Copy(value);
                     set = true;
-
                     break;
                 }
             }
 
             if (!set)
-                _globals[left] = Copy(right);
+                _globals[symbol] = Copy(value);
         } else {
             var locals = _locals.Peek();
             var set = false;
 
             foreach (var local in locals) {
-                if (local.Key.name == left.name) {
+                if (local.Key.name == symbol.name) {
                     locals.Remove(local.Key);
-                    locals[left] = Copy(right);
+                    locals[symbol] = Copy(value);
                     set = true;
-
                     break;
                 }
             }
 
             if (!set)
-                locals[left] = Copy(right);
+                locals[symbol] = Copy(value);
         }
     }
 
@@ -129,7 +127,7 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject Get(Symbol symbol) {
-        if (symbol is DataContainerSymbol d && d.kind == SymbolKind.Global) {
+        if (symbol is DataContainerSymbol d && d.isGlobal) {
             if (_globals.TryGetValue(d, out var evaluatorObject))
                 return evaluatorObject;
         } else {

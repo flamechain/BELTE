@@ -124,25 +124,6 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
         );
     }
 
-    internal static SourceDataContainerSymbol MakeGlobal(
-        NamespaceSymbol globalNamespace,
-        TypeSyntax typeSyntax,
-        SyntaxToken identifierToken,
-        DataContainerDeclarationKind declarationKind,
-        EqualsValueClauseSyntax initializer,
-        Binder initializerBinder) {
-        return MakeDataContainer(
-            globalNamespace,
-            initializerBinder,
-            true,
-            typeSyntax,
-            identifierToken,
-            declarationKind,
-            initializer,
-            initializerBinder
-        );
-    }
-
     internal sealed override SyntaxNode GetDeclarationSyntax() {
         return identifierToken.parent;
     }

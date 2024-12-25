@@ -39,7 +39,6 @@ internal static class AccessCheck {
             case SymbolKind.NamedType:
                 return IsNamedTypeAccessible((NamedTypeSymbol)symbol, within);
             case SymbolKind.Local:
-            case SymbolKind.Global:
             case SymbolKind.TemplateParameter:
             case SymbolKind.Parameter:
             case SymbolKind.Method when ((MethodSymbol)symbol).methodKind == MethodKind.LocalFunction:

@@ -5,7 +5,7 @@ using Buckle.Diagnostics;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
-    public sealed override SymbolKind kind => isGlobal ? SymbolKind.Global : SymbolKind.Local;
+    public sealed override SymbolKind kind => SymbolKind.Local;
 
     public bool isConst => declarationKind == DataContainerDeclarationKind.Constant;
 
@@ -70,7 +70,7 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
 
     internal TypeSymbol type => typeWithAnnotations.type;
 
-    internal bool isGlobal => containingSymbol == containingNamespace;
+    internal bool isGlobal => containingSymbol is SynthesizedEntryPoint;
 
     internal abstract ConstantValue GetConstantValue(
         SyntaxNode node,

@@ -45,7 +45,6 @@ public static class SymbolDisplay {
                 DisplayMethod(text, (MethodSymbol)symbol, format);
                 break;
             case SymbolKind.Local:
-            case SymbolKind.Global:
                 DisplayDataContainer(text, (DataContainerSymbol)symbol, format);
                 break;
             case SymbolKind.Parameter:

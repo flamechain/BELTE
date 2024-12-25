@@ -11,10 +11,9 @@ internal static class SymbolKindExtensions {
             SymbolKind.ArrayType => 3,
             SymbolKind.ErrorType => 4,
             SymbolKind.Label => 5,
-            SymbolKind.Global => 6,
-            SymbolKind.Local => 7,
-            SymbolKind.Parameter => 8,
-            SymbolKind.TemplateParameter => 9,
+            SymbolKind.Local => 6,
+            SymbolKind.Parameter => 7,
+            SymbolKind.TemplateParameter => 8,
             _ => throw ExceptionUtilities.UnexpectedValue(kind),
         };
     }

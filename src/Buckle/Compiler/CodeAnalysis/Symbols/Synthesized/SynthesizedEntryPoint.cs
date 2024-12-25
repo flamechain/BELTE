@@ -11,6 +11,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal sealed class SynthesizedEntryPoint : SynthesizedInstanceMethodSymbol {
     private WeakReference<ExecutableCodeBinder> _weakBodyBinder;
     private TypeWithAnnotations _returnType;
+    private SimpleProgramBinder _lazyProgramBinder;
 
     internal SynthesizedEntryPoint(
         Symbol containingSymbol,
@@ -80,6 +81,15 @@ internal sealed class SynthesizedEntryPoint : SynthesizedInstanceMethodSymbol {
 
     internal ImmutableArray<GlobalStatementSyntax> statements { get; }
 
+    internal SimpleProgramBinder programBinder {
+        get {
+            if (_lazyProgramBinder is null)
+                Interlocked.CompareExchange(ref _lazyProgramBinder, CreateSimpleProgramBinder(), null);
+
+            return _lazyProgramBinder;
+        }
+    }
+
     internal ExecutableCodeBinder GetBodyBinder() {
         ref var weakBinder = ref _weakBodyBinder;
 
@@ -99,15 +109,29 @@ internal sealed class SynthesizedEntryPoint : SynthesizedInstanceMethodSymbol {
         }
     }
 
-    private ExecutableCodeBinder CreateBodyBinder() {
+    private SimpleProgramBinder CreateSimpleProgramBinder() {
         var compilation = declaringCompilation;
-        var syntaxNode = this.syntaxNode;
-        Binder result = new EndBinder(compilation, syntaxTree.text);
+        var result = GetPreviousBinder() ?? new EndBinder(compilation, syntaxTree.text);
         var globalNamespace = compilation.globalNamespaceInternal;
         result = new InContainerBinder(globalNamespace, result);
         result = new InContainerBinder(containingType, result);
-        result = new SimpleProgramBinder(result, this);
-        return new ExecutableCodeBinder(syntaxNode, this, result);
+        result = new InMethodBinder(this, result);
+        _lazyProgramBinder = new SimpleProgramBinder(result, this);
+        return _lazyProgramBinder;
+    }
+
+    private Binder GetPreviousBinder() {
+        var previousCompilation = declaringCompilation.previous;
+
+        if (previousCompilation is null || previousCompilation.syntaxTrees.Length != 1)
+            return null;
+
+        var previousRoot = previousCompilation.syntaxTrees[0].GetCompilationUnitRoot();
+        return GetEntryPoint(previousCompilation, previousRoot)?.programBinder;
+    }
+
+    private ExecutableCodeBinder CreateBodyBinder() {
+        return new ExecutableCodeBinder(syntaxNode, this, programBinder);
     }
 
     internal void CorrectReturnType(TypeWithAnnotations type) {
