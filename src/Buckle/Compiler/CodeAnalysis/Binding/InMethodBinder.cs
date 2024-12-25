@@ -39,7 +39,7 @@ internal sealed class InMethodBinder : LocalScopeBinder {
         bool diagnose) {
         var parameterMap = _lazyParameterMap;
 
-        if (parameterMap == null) {
+        if (parameterMap is null) {
             var parameters = _methodSymbol.parameters;
             parameterMap = new Dictionary<string, List<ParameterSymbol>>(parameters.Length);
 
@@ -103,9 +103,7 @@ internal sealed class InMethodBinder : LocalScopeBinder {
             switch (newSymbolKind) {
                 case SymbolKind.Parameter:
                 case SymbolKind.Local:
-                    // A local or parameter named '{0}' cannot be declared in this scope because that name is used in an enclosing local scope to define a local or parameter
-                    // diagnostics.Add(ErrorCode.ERR_LocalIllegallyOverrides, newLocation, name);
-                    // TODO error
+                    diagnostics.Push(Error.LocalShadowsParameter(newLocation, name));
                     return true;
                 case SymbolKind.Method:
                     if (((MethodSymbol)newSymbol).methodKind == MethodKind.LocalFunction)
@@ -121,9 +119,7 @@ internal sealed class InMethodBinder : LocalScopeBinder {
             switch (newSymbolKind) {
                 case SymbolKind.Parameter:
                 case SymbolKind.Local:
-                    // CS0412: '{0}': a parameter, local variable, or local function cannot have the same name as a method type parameter
-                    // diagnostics.Add(ErrorCode.ERR_LocalSameNameAsTypeParam, newLocation, name);
-                    // TODO error
+                    diagnostics.Push(Error.ParameterOrLocalShadowsTemplateParameter(newLocation, name));
                     return true;
                 case SymbolKind.Method:
                     if (((MethodSymbol)newSymbol).methodKind == MethodKind.LocalFunction)
@@ -136,7 +132,7 @@ internal sealed class InMethodBinder : LocalScopeBinder {
         }
 
         // diagnostics.Add(ErrorCode.ERR_InternalError, newLocation);
-        // TODO error
+        // TODO what is this error?
         return true;
     }
 
@@ -153,7 +149,7 @@ internal sealed class InMethodBinder : LocalScopeBinder {
 
         var map = _lazyDefinitionMap;
 
-        if (map == null) {
+        if (map is null) {
             map = [];
             RecordDefinition(map, parameters);
             RecordDefinition(map, templateParameters);

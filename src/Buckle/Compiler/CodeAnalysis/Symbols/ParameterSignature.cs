@@ -30,7 +30,7 @@ internal class ParameterSignature {
 
             var refKind = parameter.refKind;
 
-            if (refs == null) {
+            if (refs is null) {
                 if (refKind != RefKind.None) {
                     refs = ArrayBuilder<RefKind>.GetInstance(param, RefKind.None);
                     refs.Add(refKind);
@@ -40,14 +40,14 @@ internal class ParameterSignature {
             }
         }
 
-        var refKinds = refs != null ? refs.ToImmutableAndFree() : default;
+        var refKinds = refs is not null ? refs.ToImmutableAndFree() : default;
         return new ParameterSignature(types.ToImmutableAndFree(), refKinds);
     }
 
     internal static void PopulateParameterSignature(
         ImmutableArray<ParameterSymbol> parameters,
         ref ParameterSignature lazySignature) {
-        if (lazySignature == null)
+        if (lazySignature is null)
             Interlocked.CompareExchange(ref lazySignature, MakeParamTypesAndRefKinds(parameters), null);
     }
 }

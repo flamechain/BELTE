@@ -33,7 +33,7 @@ internal sealed class ForLoopBinder : LoopBinder {
         var innerLocals = ImmutableArray<DataContainerSymbol>.Empty;
         var conditionSyntax = node.condition;
 
-        if (conditionSyntax != null) {
+        if (conditionSyntax is not null) {
             originalBinder = originalBinder.GetBinder(conditionSyntax);
             // condition = originalBinder.BindBooleanExpression(conditionSyntax, diagnostics);
             innerLocals = originalBinder.GetDeclaredLocalsForScope(conditionSyntax);

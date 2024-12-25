@@ -63,7 +63,7 @@ internal class LocalScopeBinder : Binder {
 
     private Dictionary<string, DataContainerSymbol> _localsMap {
         get {
-            if (_lazyLocalsMap == null && locals.Length > 0)
+            if (_lazyLocalsMap is null && locals.Length > 0)
                 _lazyLocalsMap = BuildMap(locals);
 
             return _lazyLocalsMap;
@@ -72,7 +72,7 @@ internal class LocalScopeBinder : Binder {
 
     private Dictionary<string, LocalFunctionSymbol> _localFunctionsMap {
         get {
-            if (_lazyLocalFunctionsMap == null && localFunctions.Length > 0)
+            if (_lazyLocalFunctionsMap is null && localFunctions.Length > 0)
                 _lazyLocalFunctionsMap = BuildMap(localFunctions);
 
             return _lazyLocalFunctionsMap;
@@ -81,7 +81,7 @@ internal class LocalScopeBinder : Binder {
 
     private Dictionary<string, LabelSymbol> _labelsMap {
         get {
-            if (_lazyLabelsMap == null && labels.Length > 0)
+            if (_lazyLabelsMap is null && labels.Length > 0)
                 _lazyLabelsMap = BuildMap(labels);
 
             return _lazyLabelsMap;
@@ -246,7 +246,7 @@ internal class LocalScopeBinder : Binder {
         ref ArrayBuilder<LabelSymbol> labels) { }
 
     private protected override SourceDataContainerSymbol LookupLocal(SyntaxToken identifier) {
-        if (_localsMap != null && _localsMap.TryGetValue(identifier.text, out var result)) {
+        if (_localsMap is not null && _localsMap.TryGetValue(identifier.text, out var result)) {
             if (result.identifierToken == identifier)
                 return (SourceDataContainerSymbol)result;
 
@@ -260,7 +260,7 @@ internal class LocalScopeBinder : Binder {
     }
 
     private protected override LocalFunctionSymbol LookupLocalFunction(SyntaxToken identifier) {
-        if (_localFunctionsMap != null && _localFunctionsMap.TryGetValue(identifier.text, out var result)) {
+        if (_localFunctionsMap is not null && _localFunctionsMap.TryGetValue(identifier.text, out var result)) {
             if (result.identifier == identifier)
                 return result;
 
@@ -284,8 +284,8 @@ internal class LocalScopeBinder : Binder {
         var localsMap = _localsMap;
         var localFunctionsMap = _localFunctionsMap;
 
-        if ((localsMap != null && localsMap.TryGetValue(name, out existingLocal)) ||
-            (localFunctionsMap != null && localFunctionsMap.TryGetValue(name, out existingLocalFunction))) {
+        if ((localsMap is not null && localsMap.TryGetValue(name, out existingLocal)) ||
+            (localFunctionsMap is not null && localFunctionsMap.TryGetValue(name, out existingLocalFunction))) {
             var existingSymbol = (Symbol)existingLocal ?? existingLocalFunction;
             if (symbol == existingSymbol)
                 return false;
@@ -314,9 +314,7 @@ internal class LocalScopeBinder : Binder {
             localFunctions.Contains((LocalFunctionSymbol)newSymbol);
 
         if (declaredInThisScope && newLocation.span.start >= local.location.span.start) {
-            // A local variable or function named '{0}' is already defined in this scope
-            // diagnostics.Add(ErrorCode.ERR_LocalDuplicate, newLocation, name);
-            // TODO error, should it should syntaxReference.location instead?
+            diagnostics.Push(Error.LocalAlreadyDeclared(newLocation, name));
             return true;
         }
 
@@ -325,14 +323,12 @@ internal class LocalScopeBinder : Binder {
             case SymbolKind.Parameter:
             case SymbolKind.Method:
             case SymbolKind.TemplateParameter:
-                // A local or parameter named '{0}' cannot be declared in this scope because that name is used in an enclosing local scope to define a local or parameter
-                // diagnostics.Add(ErrorCode.ERR_LocalIllegallyOverrides, newLocation, name);
-                // TODO error
+                diagnostics.Push(Error.LocalShadowsParameter(newLocation, name));
                 return true;
         }
 
         // diagnostics.Add(ErrorCode.ERR_InternalError, newLocation);
-        // TODO error
+        // TODO what is this error?
         return false;
     }
 

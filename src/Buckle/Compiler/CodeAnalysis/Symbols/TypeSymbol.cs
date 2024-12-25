@@ -176,7 +176,7 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
     }
 
     private static void SetKnownToHaveNoDeclaredBaseCycles(ref PooledHashSet<NamedTypeSymbol> visited) {
-        if (visited != null) {
+        if (visited is not null) {
             foreach (var v in visited)
                 v.SetKnownToHaveNoDeclaredBaseCycles();
 

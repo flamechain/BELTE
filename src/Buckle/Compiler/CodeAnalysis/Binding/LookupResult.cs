@@ -43,7 +43,7 @@ internal sealed class LookupResult {
     }
 
     internal static SingleLookupResult NotTypeOrNamespace(Symbol unwrappedSymbol, Symbol symbol, bool diagnose) {
-        // TODO error
+        // TODO what is this error?
         // var diagInfo = diagnose ? new CSDiagnosticInfo(ErrorCode.ERR_BadSKknown, unwrappedSymbol.Name, unwrappedSymbol.GetKindText(), MessageID.IDS_SK_TYPE.Localize()) : null;
         return new SingleLookupResult(LookupResultKind.NotAType, symbol, null);
     }

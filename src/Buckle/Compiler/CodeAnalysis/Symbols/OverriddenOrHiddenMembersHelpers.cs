@@ -24,7 +24,7 @@ internal static class OverriddenOrHiddenMembersHelpers {
             out var overriddenMembers
         );
 
-        var hiddenMembers = hiddenBuilder == null ? [] : hiddenBuilder.ToImmutableAndFree();
+        var hiddenMembers = hiddenBuilder is null ? [] : hiddenBuilder.ToImmutableAndFree();
         return OverriddenOrHiddenMembersResult.Create(overriddenMembers, hiddenMembers);
     }
 

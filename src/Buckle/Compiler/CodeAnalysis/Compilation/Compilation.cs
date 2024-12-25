@@ -348,11 +348,6 @@ public sealed class Compilation {
         }
 
         externalSyntaxTrees.Free();
-
-        // TODO What to do with chained submissions?
-        // if (options.isScript && i > 1)
-        //     throw new ArgumentException("Script can have at most 1 syntax tree", nameof(trees));
-
         syntax = syntax.AddSyntaxTrees(trees);
         return Update(syntax);
     }

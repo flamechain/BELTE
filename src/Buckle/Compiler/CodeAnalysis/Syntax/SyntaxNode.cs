@@ -159,6 +159,23 @@ public abstract partial class SyntaxNode {
         return SyntaxNavigator.Instance.GetFirstToken(this, includeZeroWidth, includeSkipped);
     }
 
+    public bool Contains(SyntaxNode node) {
+        if (node is null || !fullSpan.Contains(node.fullSpan))
+            return false;
+
+        while (node is not null) {
+            if (node == this)
+                return true;
+
+            if (node.parent is not null)
+                node = node.parent;
+            else
+                node = null;
+        }
+
+        return false;
+    }
+
     /// <summary>
     /// Returns a copy of this node with an assigned <see cref="SyntaxTree" />.
     /// </summary>

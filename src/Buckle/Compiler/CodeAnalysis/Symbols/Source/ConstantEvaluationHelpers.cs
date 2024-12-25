@@ -28,7 +28,7 @@ internal static partial class ConstantEvaluationHelpers {
             field = pending.Pop();
 
             if (graph.TryGetValue(field, out var node)) {
-                if (node.dependencies != null)
+                if (node.dependencies is not null)
                     continue;
             } else {
                 node = new Node<SourceFieldSymbolWithSyntaxReference> {

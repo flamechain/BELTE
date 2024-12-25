@@ -297,7 +297,7 @@ internal partial class Binder {
         ParameterSyntax templateParameter,
         ArrayBuilder<TemplateConstraintClauseSyntax> constraints,
         BelteDiagnosticQueue diagnostics) {
-        // TODO
+        // TODO templates
         // Need to bind type first to make sure this template is a type parameter
         return null;
     }
@@ -355,10 +355,7 @@ internal partial class Binder {
             case SyntaxKind.ReferenceType: {
                     var referenceTypeSyntax = (ReferenceTypeSyntax)syntax;
                     var refToken = referenceTypeSyntax.refKeyword;
-
-                    // diagnostics.Add(ErrorCode.ERR_UnexpectedToken, refToken.GetLocation(), refToken.ToString());
-                    // TODO error
-
+                    diagnostics.Push(Error.UnexpectedToken(refToken.location, refToken.kind));
                     return BindType(referenceTypeSyntax.type, diagnostics, basesBeingResolved);
                 }
             default:
@@ -432,9 +429,8 @@ internal partial class Binder {
         ConsList<TypeSymbol> basesBeingResolved) {
         var type = BindType(node.elementType, diagnostics, basesBeingResolved);
 
-        if (type.isStatic) {
-            // TODO error
-        }
+        if (type.isStatic)
+            diagnostics.Push(Error.ArrayOfStaticType(node.elementType.location, type.type));
 
         for (var i = node.rankSpecifiers.Count - 1; i >= 0; i--) {
             var rankSpecifier = node.rankSpecifiers[i];
@@ -469,7 +465,7 @@ internal partial class Binder {
             );
         }
 
-        // TODO
+        // TODO template
         // var errorResult = CreateErrorIfLookupOnTypeParameter(node.Parent, qualifierOpt, identifierValueText, 0, diagnostics);
         // if (errorResult is not null) {
         //     return TypeWithAnnotations.Create(errorResult);
@@ -544,7 +540,7 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics,
         ConsList<TypeSymbol> basesBeingResolved,
         NamespaceOrTypeSymbol qualifier) {
-        // TODO
+        // TODO template
         return new TypeWithAnnotations(CreateErrorType());
     }
 
@@ -680,6 +676,7 @@ internal partial class Binder {
             parameterType,
             valueBeforeConversion,
             diagnostics,
+            defaultValueSyntax.value,
             ConversionForAssignmentFlags.DefaultParameter
         );
 
@@ -717,7 +714,7 @@ internal partial class Binder {
 
         IsInitializerRefKindValid(initializerOpt, initializerOpt, refKind, diagnostics, out var valueKind, out var value);
         var initializer = BindPossibleArrayInitializer(value, varType, valueKind, diagnostics);
-        initializer = GenerateConversionForAssignment(varType, initializer, diagnostics);
+        initializer = GenerateConversionForAssignment(varType, initializer, diagnostics, initializerOpt.value);
         return initializer;
     }
 
@@ -738,12 +735,11 @@ internal partial class Binder {
         }
 
         if (!AccessCheck.IsSymbolAccessible(baseConstructor, containingType)) {
-            // TODO bad access error
+            diagnostics.Push(Error.MemberIsInaccessible(constructor.location, baseConstructor));
             resultKind = LookupResultKind.Inaccessible;
         }
 
         var receiver = new BoundThisExpression(containingType);
-
         return new BoundCallExpression(receiver, baseConstructor, []);
     }
 
@@ -760,8 +756,7 @@ internal partial class Binder {
         if (variableRefKind == RefKind.None) {
             valueKind = BindValueKind.RValue;
             if (expressionRefKind == RefKind.Ref) {
-                // Error(diagnostics, ErrorCode.ERR_InitializeByValueVariableWithReference, node);
-                // TODO error
+                diagnostics.Push(Error.InitializeByValueWithByReference(node.location));
                 return false;
             }
         } else {
@@ -769,13 +764,12 @@ internal partial class Binder {
                 ? BindValueKind.RefConst
                 : BindValueKind.RefOrOut;
 
-            if (initializer == null) {
+            if (initializer is null) {
                 // Error(diagnostics, ErrorCode.ERR_ByReferenceVariableMustBeInitialized, node);
-                // TODO error
+                // TODO should we error here?
                 return false;
             } else if (expressionRefKind != RefKind.Ref) {
-                // Error(diagnostics, ErrorCode.ERR_InitializeByReferenceVariableWithValue, node);
-                // TODO error
+                diagnostics.Push(Error.InitializeByReferenceWithByValue(node.location));
                 return false;
             }
         }
@@ -797,7 +791,7 @@ internal partial class Binder {
             //     (InitializerExpressionSyntax)node, (ArrayTypeSymbol)destinationType,
             //     ImmutableArray<BoundExpression>.Empty);
 
-            // TODO
+            // TODO arrays
             result = null;
         } else {
             // result = BindUnexpectedArrayInitializer((InitializerExpressionSyntax)node, diagnostics, ErrorCode.ERR_ArrayInitToNonArrayType);
@@ -811,7 +805,7 @@ internal partial class Binder {
         BoundExpression expression,
         BindValueKind kind,
         BelteDiagnosticQueue diagnostics) {
-        // TODO
+        // TODO check value
         return expression;
     }
 
@@ -819,7 +813,7 @@ internal partial class Binder {
         ArgumentListSyntax initializerArgumentListOpt,
         MethodSymbol constructor,
         BelteDiagnosticQueue diagnostics) {
-        // TODO
+        // TODO constructors
         return null;
     }
 
@@ -911,7 +905,7 @@ internal partial class Binder {
             );
 
             if (symbol is null) {
-                // var receiver = SynthesizeMethodGroupReceiver(node, members);
+                var receiver = SynthesizeMethodGroupReceiver(node, members);
                 // expression = ConstructBoundMemberGroupAndReportOmittedTypeArguments(
                 //     node,
                 //     typeArgumentList,
@@ -925,7 +919,7 @@ internal partial class Binder {
                 //     diagnostics);
 
                 // ReportSimpleProgramLocalReferencedOutsideOfTopLevelStatement(node, members[0], diagnostics);
-                // TODO error
+                // TODO error template
             } else {
                 var isNamedType = symbol.kind is SymbolKind.NamedType or SymbolKind.ErrorType;
 
@@ -936,39 +930,36 @@ internal partial class Binder {
 
                 expression = BindNonMethod(node, symbol, diagnostics, lookupResult.kind, indexed, isError);
 
-                // TODO error
-                // if (!isNamedType && (hasTemplateArguments || node.Kind() == SyntaxKind.GenericName)) {
-                //     Debug.Assert(isError); // Should have been reported by GetSymbolOrMethodOrPropertyGroup.
-                //     expression = new BoundBadExpression(
-                //         syntax: node,
-                //         resultKind: LookupResultKind.WrongArity,
-                //         symbols: ImmutableArray.Create(symbol),
-                //         childBoundNodes: ImmutableArray.Create(BindToTypeForErrorRecovery(expression)),
-                //         type: expression.Type,
-                //         hasErrors: isError);
-                // }
+                if (!isNamedType && (hasTemplateArguments || node.kind == SyntaxKind.TemplateName))
+                    expression = ErrorExpression(expression);
             }
 
-            // Note, this call can clear and reuse lookupResult and members
-            // reportPrimaryConstructorParameterShadowing(node, symbol ?? members[0], name, invoked, lookupResult, members, diagnostics);
-            // TODO error
             members.Free();
         } else {
             expression = ErrorExpression(null);
-            // TODO error
-            // if (lookupResult.Error != null) {
-            //     Error(diagnostics, lookupResult.Error, node);
-            // } else if (IsJoinRangeVariableInLeftKey(node)) {
-            //     Error(diagnostics, ErrorCode.ERR_QueryOuterKey, node, name);
-            // } else if (IsInJoinRightKey(node)) {
-            //     Error(diagnostics, ErrorCode.ERR_QueryInnerKey, node, name);
-            // } else {
-            //     Error(diagnostics, ErrorCode.ERR_NameNotInContext, node, name);
-            // }
+
+            if (lookupResult.error is not null)
+                diagnostics.Push(lookupResult.error);
+            else
+                diagnostics.Push(Error.UndefinedSymbol(node.location, name));
         }
 
         lookupResult.Free();
         return expression;
+    }
+
+    private BoundExpression SynthesizeMethodGroupReceiver(BelteSyntaxNode syntax, ArrayBuilder<Symbol> members) {
+        var currentType = containingType;
+
+        if (currentType is null)
+            return null;
+
+        var declaringType = members[0].containingType;
+
+        if (currentType.IsEqualToOrDerivedFrom(declaringType, TypeCompareKind.ConsiderEverything))
+            return new BoundThisExpression(currentType);
+
+        return null;
     }
 
     private BoundExpression BindNonMethod(
@@ -986,7 +977,7 @@ internal partial class Binder {
                     bool isNullableUnknown;
 
                     if (IsUsedBeforeDeclaration(node, localSymbol)) {
-                        FieldSymbol possibleField = null;
+                        FieldSymbol possibleField;
                         var lookupResult = LookupResult.GetInstance();
 
                         LookupMembersInType(
@@ -1003,12 +994,15 @@ internal partial class Binder {
                         possibleField = lookupResult.singleSymbolOrDefault as FieldSymbol;
                         lookupResult.Free();
 
-                        // TODO error
-                        // if (possibleField is not null) {
-                        //     Error(diagnostics, ErrorCode.ERR_VariableUsedBeforeDeclarationAndHidesField, node, node, possibleField);
-                        // } else {
-                        //     Error(diagnostics, ErrorCode.ERR_VariableUsedBeforeDeclaration, node, node);
-                        // }
+                        if (possibleField is not null) {
+                            diagnostics.Push(Error.LocalUsedBeforeDeclarationAndHidesField(
+                                node.location,
+                                localSymbol,
+                                possibleField
+                            ));
+                        } else {
+                            diagnostics.Push(Error.LocalUsedBeforeDeclaration(node.location, localSymbol));
+                        }
 
                         type = new ExtendedErrorTypeSymbol(
                             compilation,
@@ -1020,18 +1014,9 @@ internal partial class Binder {
 
                         isNullableUnknown = true;
                     } else if (localSymbol is SourceDataContainerSymbol { isImplicitlyTyped: true } &&
-                        /*localSymbol.ForbiddenZone?.Contains(node) == true*/ false) {
-                        // TODO this
-                        // A var (type-inferred) local variable has been used in its own initialization (the "forbidden zone").
-                        // There are many cases where this occurs, including:
-                        //
-                        // 1. var x = M(out x);
-                        // 2. M(out var x, out x);
-                        // 3. var (x, y) = (y, x);
-                        //
-                        // localSymbol.ForbiddenDiagnostic provides a suitable diagnostic for whichever case applies.
-                        //
-                        // diagnostics.Add(localSymbol.ForbiddenDiagnostic, node.Location, node);
+                        localSymbol.forbiddenZone?.Contains(node) == true) {
+                        diagnostics.Push(localSymbol.forbiddenDiagnostic);
+
                         type = new ExtendedErrorTypeSymbol(
                             compilation,
                             "var",
@@ -1047,13 +1032,7 @@ internal partial class Binder {
 
                         if (IsBadLocalOrParameterCapture(localSymbol, type, localSymbol.refKind)) {
                             isError = true;
-
-                            // TODO error
-                            // if (localSymbol.refKind == RefKind.None && type.IsRestrictedType(ignoreSpanLikeTypes: true)) {
-                            //     Error(diagnostics, ErrorCode.ERR_SpecialByRefInLambda, node, type);
-                            // } else {
-                            //     Error(diagnostics, ErrorCode.ERR_AnonDelegateCantUseLocal, node, localSymbol);
-                            // }
+                            // TODO is this a reachable error?
                         }
                     }
 
@@ -1068,16 +1047,7 @@ internal partial class Binder {
 
                     if (IsBadLocalOrParameterCapture(parameter, parameter.type, parameter.refKind)) {
                         isError = true;
-
-                        // TODO error
-                        // if (parameter.refKind != RefKind.None) {
-                        //     Error(diagnostics, ErrorCode.ERR_AnonDelegateCantUse, node, parameter.Name);
-                        // } else if (parameter.Type.IsRestrictedType(ignoreSpanLikeTypes: true)) {
-                        //     Error(diagnostics, ErrorCode.ERR_SpecialByRefInLambda, node, parameter.Type);
-                        // } else {
-                        //     Debug.Assert(parameter.Type.IsRefLikeOrAllowsRefLikeType());
-                        //     Error(diagnostics, ErrorCode.ERR_AnonDelegateCantUseRefLike, node, parameter.Name);
-                        // }
+                        // TODO is this a reachable error?
                     }
 
                     return new BoundParameterExpression(parameter);
@@ -1140,25 +1110,17 @@ internal partial class Binder {
                 BelteDiagnostic diagnosticInfoOpt = null;
 
                 if (inFieldInitializer) {
-                    //can't access "this" in field initializers
-                    // diagnosticInfoOpt = new CSDiagnosticInfo(ErrorCode.ERR_FieldInitRefNonstatic, member);
-                    // TODO error
+                    diagnostics.Push(Error.CannotUseThis(node.location));
                 } else if (_inConstructorInitializer) {
-                    //can't access "this" in constructor initializers or attribute arguments
-                    // diagnosticInfoOpt = new CSDiagnosticInfo(ErrorCode.ERR_ObjectRequired, member);
-                    // TODO error
+                    diagnostics.Push(Error.InstanceRequired(node.location, member));
                 } else {
-                    // not an instance member if the container is a type, like when binding default parameter values.
                     var containingMember = this.containingMember;
 
                     var locationIsInstanceMember = !containingMember.isStatic &&
                         (containingMember.kind != SymbolKind.NamedType);
 
-                    if (!locationIsInstanceMember) {
-                        // error CS0120: An object reference is required for the non-static field, method, or property '{0}'
-                        // diagnosticInfoOpt = new CSDiagnosticInfo(ErrorCode.ERR_ObjectRequired, member);
-                        // TODO error
-                    }
+                    if (!locationIsInstanceMember)
+                        diagnostics.Push(Error.InstanceRequired(node.location, member));
                 }
 
                 diagnosticInfoOpt ??= GetDiagnosticIfRefOrOutThisParameterCaptured(node.location);
@@ -1208,8 +1170,7 @@ internal partial class Binder {
     }
 
     private BoundExpression BindReferenceType(ReferenceTypeSyntax node, BelteDiagnosticQueue diagnostics) {
-        // TODO error, caller should always resolve Ref
-        // diagnostics.Add(ErrorCode.ERR_UnexpectedToken, firstToken.GetLocation(), firstToken.ValueText);
+        diagnostics.Push(Error.UnexpectedToken(node.refKeyword.location, node.refKeyword.kind));
         return new BoundTypeExpression(CreateErrorType("ref"));
     }
 
@@ -1233,7 +1194,7 @@ internal partial class Binder {
         var leftType = boundLeft.type;
 
         if (leftType is not null && leftType.IsVoidType()) {
-            // TODO error cannot access void
+            // TODO error cannot access void, is this a reachable error?
             return ErrorExpression(boundLeft);
         }
 
@@ -1286,7 +1247,7 @@ internal partial class Binder {
                         } else if (lookupResult.isClear) {
                             // Error(diagnostics, ErrorCode.ERR_LookupInTypeVariable, boundLeft.Syntax, leftType);
                             // return BadExpression(node, LookupResultKind.NotAValue, boundLeft);
-                            // TODO error
+                            // TODO error, is this a reachable error?
                             return ErrorExpression(boundLeft);
                         }
                     } else if (_enclosingNameofArgument == node) {
@@ -1326,7 +1287,12 @@ internal partial class Binder {
                 default:
                     if (boundLeft.kind == BoundNodeKind.LiteralExpression &&
                         ConstantValue.IsNull(((BoundLiteralExpression)boundLeft).constantValue)) {
-                        // TODO error
+                        diagnostics.Push(Error.InvalidUnaryOperatorUse(
+                            node.location,
+                            operatorToken.text,
+                            CreateErrorType("<null>")
+                        ));
+
                         return ErrorExpression(boundLeft);
                     } else if (leftType is not null) {
                         boundLeft = CheckValue(boundLeft, BindValueKind.RValue, diagnostics);
@@ -1399,16 +1365,12 @@ internal partial class Binder {
         if (lookupError is not null) {
             diagnostics.Push(lookupError);
         } else {
-            // TODO error
+            diagnostics.Push(Error.NoSuchMember(name.location, boundLeft.type, plainName));
+
             // if (boundLeft.type is null) {
-            //     Error(diagnostics, ErrorCode.ERR_NoSuchMember, name, boundLeft.Display, plainName);
+            // TODO is this any different than the above case?
             // } else if (boundLeft.kind is BoundNodeKind.TypeExpression or BoundNodeKind.BaseExpression) {
             //     Error(diagnostics, ErrorCode.ERR_NoSuchMember, name, boundLeft.type, plainName);
-            // } else if (WouldUsingSystemFindExtension(boundLeft.Type, plainName)) {
-            //     Error(diagnostics, ErrorCode.ERR_NoSuchMemberOrExtensionNeedUsing, name, boundLeft.Type, plainName, "System");
-            // } else {
-            //     Error(diagnostics, ErrorCode.ERR_NoSuchMemberOrExtension, name, boundLeft.Type, plainName);
-            // }
         }
     }
 
@@ -1423,7 +1385,7 @@ internal partial class Binder {
         bool called,
         bool indexed,
         BelteDiagnosticQueue diagnostics) {
-        // TODO
+        // TODO instance member access
         return null;
     }
 
@@ -1473,10 +1435,8 @@ internal partial class Binder {
             switch (symbol.kind) {
                 case SymbolKind.NamedType:
                 case SymbolKind.ErrorType:
-                    if (IsInstanceReceiver(left) == true && !wasError) {
-                        // CS0572: 'B': cannot reference a type through an expression; try 'A.B' instead
-                        // Error(diagnostics, ErrorCode.ERR_BadTypeReference, right, plainName, symbol);
-                        // TODO error
+                    if (IsInstanceReceiver(left) && !wasError) {
+                        diagnostics.Push(Error.NoInstanceRequired(right.location, plainName, symbol));
                         wasError = true;
                     }
 
@@ -1644,8 +1604,7 @@ internal partial class Binder {
             }
         } else {
             if (!instanceReceiver && !isInsideNameof) {
-                // Error(diagnostics, ErrorCode.ERR_ObjectRequired, node, symbol);
-                // TODO error
+                diagnostics.Push(Error.InstanceRequired(node.location, symbol));
                 resultKind = LookupResultKind.StaticInstanceMismatch;
                 return true;
             }
@@ -1795,10 +1754,14 @@ internal partial class Binder {
     }
 
     private BoundThisExpression BindThisExpression(ThisExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
-        if (!HasThis(true, out var inStaticContext)) ;
-        // TODO error
-        else
+        if (!HasThis(true, out var inStaticContext)) {
+            if (inStaticContext)
+                diagnostics.Push(Error.CannotUseThisInStaticMethod(node.location));
+            else
+                diagnostics.Push(Error.CannotUseThis(node.location));
+        } else {
             IsRefOrOutThisParameterCaptured(node.keyword, diagnostics);
+        }
 
         return new BoundThisExpression(containingType);
     }
@@ -1808,17 +1771,18 @@ internal partial class Binder {
         TypeSymbol baseType = containingType?.baseType;
 
         if (!HasThis(true, out var inStaticContext)) {
-            // Error(diagnostics, inStaticContext ? ErrorCode.ERR_BaseInStaticMeth : ErrorCode.ERR_BaseInBadContext, node.Token);
-            // TODO error
+            if (inStaticContext)
+                diagnostics.Push(Error.CannotUseBaseInStaticMethod(node.location));
+            else
+                diagnostics.Push(Error.CannotUseBase(node.location));
+
             hasErrors = true;
         } else if (baseType is null) {
-            // Error(diagnostics, ErrorCode.ERR_NoBaseClass, node);
-            // TODO error
+            diagnostics.Push(Error.NoBaseClass(node.location, containingType));
             hasErrors = true;
         } else if (containingType is null || node.parent is null ||
             (node.parent.kind != SyntaxKind.MemberAccessExpression && node.parent.kind != SyntaxKind.IndexExpression)) {
-            // Error(diagnostics, ErrorCode.ERR_BaseIllegal, node.Token);
-            // TODO error
+            diagnostics.Push(Error.CannotUseBase(node.location));
             hasErrors = true;
         } else if (IsRefOrOutThisParameterCaptured(node.keyword, diagnostics)) {
             hasErrors = true;
@@ -1887,9 +1851,127 @@ internal partial class Binder {
         if (result.isMultiViable) {
             if (symbols.Count > 1) {
                 symbols.Sort(ConsistentSymbolOrder.Instance);
+                var originalSymbols = symbols.ToImmutable();
 
                 var best = GetBestSymbolInfo(symbols, out var secondBest);
-                // TODO
+                // TODO Could check for conflicting imports here
+                var first = symbols[best.index];
+                var second = symbols[secondBest.index];
+
+                if (best.isFromSourceModule && !secondBest.isFromSourceModule)
+                    return first;
+
+                BelteDiagnostic error = null;
+                bool reportError;
+
+                if (first != second && NameAndArityMatchRecursively(first, second)) {
+                    reportError = !(best.isFromSourceModule && secondBest.isFromSourceModule);
+
+                    if (first.kind == SymbolKind.NamedType && second.kind == SymbolKind.NamedType) {
+                        if (first.originalDefinition == second.originalDefinition) {
+                            reportError = true;
+
+                            error = Error.AmbiguousReference(
+                                where.location,
+                                (where as NameSyntax).ErrorDisplayName() ?? simpleName,
+                                first,
+                                second
+                            );
+                        } else {
+                            // TODO is this a reachable error?
+                            // ErrorCode.ERR_SameFullNameAggAgg: The type '{1}' exists in both '{0}' and '{2}'
+                            // info = new CSDiagnosticInfo(ErrorCode.ERR_SameFullNameAggAgg, originalSymbols,
+                            //     new object[] { first.ContainingAssembly, first, second.ContainingAssembly });
+
+                            if (secondBest.isFromAddedModule) {
+                                reportError = false;
+                            }
+                        }
+                    } else if (first.kind == SymbolKind.Namespace && second.kind == SymbolKind.NamedType) {
+                        // TODO is this a reachable error?
+                        // ErrorCode.ERR_SameFullNameNsAgg: The namespace '{1}' in '{0}' conflicts with the type '{3}' in '{2}'
+                        // info = new CSDiagnosticInfo(ErrorCode.ERR_SameFullNameNsAgg, originalSymbols,
+                        //     new object[] { GetContainingAssembly(first), first, second.ContainingAssembly, second });
+
+                        // Do not report this error if namespace is declared in source and the type is declared in added module,
+                        // we already reported declaration error about this name collision.
+                        if (best.isFromSourceModule && secondBest.isFromAddedModule)
+                            reportError = false;
+                    } else if (first.kind == SymbolKind.NamedType && second.kind == SymbolKind.Namespace) {
+                        if (!secondBest.isFromCompilation || secondBest.isFromSourceModule) {
+                            // TODO is this a reachable error?
+                            // ErrorCode.ERR_SameFullNameNsAgg: The namespace '{1}' in '{0}' conflicts with the type '{3}' in '{2}'
+                            // info = new CSDiagnosticInfo(ErrorCode.ERR_SameFullNameNsAgg, originalSymbols,
+                            //     new object[] { GetContainingAssembly(second), second, first.ContainingAssembly, first });
+                        } else {
+                            // TODO is this a reachable error?
+                            // ErrorCode.ERR_SameFullNameThisAggThisNs: The type '{1}' in '{0}' conflicts with the namespace '{3}' in '{2}'
+                            // object arg0;
+
+                            // if (best.isFromSourceModule) {
+                            //     arg0 = first.GetFirstLocation().SourceTree.FilePath;
+                            // } else {
+                            //     Debug.Assert(best.IsFromAddedModule);
+                            //     arg0 = first.ContainingModule;
+                            // }
+
+                            // ModuleSymbol arg2 = second.ContainingModule;
+
+                            // // Merged namespaces that span multiple modules don't have a containing module,
+                            // // so just use module with the smallest ordinal from the containing assembly.
+                            // if ((object)arg2 == null) {
+                            //     foreach (NamespaceSymbol ns in ((NamespaceSymbol)second).ConstituentNamespaces) {
+                            //         if (ns.ContainingAssembly == Compilation.Assembly) {
+                            //             ModuleSymbol module = ns.ContainingModule;
+
+                            //             if ((object)arg2 == null || arg2.Ordinal > module.Ordinal) {
+                            //                 arg2 = module;
+                            //             }
+                            //         }
+                            //     }
+                            // }
+
+                            // Debug.Assert(arg2.ContainingAssembly == Compilation.Assembly);
+
+                            // info = new CSDiagnosticInfo(ErrorCode.ERR_SameFullNameThisAggThisNs, originalSymbols,
+                            //     new object[] { arg0, first, arg2, second });
+                        }
+                    } else {
+                        diagnostics.Push(Error.AmbiguousReference(
+                            where.location,
+                            (where as NameSyntax).ErrorDisplayName() ?? simpleName,
+                            first,
+                            second
+                        ));
+
+                        reportError = true;
+                    }
+                } else {
+                    reportError = true;
+
+                    if (first is NamespaceOrTypeSymbol && second is NamespaceOrTypeSymbol) {
+                        error = Error.AmbiguousReference(
+                            where.location,
+                            (where as NameSyntax).ErrorDisplayName() ?? simpleName,
+                            first,
+                            second
+                        );
+                    } else {
+                        error = Error.AmbiguousMember(where.location, first, second);
+                    }
+                }
+
+                wasError = true;
+
+                if (reportError && error is not null)
+                    diagnostics.Push(error);
+
+                return new ExtendedErrorTypeSymbol(
+                    GetContainingNamespaceOrType(symbols[0]),
+                    originalSymbols,
+                    LookupResultKind.Ambiguous,
+                    error,
+                    arity);
             } else {
                 var singleResult = symbols[0];
                 // TODO check if void can appear hear, would need error
@@ -1942,6 +2024,26 @@ internal partial class Binder {
         }
 
         return symbols[0];
+    }
+
+    private static bool NameAndArityMatchRecursively(Symbol x, Symbol y) {
+        while (true) {
+            if (IsRoot(x))
+                return IsRoot(y);
+
+            if (IsRoot(y))
+                return false;
+
+            if (x.name != y.name || x.GetArity() != y.GetArity())
+                return false;
+
+            x = x.containingSymbol;
+            y = y.containingSymbol;
+        }
+
+        static bool IsRoot(Symbol symbol) {
+            return symbol is null || symbol is NamespaceSymbol { isGlobalNamespace: true };
+        }
     }
 
     private Binder LookupSymbolsWithFallback(
@@ -2185,9 +2287,10 @@ internal partial class Binder {
     private static Symbol GetNearestOtherSymbol(ConsList<TypeSymbol> list, TypeSymbol type) {
         var other = type;
 
-        for (; list != null && list != ConsList<TypeSymbol>.Empty; list = list.tail) {
+        for (; list is not null && list != ConsList<TypeSymbol>.Empty; list = list.tail) {
             if (TypeSymbol.Equals(list.head, type.originalDefinition, TypeCompareKind.ConsiderEverything)) {
-                if (TypeSymbol.Equals(other, type, TypeCompareKind.ConsiderEverything) && list.tail is not null &&
+                if (TypeSymbol.Equals(other, type, TypeCompareKind.ConsiderEverything) &&
+                    list.tail is not null &&
                     list.tail != ConsList<TypeSymbol>.Empty) {
                     other = list.tail.head;
                 }
@@ -2490,8 +2593,7 @@ symIsHidden:;
         TypeSymbol accessThroughType,
         bool diagnose,
         ConsList<TypeSymbol> basesBeingResolved = null) {
-        bool inaccessibleViaQualifier;
-        BelteDiagnostic diagInfo;
+        BelteDiagnostic error;
 
         if ((options & LookupOptions.MustNotBeParameter) != 0 && symbol is ParameterSymbol) {
             return LookupResult.Empty();
@@ -2511,30 +2613,24 @@ symIsHidden:;
         } else if (!IsAccessible(
             symbol,
             RefineAccessThroughType(options, accessThroughType),
-            out inaccessibleViaQualifier,
+            out var inaccessibleViaQualifier,
             basesBeingResolved)) {
-            // TODO error
-            // if (!diagnose) {
-            //     diagInfo = null;
-            // } else if (inaccessibleViaQualifier) {
-            //     diagInfo = new CSDiagnosticInfo(ErrorCode.ERR_BadProtectedAccess, symbol, accessThroughType, this.ContainingType);
-            // } else if (IsBadIvtSpecification()) {
-            //     diagInfo = new CSDiagnosticInfo(ErrorCode.ERR_FriendRefNotEqualToThis, symbol.ContainingAssembly.Identity.ToString(), AssemblyIdentity.PublicKeyToString(this.Compilation.Assembly.PublicKey));
-            // } else {
-            //     diagInfo = new CSDiagnosticInfo(ErrorCode.ERR_BadAccess, new[] { symbol }, ImmutableArray.Create<Symbol>(symbol), additionalLocations: ImmutableArray<Location>.Empty);
-            // }
+            if (!diagnose)
+                error = null;
+            else if (inaccessibleViaQualifier)
+                error = Error.InvalidProtectedAccess(symbol.location, accessThroughType, containingType);
+            else
+                error = Error.MemberIsInaccessible(symbol.location, symbol);
 
-            return LookupResult.Inaccessible(symbol, null/*diagInfo*/);
-            // } else if (symbol.MustCallMethodsDirectly()) {
-            //     diagInfo = diagnose ? MakeCallMethodsDirectlyDiagnostic(symbol) : null;
-            //     return LookupResult.NotReferencable(symbol, diagInfo);
+            return LookupResult.Inaccessible(symbol, error);
         } else if ((options & LookupOptions.MustBeInstance) != 0 && !IsInstance(symbol)) {
-            // diagInfo = diagnose ? new CSDiagnosticInfo(ErrorCode.ERR_ObjectRequired, symbol) : null;
-            return LookupResult.StaticInstanceMismatch(symbol, null);
+            error = Error.InstanceRequired(symbol.location, symbol);
+            return LookupResult.StaticInstanceMismatch(symbol, error);
         } else if ((options & LookupOptions.MustNotBeInstance) != 0 && IsInstance(symbol)) {
-            // diagInfo = diagnose ? new CSDiagnosticInfo(ErrorCode.ERR_ObjectProhibited, symbol) : null;
-            return LookupResult.StaticInstanceMismatch(symbol, null);
+            error = Error.NoInstanceRequired(symbol.location, symbol);
+            return LookupResult.StaticInstanceMismatch(symbol, error);
         } else if ((options & LookupOptions.MustNotBeNamespace) != 0 && symbol.kind == SymbolKind.Namespace) {
+            // TODO what is this error?
             // diagInfo = diagnose ? new CSDiagnosticInfo(ErrorCode.ERR_BadSKunknown, symbol, symbol.GetKindText()) : null;
             return LookupResult.NotTypeOrNamespace(symbol, null);
         } else {
@@ -2810,15 +2906,18 @@ symIsHidden:;
 
                 if (declarationType.IsVoidType()) {
                     // Error(localDiagnostics, ErrorCode.ERR_ImplicitlyTypedVariableAssignedBadValue, declarator, declTypeOpt.Type);
-                    // TODO error
+                    // TODO is this a reachable error?
                     declarationType = new TypeWithAnnotations(CreateErrorType("var"));
                     hasErrors = true;
                 }
 
                 if (!declarationType.type.IsErrorType()) {
                     if (declarationType.isStatic) {
-                        // Error(localDiagnostics, ErrorCode.ERR_VarDeclIsStaticClass, typeSyntax, initializerType);
-                        // TODO error
+                        diagnostics.Push(Error.CannotInitializeVarWithStaticClass(
+                            typeSyntax.location,
+                            initializerType
+                        ));
+
                         hasErrors = true;
                     }
                 }
@@ -2835,6 +2934,7 @@ symIsHidden:;
                     declarationType.type,
                     initializerOpt,
                     localDiagnostics,
+                    equalsClauseSyntax.value,
                     localSymbol.refKind != RefKind.None
                         ? ConversionForAssignmentFlags.RefAssignment
                         : ConversionForAssignmentFlags.None
@@ -2923,7 +3023,7 @@ symIsHidden:;
         if (string.IsNullOrEmpty(name))
             return false;
 
-        for (var binder = this; binder != null; binder = binder.next) {
+        for (var binder = this; binder is not null; binder = binder.next) {
             if (binder is InContainerBinder)
                 return false;
 
@@ -2961,7 +3061,7 @@ symIsHidden:;
 
         if (!isImplicitlyTyped) {
             if (declType.isStatic)
-                diagnostics.Push(Error.StaticVariable(declarationNode.location));
+                diagnostics.Push(Error.StaticDataContainer(declarationNode.location));
         }
 
         return declType;
@@ -3002,7 +3102,11 @@ symIsHidden:;
         var hasErrors = false;
 
         if (returnType is not null && refKind != RefKind.None != (signatureRefKind != RefKind.None)) {
-            // TODO ref return error
+            if (refKind == RefKind.None)
+                diagnostics.Push(Error.MustNotHaveRefReturn(node.keyword.location));
+            else
+                diagnostics.Push(Error.MustHaveRefReturn(node.keyword.location));
+
             hasErrors = true;
         }
 
@@ -3046,7 +3150,16 @@ symIsHidden:;
         BelteDiagnosticQueue diagnostics) {
         var expression = BindValue(node.expression, diagnostics, BindValueKind.RValue);
 
-        // TODO restrict allowed expressions as statements
+        if (!compilation.options.isScript) {
+            if (expression is not BoundCallExpression
+                          and not BoundAssignmentExpression
+                          and not BoundErrorExpression
+                          and not BoundEmptyExpression
+                          and not BoundCompoundAssignmentExpression
+                          and not BoundThrowExpression) {
+                diagnostics.Push(Error.InvalidExpressionStatement(node.location));
+            }
+        }
 
         return new BoundExpressionStatement(expression);
     }
@@ -3117,7 +3230,7 @@ symIsHidden:;
         ImmutableArray<ImmutableArray<FieldInitializer>> fieldInitializers,
         BelteDiagnosticQueue diagnostics,
         ref ProcessedFieldInitializers processedInitializers) {
-        // TODO
+        // TODO field initializers
     }
 
     internal BoundExpressionStatement BindImplicitConstructorInitializer(
@@ -3215,8 +3328,9 @@ symIsHidden:;
         TypeSymbol targetType,
         BoundExpression expression,
         BelteDiagnosticQueue diagnostics,
+        SyntaxNode syntax,
         ConversionForAssignmentFlags flags = ConversionForAssignmentFlags.None) {
-        return GenerateConversionForAssignment(targetType, expression, diagnostics, out _, flags);
+        return GenerateConversionForAssignment(targetType, expression, diagnostics, out _, syntax, flags);
     }
 
     internal BoundExpression GenerateConversionForAssignment(
@@ -3224,6 +3338,7 @@ symIsHidden:;
         BoundExpression expression,
         BelteDiagnosticQueue diagnostics,
         out Conversion conversion,
+        SyntaxNode syntax,
         ConversionForAssignmentFlags flags = ConversionForAssignmentFlags.None) {
         if (expression is BoundErrorExpression)
             diagnostics = BelteDiagnosticQueue.Discarded;
@@ -3235,7 +3350,7 @@ symIsHidden:;
         if ((flags & ConversionForAssignmentFlags.RefAssignment) != 0) {
             if (conversion.kind != ConversionKind.Identity) {
                 // Error(diagnostics, ErrorCode.ERR_RefAssignmentMustHaveIdentityConversion, expression.Syntax, targetType);
-                // TODO
+                // TODO ref assignment must have identity conversion?
             } else {
                 return expression;
             }
@@ -3243,10 +3358,8 @@ symIsHidden:;
               ((flags & ConversionForAssignmentFlags.CompoundAssignment) == 0
                 ? !conversion.isImplicit
                 : (conversion.isExplicit && (flags & ConversionForAssignmentFlags.PredefinedOperator) == 0))) {
-            if ((flags & ConversionForAssignmentFlags.DefaultParameter) == 0) {
-                // GenerateImplicitConversionError(diagnostics, expression.syntax, conversion, expression, targetType);
-                // TODO
-            }
+            if ((flags & ConversionForAssignmentFlags.DefaultParameter) == 0)
+                GenerateImplicitConversionError(diagnostics, syntax, conversion, expression, targetType);
 
             diagnostics = BelteDiagnosticQueue.Discarded;
         }
@@ -3254,6 +3367,63 @@ symIsHidden:;
         return new BoundCastExpression(targetType, expression, conversion, null);
         // return CreateConversion(expression.Syntax, expression, conversion, isCast: false, conversionGroupOpt: null, targetType, diagnostics);
         // TODO Consider this helper method
+    }
+
+    private protected void GenerateImplicitConversionError(
+        BelteDiagnosticQueue diagnostics,
+        SyntaxNode syntax,
+        Conversion conversion,
+        BoundExpression operand,
+        TypeSymbol targetType) {
+        if (targetType.typeKind == TypeKind.Error)
+            return;
+
+        if (targetType.IsVoidType()) {
+            diagnostics.Push(Error.NoImplicitConversion(syntax.location, operand.type, targetType));
+            return;
+        }
+
+        switch (operand.kind) {
+            case BoundNodeKind.ErrorExpression:
+                return;
+            case BoundNodeKind.MethodGroup:
+                diagnostics.Push(Error.MethodGroupCannotBeUsedAsValue(syntax.location, (BoundMethodGroup)operand));
+                return;
+            case BoundNodeKind.LiteralExpression:
+                if (ConstantValue.IsNull(operand.constantValue)) {
+                    if (targetType.isPrimitiveType) {
+                        // TODO what is this error
+                        // diagnostics.Push(Error.ValueCannotBeNull(syntax.location, targetType));
+                        return;
+                    }
+                }
+
+                break;
+            case BoundNodeKind.ConditionalExpression: {
+                    var conditionalOperator = (BoundConditionalExpression)operand;
+                    var reportedError = false;
+                    TryConversion(conditionalOperator.center, ref reportedError);
+                    TryConversion(conditionalOperator.right, ref reportedError);
+                    return;
+                }
+
+                void TryConversion(BoundExpression expr, ref bool reportedError) {
+                    var conversion = conversions.ClassifyImplicitConversionFromExpression(expr, targetType);
+
+                    if (!conversion.isImplicit || !conversion.exists) {
+                        GenerateImplicitConversionError(diagnostics, syntax, conversion, expr, targetType);
+                        reportedError = true;
+                    }
+                }
+        }
+
+        var sourceType = operand.type;
+
+        if (sourceType is not null) {
+            // TODO error
+            // GenerateImplicitConversionError(diagnostics, syntax, conversion, sourceType, targetType, operand.constantValue);
+            return;
+        }
     }
 
     internal BoundExpression CreateConversion(
@@ -3267,7 +3437,7 @@ symIsHidden:;
         if (conversion.isIdentity && !isCast && source.type.Equals(destination, TypeCompareKind.IgnoreNullability))
             return source;
 
-        // TODO
+        // TODO method group conversion
         // if (conversion.isMethodGroup)
         //     return CreateMethodGroupConversion(node, source, conversion, isCast, destination, diagnostics);
 

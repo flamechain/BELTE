@@ -25,6 +25,8 @@ internal partial class SourceDataContainerSymbol {
             _initializerBinder = initializerBinder;
         }
 
+        internal override SyntaxNode forbiddenZone => _initializer;
+
         internal override ConstantValue GetConstantValue(
             SyntaxNode node,
             DataContainerSymbol inProgress,

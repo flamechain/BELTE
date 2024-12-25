@@ -68,6 +68,10 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
         _ => true,
     };
 
+    internal virtual SyntaxNode forbiddenZone => null;
+
+    internal virtual BelteDiagnostic forbiddenDiagnostic => Error.LocalUsedBeforeDeclaration(location, this);
+
     internal TypeSymbol type => typeWithAnnotations.type;
 
     internal bool isGlobal => containingSymbol is SynthesizedEntryPoint;

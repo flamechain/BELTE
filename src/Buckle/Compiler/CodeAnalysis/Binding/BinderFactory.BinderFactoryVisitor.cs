@@ -61,14 +61,14 @@ internal sealed partial class BinderFactory {
             if (node != _syntaxTree.GetRoot())
                 throw new ArgumentOutOfRangeException(nameof(node), "node is not apart of the tree");
 
-            // TODO
+            // TODO script, even necessary?
             // var key = new BinderCacheKey(node, _inScript ? NodeUsage.CompilationUnitScript : NodeUsage.Normal);
             var key = new BinderCacheKey(node, NodeUsage.Normal);
 
             if (!_binderCache.TryGetValue(key, out var result)) {
                 result = _endBinder;
 
-                // TODO script
+                // TODO script, even necessary?
                 // if (_inScript) {
                 //     // TODO
                 // } else {
@@ -139,9 +139,6 @@ internal sealed partial class BinderFactory {
                     if (nodeUsage == NodeUsage.NamedTypeBase) {
                         resultBinder = new WithClassTemplateParametersBinder(typeSymbol, resultBinder);
                     } else {
-                        // TODO Even though we dont have this sugar, does this class add something necessary?
-                        // resultBinder = new WithPrimaryConstructorParametersBinder(typeSymbol, resultBinder);
-
                         resultBinder = new InContainerBinder(typeSymbol, resultBinder);
 
                         if (node.templateParameterList is not null)

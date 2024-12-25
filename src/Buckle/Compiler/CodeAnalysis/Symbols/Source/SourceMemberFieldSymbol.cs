@@ -74,7 +74,7 @@ internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxRef
 
     private protected void TypeChecks(TypeSymbol type, BelteDiagnosticQueue diagnostics) {
         if (type.isStatic)
-            diagnostics.Push(Error.StaticVariable(errorLocation));
+            diagnostics.Push(Error.StaticDataContainer(errorLocation));
         else if (type.IsVoidType())
             diagnostics.Push(Error.VoidVariable(errorLocation));
 

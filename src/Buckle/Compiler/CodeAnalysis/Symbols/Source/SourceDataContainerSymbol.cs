@@ -99,7 +99,8 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
         EqualsValueClauseSyntax initializer,
         Binder initializerBinder = null,
         Binder nodeBinder = null,
-        SyntaxNode nodeToBind = null) {
+        SyntaxNode nodeToBind = null,
+        SyntaxNode forbiddenZone = null) {
         if (nodeBinder is not null) {
             return new LocalSymbolWithEnclosingContext(
                 containingSymbol,
@@ -108,7 +109,8 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
                 typeSyntax,
                 identifierToken,
                 declarationKind,
-                nodeToBind
+                nodeToBind,
+                forbiddenZone
             );
         }
 
@@ -230,11 +232,17 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
             TypeSyntax typeSyntax,
             SyntaxToken identifierToken,
             DataContainerDeclarationKind declarationKind,
-            SyntaxNode nodeToBind)
+            SyntaxNode nodeToBind,
+            SyntaxNode forbiddenZone)
             : base(containingSymbol, scopeBinder, allowRefKind: false, typeSyntax, identifierToken, declarationKind) {
             _nodeBinder = nodeBinder;
             _nodeToBind = nodeToBind;
+            this.forbiddenZone = forbiddenZone;
         }
+
+        internal override SyntaxNode forbiddenZone { get; }
+
+        internal override BelteDiagnostic forbiddenDiagnostic => null;
 
         private protected override TypeWithAnnotations InferTypeOfImplicit(BelteDiagnosticQueue diagnostics) {
             switch (_nodeToBind.kind) {

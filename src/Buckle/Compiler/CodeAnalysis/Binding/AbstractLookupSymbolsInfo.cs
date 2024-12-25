@@ -79,7 +79,7 @@ internal abstract class AbstractLookupSymbolsInfo<TSymbol> where TSymbol : class
         }
 
         internal void AddSymbol(TSymbol symbol, int arity) {
-            if (symbol != null && symbol == _uniqueSymbolOrArities)
+            if (symbol is not null && symbol == _uniqueSymbolOrArities)
                 return;
 
             if (_hasUniqueSymbol) {
@@ -93,7 +93,8 @@ internal abstract class AbstractLookupSymbolsInfo<TSymbol> where TSymbol : class
             AddArity(arity);
         }
 
-        private bool _hasUniqueSymbol => _uniqueSymbolOrArities != null && _uniqueSymbolOrArities is not HashSet<int>;
+        private bool _hasUniqueSymbol
+            => _uniqueSymbolOrArities is not null && _uniqueSymbolOrArities is not HashSet<int>;
 
         private void AddArity(int arity) {
             if (arity < 32) {
@@ -118,7 +119,10 @@ internal abstract class AbstractLookupSymbolsInfo<TSymbol> where TSymbol : class
                 arities = null;
                 uniqueSymbol = (TSymbol)_uniqueSymbolOrArities;
             } else {
-                arities = (_uniqueSymbolOrArities == null && _arityBitVectorOrUniqueArity == 0) ? null : (IArityEnumerable)this;
+                arities = (_uniqueSymbolOrArities is null && _arityBitVectorOrUniqueArity == 0)
+                    ? null
+                    : (IArityEnumerable)this;
+
                 uniqueSymbol = null;
             }
         }
@@ -150,7 +154,7 @@ internal abstract class AbstractLookupSymbolsInfo<TSymbol> where TSymbol : class
         _nameMap = new Dictionary<string, UniqueSymbolOrArities>(comparer);
     }
 
-    internal bool CanBeAdded(string name) => filterName == null || _comparer.Equals(name, filterName);
+    internal bool CanBeAdded(string name) => filterName is null || _comparer.Equals(name, filterName);
 
     internal void AddSymbol(TSymbol symbol, string name, int arity) {
         if (!_nameMap.TryGetValue(name, out var pair)) {

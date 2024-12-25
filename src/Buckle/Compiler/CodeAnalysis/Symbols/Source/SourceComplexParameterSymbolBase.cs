@@ -107,6 +107,7 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
                     type.GetNullableUnderlyingType(),
                     valueBeforeConversion,
                     diagnostics,
+                    defaultSyntax,
                     Binder.ConversionForAssignmentFlags.DefaultParameter
                 );
             }

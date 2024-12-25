@@ -188,6 +188,7 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
                     underlyingType.type,
                     valueBeforeConversion,
                     diagnostics,
+                    defaultSyntax,
                     Binder.ConversionForAssignmentFlags.DefaultParameter
                 );
             }

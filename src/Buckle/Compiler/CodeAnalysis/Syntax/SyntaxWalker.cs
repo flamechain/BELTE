@@ -31,7 +31,7 @@ internal abstract class SyntaxWalker : SyntaxVisitor {
 
             var asNode = child.AsNode();
 
-            if (asNode != null) {
+            if (asNode is not null) {
                 if (_depth >= SyntaxWalkerDepth.Node)
                     Visit(asNode);
             } else {

@@ -205,10 +205,10 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
 
         var possibleScopeBinder = enclosing;
 
-        while (possibleScopeBinder != null && !possibleScopeBinder.isLocalFunctionsScopeBinder)
+        while (possibleScopeBinder is not null && !possibleScopeBinder.isLocalFunctionsScopeBinder)
             possibleScopeBinder = possibleScopeBinder.next;
 
-        if (possibleScopeBinder != null) {
+        if (possibleScopeBinder is not null) {
             foreach (var candidate in possibleScopeBinder.localFunctions) {
                 if (candidate.location == node.identifier.location)
                     match = candidate;
@@ -398,7 +398,7 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
     }
 
     private void VisitPossibleEmbeddedStatement(StatementSyntax statement, Binder enclosing) {
-        if (statement != null) {
+        if (statement is not null) {
             enclosing = GetBinderForPossibleEmbeddedStatement(statement, enclosing);
             Visit(statement, enclosing);
         }

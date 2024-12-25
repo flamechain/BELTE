@@ -216,7 +216,7 @@ internal static class ImmutableArrayExtensions {
         for (var i = 0; i < n; i++) {
             var a = array[i];
 
-            if ((predicateWithoutArg != null) ? predicateWithoutArg(a) : predicateWithArg!(a, arg)) {
+            if ((predicateWithoutArg is not null) ? predicateWithoutArg(a) : predicateWithArg!(a, arg)) {
                 none = false;
 
                 if (all)
@@ -240,7 +240,7 @@ internal static class ImmutableArrayExtensions {
             }
         }
 
-        if (builder != null)
+        if (builder is not null)
             return builder.ToImmutableAndFree();
         else if (all)
             return array;

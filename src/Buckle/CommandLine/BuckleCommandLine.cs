@@ -121,6 +121,10 @@ public static partial class BuckleCommandLine {
     }
 
     private static void ShowErrorHelp(string error, out DiagnosticQueue<Diagnostic> diagnostics) {
+        diagnostics = new DiagnosticQueue<Diagnostic>();
+        diagnostics.Push(new Diagnostic(DiagnosticSeverity.Error, "--explain is not implemented"));
+        return;
+
         string prefix;
 
         if (error.Length < 3 || (char.IsDigit(error[0]) && char.IsDigit(error[1]))) {
