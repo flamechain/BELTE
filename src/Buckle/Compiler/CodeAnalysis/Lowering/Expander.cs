@@ -127,7 +127,13 @@ internal sealed class Expander : BoundTreeExpander {
             statements.Add(
                 new BoundLocalDeclarationStatement(new BoundDataContainerDeclaration(
                     tempLocal,
-                    new BoundBinaryExpression(leftReplacement, rightReplacement, expression.opKind, expression.type)
+                    new BoundBinaryExpression(
+                        leftReplacement,
+                        rightReplacement,
+                        expression.opKind,
+                        expression.type,
+                        expression.constantValue
+                    )
                 ))
             );
 

@@ -763,43 +763,44 @@ public sealed class DisplayText {
         DisplayText text,
         BoundExpression left,
         BoundExpression right,
-        SyntaxKind op) {
+        SyntaxKind op,
+        bool isKeywordOp) {
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
         DisplayNode(text, left);
         text.Write(CreateSpace());
-        text.Write(CreatePunctuation(op));
+        text.Write(isKeywordOp ? CreateKeyword(op) : CreatePunctuation(op));
         text.Write(CreateSpace());
         DisplayNode(text, right);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 
     private static void DisplayBinaryExpression(DisplayText text, BoundBinaryExpression node) {
-        DisplayBinaryAdjacentExpression(text, node.left, node.right, node.opKind.ToSyntaxKind());
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, node.opKind.ToSyntaxKind(), false);
     }
 
     private static void DisplayCompoundAssignmentExpression(DisplayText text, BoundCompoundAssignmentExpression node) {
         var opKind = SyntaxFacts.GetAssignmentOperatorOfBinaryOperator(node.opKind.ToSyntaxKind());
-        DisplayBinaryAdjacentExpression(text, node.left, node.right, opKind);
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, opKind, false);
     }
 
     private static void DisplayIsExpression(DisplayText text, BoundIsExpression node) {
-        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.IsKeyword);
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.IsKeyword, true);
     }
 
     private static void DisplayIsntExpression(DisplayText text, BoundIsntExpression node) {
-        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.IsntKeyword);
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.IsntKeyword, true);
     }
 
     private static void DisplayAsExpression(DisplayText text, BoundAsExpression node) {
-        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.AsKeyword);
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.AsKeyword, true);
     }
 
     private static void DisplayNullCoalescingExpression(DisplayText text, BoundNullCoalescingExpression node) {
-        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.QuestionQuestionToken);
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.QuestionQuestionToken, false);
     }
 
     private static void DisplayDataContainerExpression(DisplayText text, BoundDataContainerExpression node) {
-        SymbolDisplay.AppendToDisplayText(text, node.dataContainer, SymbolDisplayFormat.Everything);
+        SymbolDisplay.AppendToDisplayText(text, node.dataContainer, SymbolDisplayFormat.QualifiedNameFormat);
     }
 
     private static void DisplayParameterExpression(DisplayText text, BoundParameterExpression node) {

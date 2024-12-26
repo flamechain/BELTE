@@ -412,7 +412,7 @@ internal abstract class BoundTreeRewriter {
         if (left == expression.left && right == expression.right)
             return expression;
 
-        return new BoundBinaryExpression(left, right, expression.opKind, expression.type);
+        return new BoundBinaryExpression(left, right, expression.opKind, expression.type, expression.constantValue);
     }
 
     private protected virtual BoundExpression RewriteAsExpression(BoundAsExpression expression) {

@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -7,42 +8,51 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal sealed partial class Conversion {
     internal static readonly Conversion None = new Conversion(ConversionKind.None);
-
     internal static readonly Conversion Identity = new Conversion(ConversionKind.Identity);
-
     internal static readonly Conversion Implicit = new Conversion(ConversionKind.Implicit);
-
+    internal static readonly Conversion ImplicitConstant = new Conversion(ConversionKind.ImplicitConstant);
     internal static readonly Conversion ImplicitNullable = new Conversion(ConversionKind.ImplicitNullable);
-
     internal static readonly Conversion ImplicitReference = new Conversion(ConversionKind.ImplicitReference);
-
     internal static readonly Conversion AnyBoxing = new Conversion(ConversionKind.AnyBoxing);
-
     internal static readonly Conversion AnyBoxingImplicitNullable
         = new Conversion(ConversionKind.AnyBoxingImplicitNullable);
-
     internal static readonly Conversion AnyBoxingExplicitNullable
         = new Conversion(ConversionKind.AnyBoxingExplicitNullable);
-
     internal static readonly Conversion Explicit = new Conversion(ConversionKind.Explicit);
-
     internal static readonly Conversion ExplicitNullable = new Conversion(ConversionKind.ExplicitNullable);
-
     internal static readonly Conversion ExplicitReference = new Conversion(ConversionKind.ExplicitReference);
-
     internal static readonly Conversion AnyUnboxing = new Conversion(ConversionKind.AnyUnboxing);
-
     internal static readonly Conversion AnyUnboxingImplicitNullable
         = new Conversion(ConversionKind.AnyUnboxingImplicitNullable);
-
     internal static readonly Conversion AnyUnboxingExplicitNullable
         = new Conversion(ConversionKind.AnyUnboxingExplicitNullable);
+    internal static readonly Conversion ImplicitNullableWithIdentityUnderlying
+        = new Conversion(ConversionKind.ImplicitNullable, IdentityUnderlying);
+    internal static readonly Conversion ExplicitNullableWithIdentityUnderlying
+        = new Conversion(ConversionKind.ExplicitNullable, IdentityUnderlying);
+    internal static readonly Conversion ImplicitNullableWithImplicitConstantUnderlying
+        = new Conversion(ConversionKind.ImplicitNullable, ImplicitConstantUnderlying);
+    internal static readonly Conversion ExplicitNullableWithImplicitConstantUnderlying
+        = new Conversion(ConversionKind.ExplicitNullable, ImplicitConstantUnderlying);
 
-    private Conversion(ConversionKind castKind) {
+    internal static ImmutableArray<Conversion> IdentityUnderlying = [Identity];
+    internal static ImmutableArray<Conversion> ImplicitConstantUnderlying = [ImplicitConstant];
+
+    private readonly UncommonData _uncommonData;
+
+    internal Conversion(ConversionKind castKind) {
         kind = castKind;
     }
 
+    internal Conversion(ConversionKind castKind, ImmutableArray<Conversion> nestedConversions) {
+        kind = castKind;
+        _uncommonData = new NestedUncommonData(nestedConversions);
+    }
+
     internal ConversionKind kind { get; }
+
+    internal ImmutableArray<Conversion> underlyingConversions
+        => _uncommonData is NestedUncommonData { nestedConversions: var conversions } ? conversions : default;
 
     /// <summary>
     /// If a cast exists (otherwise you cant go from one type to the other).
@@ -95,6 +105,18 @@ internal sealed partial class Conversion {
         }
 
         return None;
+    }
+
+    internal static Conversion MakeNullableConversion(ConversionKind kind, Conversion nestedConversion) {
+        return nestedConversion.kind switch {
+            ConversionKind.Identity => kind == ConversionKind.ImplicitNullable
+                ? ImplicitNullableWithIdentityUnderlying
+                : ExplicitNullableWithIdentityUnderlying,
+            ConversionKind.ImplicitConstant => kind == ConversionKind.ImplicitNullable
+                ? ImplicitNullableWithImplicitConstantUnderlying
+                : ExplicitNullableWithImplicitConstantUnderlying,
+            _ => new Conversion(kind, ImmutableArray.Create(nestedConversion)),
+        };
     }
 
     internal static bool IsBaseClass(TypeSymbol derivedType, TypeSymbol baseType) {

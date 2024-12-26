@@ -78,12 +78,12 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundCompoundAssignmentExpression Increment(BoundExpression operand) {
-        var opKind = BinaryOperatorEasyOut.OpKind(BinaryOperatorKind.Addition, operand.type, operand.type);
+        var opKind = OverloadResolution.BinOpEasyOut.OpKind(BinaryOperatorKind.Addition, operand.type, operand.type);
         return new BoundCompoundAssignmentExpression(operand, Literal(1, operand.type), opKind, operand.type);
     }
 
     internal static BoundCompoundAssignmentExpression Decrement(BoundExpression operand) {
-        var opKind = BinaryOperatorEasyOut.OpKind(BinaryOperatorKind.Subtraction, operand.type, operand.type);
+        var opKind = OverloadResolution.BinOpEasyOut.OpKind(BinaryOperatorKind.Subtraction, operand.type, operand.type);
         return new BoundCompoundAssignmentExpression(operand, Literal(1, operand.type), opKind, operand.type);
     }
 
@@ -96,7 +96,7 @@ internal static partial class BoundFactory {
         BinaryOperatorKind opKind,
         BoundExpression right,
         TypeSymbol type) {
-        return new BoundBinaryExpression(left, right, opKind, type);
+        return new BoundBinaryExpression(left, right, opKind, type, null);
     }
 
     internal static BoundBinaryExpression And(BoundExpression left, BoundExpression right) {
@@ -104,7 +104,8 @@ internal static partial class BoundFactory {
             left,
             right,
             BinaryOperatorKind.BoolConditionalAnd,
-            CorLibrary.GetSpecialType(SpecialType.Bool)
+            CorLibrary.GetSpecialType(SpecialType.Bool),
+            null
         );
     }
 

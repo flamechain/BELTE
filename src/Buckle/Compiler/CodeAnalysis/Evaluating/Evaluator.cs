@@ -71,8 +71,56 @@ internal sealed class Evaluator {
 
     #region Internal Model
 
-    private object Value(EvaluatorObject evaluatorObject) {
-        return evaluatorObject.value;
+    private object Value(EvaluatorObject value, bool traceCollections = false) {
+        if (value.isReference)
+            return GetVariableValue(value.reference, traceCollections);
+        else if (value.value is EvaluatorObject e)
+            return Value(e, traceCollections);
+        else if (value.value is EvaluatorObject[] && traceCollections)
+            return CollectionValue(value.value as EvaluatorObject[]);
+        else if (traceCollections && value.value is null && value.members is not null)
+            return DictionaryValue(value.members, value.type);
+        else
+            return value.value;
+    }
+
+    private Dictionary<object, object> DictionaryValue(
+        Dictionary<Symbol, EvaluatorObject> value,
+        TypeSymbol containingType) {
+        var dictionary = new Dictionary<object, object>();
+
+        foreach (var pair in value) {
+            if (pair.Key is FieldSymbol) {
+                var name = pair.Key.containingType.Equals(containingType)
+                    ? pair.Key.name
+                    : $"{pair.Key.containingType.name}.{pair.Key.name}";
+
+                dictionary.Add(name, Value(pair.Value, true));
+            }
+        }
+
+        return dictionary;
+    }
+
+    private object[] CollectionValue(EvaluatorObject[] value) {
+        var builder = new object[value.Length];
+
+        for (var i = 0; i < value.Length; i++)
+            builder[i] = Value(value[i], true);
+
+        return builder;
+    }
+
+    private object GetVariableValue(Symbol variable, bool traceCollections = false) {
+        var value = Get(variable);
+
+        try {
+            return Value(value, traceCollections);
+        } catch (BelteInternalException) {
+            throw new BelteEvaluatorException(
+                $"Reference cannot be deferred (what it was referencing was likely redefined)"
+            );
+        }
     }
 
     private void Create(DataContainerSymbol symbol, EvaluatorObject value) {
@@ -313,6 +361,12 @@ internal sealed class Evaluator {
             BoundNodeKind.ParameterExpression => EvaluateParameterExpression((BoundParameterExpression)expression),
             BoundNodeKind.FieldAccessExpression => EvaluateFieldAccessExpression((BoundFieldAccessExpression)expression, abort),
             BoundNodeKind.AssignmentExpression => EvaluateAssignmentExpression((BoundAssignmentExpression)expression, abort),
+            BoundNodeKind.BinaryExpression => EvaluateBinaryExpression((BoundBinaryExpression)expression, abort),
+            BoundNodeKind.NullAssertExpression => EvaluateNullAssertExpression((BoundNullAssertExpression)expression, abort),
+            BoundNodeKind.AsExpression => EvaluateAsExpression((BoundAsExpression)expression, abort),
+            BoundNodeKind.IsExpression => EvaluateIsExpression((BoundIsExpression)expression, abort),
+            BoundNodeKind.IsntExpression => EvaluateIsntExpression((BoundIsntExpression)expression, abort),
+            BoundNodeKind.ConditionalExpression => EvaluateConditionalExpression((BoundConditionalExpression)expression, abort),
             _ => throw new BelteInternalException($"EvaluateExpression: unexpected node '{expression.kind}'"),
         };
     }
@@ -328,6 +382,254 @@ internal sealed class Evaluator {
 
     private EvaluatorObject EvaluateDataContainerExpression(BoundDataContainerExpression expression) {
         return new EvaluatorObject(expression.dataContainer);
+    }
+
+    private EvaluatorObject EvaluateConditionalExpression(
+        BoundConditionalExpression expression,
+        ValueWrapper<bool> abort) {
+        var left = EvaluateExpression(expression.left, abort);
+        var leftValue = Value(left);
+
+        if ((bool)leftValue)
+            return EvaluateExpression(expression.center, abort);
+        else
+            return EvaluateExpression(expression.right, abort);
+    }
+
+    private EvaluatorObject EvaluateNullAssertExpression(
+        BoundNullAssertExpression expression,
+        ValueWrapper<bool> abort) {
+        var value = Dereference(EvaluateExpression(expression.operand, abort));
+
+        if (value.members is null && Value(value) is null && expression.operand.type.specialType != SpecialType.Type)
+            throw new NullReferenceException();
+
+        return Copy(value);
+    }
+
+    private EvaluatorObject EvaluateAsExpression(BoundAsExpression expression, ValueWrapper<bool> abort) {
+        var left = EvaluateExpression(expression.left, abort);
+        var leftValue = Value(left);
+        var dereferenced = Dereference(left);
+
+        if (dereferenced.members is null)
+            return new EvaluatorObject(leftValue, expression.type);
+
+        if (dereferenced.type.InheritsFromIgnoringConstruction((NamedTypeSymbol)expression.right.type))
+            return left;
+
+        return EvaluatorObject.Null;
+    }
+
+    private EvaluatorObject EvaluateIsExpression(BoundIsExpression expression, ValueWrapper<bool> abort) {
+        var left = EvaluateExpression(expression.left, abort);
+        var right = expression.right;
+        var leftValue = Value(left);
+        var dereferenced = Dereference(left);
+
+        if (right.IsLiteralNull()) {
+            if (left.members is null && leftValue is null &&
+                (expression.left.type.specialType != SpecialType.Type || left.type is null)) {
+                return new EvaluatorObject(true, expression.type);
+            }
+
+            return new EvaluatorObject(false, expression.type);
+        }
+
+        if (leftValue is null && dereferenced.members is null)
+            return new EvaluatorObject(false, expression.type);
+
+        if (dereferenced.members is null) {
+            return new EvaluatorObject(
+                (right.type.StrippedType().specialType == SpecialType.Any) ||
+                (SpecialTypeExtensions.SpecialTypeFromLiteralValue(leftValue) == right.type.specialType) ^ true,
+                expression.type
+            );
+        }
+
+        if (dereferenced.type.InheritsFromIgnoringConstruction((NamedTypeSymbol)expression.right.type))
+            return new EvaluatorObject(true, expression.type);
+        else
+            return new EvaluatorObject(false, expression.type);
+    }
+
+    private EvaluatorObject EvaluateIsntExpression(BoundIsntExpression expression, ValueWrapper<bool> abort) {
+        var left = EvaluateExpression(expression.left, abort);
+        var right = expression.right;
+        var leftValue = Value(left);
+        var dereferenced = Dereference(left);
+
+        if (right.IsLiteralNull()) {
+            if (left.members is null && leftValue is null &&
+                (expression.left.type.specialType != SpecialType.Type || left.type is null)) {
+                return new EvaluatorObject(false, expression.type);
+            }
+
+            return new EvaluatorObject(true, expression.type);
+        }
+
+        if (leftValue is null && dereferenced.members is null)
+            return new EvaluatorObject(false, expression.type);
+
+        if (dereferenced.members is null) {
+            return new EvaluatorObject(
+                (right.type.StrippedType().specialType == SpecialType.Any) ||
+                (SpecialTypeExtensions.SpecialTypeFromLiteralValue(leftValue) == right.type.specialType) ^ false,
+                expression.type
+            );
+        }
+
+        if (dereferenced.type.InheritsFromIgnoringConstruction((NamedTypeSymbol)expression.right.type))
+            return new EvaluatorObject(false, expression.type);
+        else
+            return new EvaluatorObject(true, expression.type);
+    }
+
+    private EvaluatorObject EvaluateBinaryExpression(BoundBinaryExpression expression, ValueWrapper<bool> abort) {
+        var left = EvaluateExpression(expression.left, abort);
+        var leftValue = Value(left);
+        var opKind = expression.opKind & BinaryOperatorKind.OpMask;
+
+        if (opKind == BinaryOperatorKind.ConditionalAnd) {
+            if (leftValue is null || !(bool)leftValue)
+                return new EvaluatorObject(false, expression.type);
+
+            var shortCircuitRight = EvaluateExpression(expression.right, abort);
+            var shortCircuitRightValue = Value(shortCircuitRight);
+
+            if (shortCircuitRightValue is null || !(bool)shortCircuitRightValue)
+                return new EvaluatorObject(false, expression.type);
+
+            return new EvaluatorObject(true, expression.type);
+        }
+
+        if (opKind == BinaryOperatorKind.ConditionalOr) {
+            if (leftValue != null && (bool)leftValue)
+                return new EvaluatorObject(true, expression.type);
+
+            var shortCircuitRight = EvaluateExpression(expression.right, abort);
+            var shortCircuitRightValue = Value(shortCircuitRight);
+
+            if (shortCircuitRightValue != null && (bool)shortCircuitRightValue)
+                return new EvaluatorObject(true, expression.type);
+
+            return new EvaluatorObject(false, expression.type);
+        }
+
+        var right = EvaluateExpression(expression.right, abort);
+        var rightValue = Value(right);
+
+        if (opKind is BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual
+            && expression.left.type.specialType == SpecialType.Type) {
+            if ((leftValue as TypeSymbol).Equals(rightValue as TypeSymbol))
+                return new EvaluatorObject(opKind == BinaryOperatorKind.Equal, expression.type);
+            else
+                return new EvaluatorObject(opKind == BinaryOperatorKind.NotEqual, expression.type);
+        }
+
+        if (leftValue is null || rightValue is null)
+            return EvaluatorObject.Null;
+
+        var expressionType = expression.type.specialType;
+        var leftType = expression.left.type.specialType;
+        object result;
+
+        switch (opKind) {
+            case BinaryOperatorKind.Addition:
+                if (expressionType == SpecialType.Int)
+                    result = (int)leftValue + (int)rightValue;
+                else if (expressionType == SpecialType.String)
+                    result = (string)leftValue + (string)rightValue;
+                else
+                    result = Convert.ToDouble(leftValue) + Convert.ToDouble(rightValue);
+
+                break;
+            case BinaryOperatorKind.Subtraction:
+                result = expressionType == SpecialType.Int
+                    ? (int)leftValue - (int)rightValue
+                    : Convert.ToDouble(leftValue) - Convert.ToDouble(rightValue);
+
+                break;
+            case BinaryOperatorKind.Multiplication:
+                result = expressionType == SpecialType.Int
+                    ? (int)leftValue * (int)rightValue
+                    : Convert.ToDouble(leftValue) * Convert.ToDouble(rightValue);
+
+                break;
+            case BinaryOperatorKind.Division:
+                result = expressionType == SpecialType.Int
+                    ? (int)leftValue / (int)rightValue
+                    : Convert.ToDouble(leftValue) / Convert.ToDouble(rightValue);
+
+                break;
+            case BinaryOperatorKind.Equal:
+                result = Equals(leftValue, rightValue);
+                break;
+            case BinaryOperatorKind.NotEqual:
+                result = !Equals(leftValue, rightValue);
+                break;
+            case BinaryOperatorKind.LessThan:
+                result = leftType == SpecialType.Int
+                    ? (int)leftValue < (int)rightValue
+                    : Convert.ToDouble(leftValue) < Convert.ToDouble(rightValue);
+
+                break;
+            case BinaryOperatorKind.GreaterThan:
+                result = leftType == SpecialType.Int
+                    ? (int)leftValue > (int)rightValue
+                    : Convert.ToDouble(leftValue) > Convert.ToDouble(rightValue);
+
+                break;
+            case BinaryOperatorKind.LessThanOrEqual:
+                result = leftType == SpecialType.Int
+                    ? (int)leftValue <= (int)rightValue
+                    : Convert.ToDouble(leftValue) <= Convert.ToDouble(rightValue);
+
+                break;
+            case BinaryOperatorKind.GreaterThanOrEqual:
+                result = leftType == SpecialType.Int
+                    ? (int)leftValue >= (int)rightValue
+                    : Convert.ToDouble(leftValue) >= Convert.ToDouble(rightValue);
+
+                break;
+            case BinaryOperatorKind.And:
+                result = expressionType == SpecialType.Int
+                    ? (int)leftValue & (int)rightValue
+                    : (bool)leftValue & (bool)rightValue;
+
+                break;
+            case BinaryOperatorKind.Or:
+                result = expressionType == SpecialType.Int
+                    ? (int)leftValue | (int)rightValue
+                    : (bool)leftValue | (bool)rightValue;
+
+                break;
+            case BinaryOperatorKind.Xor:
+                result = expressionType == SpecialType.Int
+                    ? (int)leftValue ^ (int)rightValue
+                    : (bool)leftValue ^ (bool)rightValue;
+
+                break;
+            case BinaryOperatorKind.LeftShift:
+                result = (int)leftValue << (int)rightValue;
+                break;
+            case BinaryOperatorKind.RightShift:
+                result = (int)leftValue >> (int)rightValue;
+                break;
+            case BinaryOperatorKind.UnsignedRightShift:
+                result = (int)leftValue >>> (int)rightValue;
+                break;
+            case BinaryOperatorKind.Modulo:
+                result = expressionType == SpecialType.Int
+                    ? (int)leftValue % (int)rightValue
+                    : Convert.ToDouble(leftValue) % Convert.ToDouble(rightValue);
+
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(expression.opKind);
+        }
+
+        return new EvaluatorObject(result, expression.type);
     }
 
     private EvaluatorObject EvaluateAssignmentExpression(

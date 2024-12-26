@@ -49,7 +49,7 @@ internal static class ConstantFolding {
         leftValue = LiteralUtilities.Cast(leftValue, type);
         rightValue = LiteralUtilities.Cast(rightValue, type);
 
-        switch (opKind) {
+        switch (opKind & BinaryOperatorKind.OpMask) {
             case BinaryOperatorKind.Addition:
                 if (specialType == SpecialType.Int)
                     return new ConstantValue((int)leftValue + (int)rightValue, specialType);

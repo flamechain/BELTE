@@ -10,6 +10,18 @@ internal sealed class Conversions {
         _binder = binder;
     }
 
+    internal static Conversion FastClassifyConversion(TypeSymbol source, TypeSymbol target) {
+        var conversionKind = Conversion.EasyOut.Classify(source, target);
+
+        if (conversionKind != ConversionKind.ImplicitNullable && conversionKind != ConversionKind.ExplicitNullable)
+            return new Conversion(conversionKind);
+
+        return Conversion.MakeNullableConversion(
+            conversionKind,
+            FastClassifyConversion(source.StrippedType(), target.StrippedType())
+        );
+    }
+
     internal Conversion ClassifyConversionFromExpression(BoundExpression sourceExpression, TypeSymbol target) {
         if (sourceExpression.IsLiteralNull()) {
             if (target.IsNullableType())

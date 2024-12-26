@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
@@ -834,7 +835,7 @@ internal partial class Binder {
             SyntaxKind.ParenthesizedExpression => BindParenthesisExpression((ParenthesisExpressionSyntax)node, diagnostics),
             SyntaxKind.MemberAccessExpression => BindMemberAccess((MemberAccessExpressionSyntax)node, called, indexed, diagnostics),
             SyntaxKind.IdentifierName or SyntaxKind.TemplateName => BindIdentifier((SimpleNameSyntax)node, called, indexed, diagnostics),
-            // SyntaxKind.BinaryExpression => BindBinaryExpression((BinaryExpressionSyntax)node, diagnostics),
+            SyntaxKind.BinaryExpression => BindBinaryExpression((BinaryExpressionSyntax)node, diagnostics),
             // SyntaxKind.UnaryExpression => BindUnaryExpression((UnaryExpressionSyntax)node, diagnostics),
             // SyntaxKind.PrefixExpression => BindPrefixExpression((PrefixExpressionSyntax)node, diagnostics),
             // SyntaxKind.PostfixExpression => BindPostfixExpression((PostfixExpressionSyntax)node, diagnostics),
@@ -871,9 +872,344 @@ internal partial class Binder {
         return new BoundErrorExpression(expression?.type ?? CreateErrorType("?"));
     }
 
+    private BoundExpression BindBinaryExpression(BinaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        if (IsSimpleBinaryOperator(node))
+            return BindSimpleBinaryExpression(node, diagnostics);
+
+        return ErrorExpression(null);
+    }
+
+    private bool IsSimpleBinaryOperator(ExpressionSyntax node) {
+        if (node is BinaryExpressionSyntax b) {
+            switch (b.operatorToken.kind) {
+                case SyntaxKind.PlusToken:
+                case SyntaxKind.MinusToken:
+                case SyntaxKind.AsteriskToken:
+                case SyntaxKind.SlashToken:
+                case SyntaxKind.PercentToken:
+                case SyntaxKind.EqualsEqualsToken:
+                case SyntaxKind.ExclamationEqualsToken:
+                case SyntaxKind.LessThanLessThanToken:
+                case SyntaxKind.GreaterThanGreaterThanToken:
+                case SyntaxKind.GreaterThanGreaterThanGreaterThanToken:
+                case SyntaxKind.AsteriskAsteriskToken:
+                case SyntaxKind.AmpersandToken:
+                case SyntaxKind.CaretToken:
+                case SyntaxKind.PipeToken:
+                case SyntaxKind.LessThanToken:
+                case SyntaxKind.GreaterThanToken:
+                case SyntaxKind.LessThanEqualsToken:
+                case SyntaxKind.GreaterThanEqualsToken:
+                    return true;
+                case SyntaxKind.IsKeyword:
+                case SyntaxKind.IsntKeyword:
+                case SyntaxKind.AsKeyword:
+                case SyntaxKind.AmpersandAmpersandToken:
+                case SyntaxKind.PipePipeToken:
+                case SyntaxKind.QuestionQuestionToken:
+                default:
+                    return false;
+            }
+        }
+
+        return false;
+    }
+
+    private BoundExpression BindSimpleBinaryExpression(BinaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var syntaxNodes = ArrayBuilder<BinaryExpressionSyntax>.GetInstance();
+
+        ExpressionSyntax current = node;
+        while (IsSimpleBinaryOperator(current)) {
+            var binOp = (BinaryExpressionSyntax)current;
+            syntaxNodes.Push(binOp);
+            current = binOp.left;
+        }
+
+        var result = BindExpression(current, diagnostics);
+
+        if (node.operatorToken.kind == SyntaxKind.MinusToken && current.kind == SyntaxKind.ParenthesizedExpression) {
+            if (result.kind == BoundNodeKind.TypeExpression
+                && !(((ParenthesisExpressionSyntax)current).expression.kind == SyntaxKind.ParenthesizedExpression)) {
+                // TODO what is this error
+                // Error(diagnostics, ErrorCode.ERR_PossibleBadNegCast, node);
+            } else if (result.kind == BoundNodeKind.ErrorExpression) {
+                var parenthesizedExpression = (ParenthesisExpressionSyntax)current;
+
+                if (parenthesizedExpression.expression.kind == SyntaxKind.IdentifierName
+                    && ((IdentifierNameSyntax)parenthesizedExpression.expression).identifier.text == "dynamic") {
+                    // TODO what is this error
+                    // Error(diagnostics, ErrorCode.ERR_PossibleBadNegCast, node);
+                }
+            }
+        }
+
+        while (syntaxNodes.Count > 0) {
+            var syntaxNode = syntaxNodes.Pop();
+            var bindValueKind = GetBinaryAssignmentKind(syntaxNode.operatorToken.kind);
+            var left = CheckValue(result, bindValueKind, diagnostics);
+            var right = BindValue(syntaxNode.right, diagnostics, BindValueKind.RValue);
+            var boundOp = BindSimpleBinaryOperator(syntaxNode, diagnostics, left, right);
+            result = boundOp;
+        }
+
+        syntaxNodes.Free();
+        return result;
+    }
+
+    private BoundExpression BindSimpleBinaryOperator(
+        BinaryExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics,
+        BoundExpression left,
+        BoundExpression right) {
+        var kind = SyntaxKindToBinaryOperatorKind(node.operatorToken.kind);
+
+        var leftType = left.type;
+        var rightType = right.type;
+
+        var foundOperator = BindSimpleBinaryOperatorParts(
+            node,
+            diagnostics,
+            left,
+            right,
+            kind,
+            out var resultKind,
+            out var originalUserDefinedOperators,
+            out var signature,
+            out var best
+        );
+
+        var resultOperatorKind = signature.kind;
+        var hasErrors = false;
+
+        if (!foundOperator) {
+            diagnostics.Push(
+                Error.InvalidBinaryOperatorUse(node.location, node.operatorToken.text, leftType, rightType)
+            );
+
+            resultOperatorKind &= ~BinaryOperatorKind.TypeMask;
+            hasErrors = true;
+        }
+
+        var resultType = signature.returnType;
+        var resultLeft = left;
+        var resultRight = right;
+        ConstantValue resultConstant = null;
+
+        if (foundOperator && (resultOperatorKind.OperandTypes() != BinaryOperatorKind.NullableNull)) {
+            resultLeft = CreateConversion(
+                node.left,
+                left,
+                best.leftConversion,
+                false,
+                signature.leftType,
+                diagnostics
+            );
+
+            resultRight = CreateConversion(
+                node.right,
+                right,
+                best.rightConversion,
+                false,
+                signature.rightType,
+                diagnostics
+            );
+
+            resultConstant = ConstantFolding.FoldBinary(resultLeft, resultRight, resultOperatorKind, resultType);
+        }
+
+        return new BoundBinaryExpression(
+            resultLeft,
+            resultRight,
+            resultOperatorKind,
+            resultType,
+            resultConstant
+        );
+    }
+
+    private bool BindSimpleBinaryOperatorParts(
+        BinaryExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics,
+        BoundExpression left,
+        BoundExpression right,
+        BinaryOperatorKind kind,
+        out LookupResultKind resultKind,
+        out ImmutableArray<MethodSymbol> originalUserDefinedOperators,
+        out BinaryOperatorSignature resultSignature,
+        out BinaryOperatorAnalysisResult best) {
+        bool foundOperator;
+        best = BinaryOperatorOverloadResolution(
+            kind,
+            left,
+            right,
+            node,
+            diagnostics,
+            out resultKind,
+            out originalUserDefinedOperators
+        );
+
+        if (!best.hasValue) {
+            resultSignature = new BinaryOperatorSignature(kind, null, null, CreateErrorType());
+            foundOperator = false;
+        } else {
+            var signature = best.signature;
+            var isObjectEquality = signature.kind is BinaryOperatorKind.ObjectEqual or
+                BinaryOperatorKind.ObjectNotEqual;
+
+            var leftNull = left.IsLiteralNull();
+            var rightNull = right.IsLiteralNull();
+
+            var leftType = left.type;
+            var rightType = right.type;
+
+            var isNullableEquality = signature.method is null &&
+                (signature.kind.Operator() == BinaryOperatorKind.Equal ||
+                signature.kind.Operator() == BinaryOperatorKind.NotEqual) &&
+                (leftNull && rightType is not null && rightType.IsNullableType() ||
+                    rightNull && leftType is not null && leftType.IsNullableType());
+
+            if (isNullableEquality) {
+                resultSignature = new BinaryOperatorSignature(
+                    kind | BinaryOperatorKind.NullableNull,
+                    null,
+                    null,
+                    CorLibrary.GetSpecialType(SpecialType.Bool)
+                );
+
+                foundOperator = true;
+            } else {
+                resultSignature = signature;
+                foundOperator = !isObjectEquality ||
+                    OperatorFacts.IsValidObjectEquality(conversions, leftType, leftNull, rightType, rightNull);
+            }
+        }
+
+        return foundOperator;
+    }
+
+    private BinaryOperatorAnalysisResult BinaryOperatorOverloadResolution(
+        BinaryOperatorKind kind,
+        BoundExpression left,
+        BoundExpression right,
+        BelteSyntaxNode node,
+        BelteDiagnosticQueue diagnostics,
+        out LookupResultKind resultKind,
+        out ImmutableArray<MethodSymbol> originalUserDefinedOperators) {
+        var result = BinaryOperatorOverloadResolutionResult.GetInstance();
+        overloadResolution.BinaryOperatorOverloadResolution(kind, left, right, result);
+        var possiblyBest = result.best;
+
+        if (result.results.Any()) {
+            var builder = ArrayBuilder<MethodSymbol>.GetInstance();
+
+            foreach (var analysisResult in result.results) {
+                var method = analysisResult.signature.method;
+
+                if (method is not null)
+                    builder.Add(method);
+            }
+
+            originalUserDefinedOperators = builder.ToImmutableAndFree();
+
+            if (possiblyBest.hasValue)
+                resultKind = LookupResultKind.Viable;
+            else if (result.AnyValid())
+                resultKind = LookupResultKind.Ambiguous;
+            else
+                resultKind = LookupResultKind.OverloadResolutionFailure;
+        } else {
+            originalUserDefinedOperators = [];
+            resultKind = possiblyBest.hasValue ? LookupResultKind.Viable : LookupResultKind.Empty;
+        }
+
+        result.Free();
+        return possiblyBest;
+    }
+
+    internal static BinaryOperatorKind SyntaxKindToBinaryOperatorKind(SyntaxKind kind) {
+        switch (kind) {
+            case SyntaxKind.AsteriskToken:
+            case SyntaxKind.AsteriskEqualsToken:
+                return BinaryOperatorKind.Multiplication;
+            case SyntaxKind.SlashEqualsToken:
+            case SyntaxKind.SlashToken:
+                return BinaryOperatorKind.Division;
+            case SyntaxKind.PercentEqualsToken:
+            case SyntaxKind.PercentToken:
+                return BinaryOperatorKind.Modulo;
+            case SyntaxKind.PlusEqualsToken:
+            case SyntaxKind.PlusToken:
+                return BinaryOperatorKind.Addition;
+            case SyntaxKind.MinusEqualsToken:
+            case SyntaxKind.MinusToken:
+                return BinaryOperatorKind.Subtraction;
+            case SyntaxKind.GreaterThanGreaterThanEqualsToken:
+            case SyntaxKind.GreaterThanGreaterThanToken:
+                return BinaryOperatorKind.RightShift;
+            case SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken:
+            case SyntaxKind.GreaterThanGreaterThanGreaterThanToken:
+                return BinaryOperatorKind.UnsignedRightShift;
+            case SyntaxKind.LessThanLessThanEqualsToken:
+            case SyntaxKind.LessThanLessThanToken:
+                return BinaryOperatorKind.LeftShift;
+            case SyntaxKind.EqualsEqualsToken:
+                return BinaryOperatorKind.Equal;
+            case SyntaxKind.ExclamationEqualsToken:
+                return BinaryOperatorKind.NotEqual;
+            case SyntaxKind.GreaterThanToken:
+                return BinaryOperatorKind.GreaterThan;
+            case SyntaxKind.LessThanToken:
+                return BinaryOperatorKind.LessThan;
+            case SyntaxKind.GreaterThanEqualsToken:
+                return BinaryOperatorKind.GreaterThanOrEqual;
+            case SyntaxKind.LessThanEqualsToken:
+                return BinaryOperatorKind.LessThanOrEqual;
+            case SyntaxKind.AmpersandEqualsToken:
+            case SyntaxKind.AmpersandToken:
+                return BinaryOperatorKind.And;
+            case SyntaxKind.PipeEqualsToken:
+            case SyntaxKind.PipeToken:
+                return BinaryOperatorKind.Or;
+            case SyntaxKind.CaretEqualsToken:
+            case SyntaxKind.CaretToken:
+                return BinaryOperatorKind.Xor;
+            case SyntaxKind.AmpersandAmpersandToken:
+                return BinaryOperatorKind.ConditionalAnd;
+            case SyntaxKind.PipePipeToken:
+                return BinaryOperatorKind.ConditionalOr;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(kind);
+        }
+    }
+
+    private static BindValueKind GetBinaryAssignmentKind(SyntaxKind kind) {
+        switch (kind) {
+            case SyntaxKind.EqualsToken:
+                return BindValueKind.Assignable;
+            case SyntaxKind.PlusEqualsToken:
+            case SyntaxKind.MinusEqualsToken:
+            case SyntaxKind.AsteriskEqualsToken:
+            case SyntaxKind.SlashEqualsToken:
+            case SyntaxKind.AmpersandEqualsToken:
+            case SyntaxKind.PipeEqualsToken:
+            case SyntaxKind.CaretEqualsToken:
+            case SyntaxKind.AsteriskAsteriskEqualsToken:
+            case SyntaxKind.LessThanLessThanEqualsToken:
+            case SyntaxKind.GreaterThanGreaterThanEqualsToken:
+            case SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken:
+            case SyntaxKind.PercentEqualsToken:
+            case SyntaxKind.QuestionQuestionEqualsToken:
+                return BindValueKind.CompoundAssignment;
+            default:
+                return BindValueKind.RValue;
+        }
+    }
+
     private BoundExpression BindAssignmentExpression(
         AssignmentExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
+        if (node.assignmentToken.kind != SyntaxKind.EqualsToken)
+            return BindCompoundAssignment(node, diagnostics);
+
         var rhsExpr = node.right.UnwrapRefExpression(out var refKind);
         var isRef = refKind == RefKind.Ref;
         var lhsKind = isRef ? BindValueKind.RefAssignable : BindValueKind.Assignable;
@@ -881,6 +1217,69 @@ internal partial class Binder {
         var rhsKind = isRef ? GetRequiredRHSValueKindForRefAssignment(op1) : BindValueKind.RValue;
         var op2 = BindValue(rhsExpr, diagnostics, rhsKind);
         return BindAssignment(node.right, op1, op2, isRef, diagnostics);
+    }
+
+    private BoundExpression BindCompoundAssignment(AssignmentExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var left = BindValue(node.left, diagnostics, GetBinaryAssignmentKind(node.kind));
+        var right = BindValue(node.right, diagnostics, BindValueKind.RValue);
+        var kind = SyntaxKindToBinaryOperatorKind(node.assignmentToken.kind);
+
+        var best = BinaryOperatorOverloadResolution(
+            kind,
+            left,
+            right,
+            node,
+            diagnostics,
+            out var resultKind,
+            out var originalUserDefinedOperators
+        );
+
+        if (!best.hasValue) {
+            diagnostics.Push(
+                Error.InvalidBinaryOperatorUse(node.location, node.assignmentToken.text, left.type, right.type)
+            );
+
+            return ErrorExpression(left);
+        }
+
+        var bestSignature = best.signature;
+        var rightConverted = CreateConversion(
+            node.right,
+            right,
+            best.rightConversion,
+            false,
+            bestSignature.rightType,
+            diagnostics
+        );
+
+        var isPredefinedOperator = !bestSignature.kind.IsUserDefined();
+        var leftType = left.type;
+        var finalPlaceholder = new BoundTypeExpression(bestSignature.returnType);
+
+        var finalConversion = GenerateConversionForAssignment(
+            leftType,
+            finalPlaceholder,
+            diagnostics,
+            node,
+            ConversionForAssignmentFlags.CompoundAssignment |
+                (isPredefinedOperator
+                    ? ConversionForAssignmentFlags.PredefinedOperator
+                    : ConversionForAssignmentFlags.None)
+        );
+
+        if (finalConversion is not BoundCastExpression final) {
+            if ((object)finalConversion != finalPlaceholder) {
+                finalPlaceholder = null;
+                finalConversion = null;
+            }
+        } else if (final.conversion.isExplicit && isPredefinedOperator && !kind.IsShift()) {
+            var rightToLeftConversion = conversions.ClassifyConversionFromExpression(right, leftType);
+
+            if (!rightToLeftConversion.isImplicit || !rightToLeftConversion.exists)
+                GenerateImplicitConversionError(diagnostics, node, rightToLeftConversion, right, leftType);
+        }
+
+        return new BoundCompoundAssignmentExpression(left, rightConverted, best.signature.kind, leftType);
     }
 
     private BoundAssignmentExpression BindAssignment(
@@ -3398,13 +3797,7 @@ symIsHidden:;
             diagnostics = BelteDiagnosticQueue.Discarded;
         }
 
-        // TODO is this not desirable?
-        if (conversion.isIdentity)
-            return expression;
-
-        return new BoundCastExpression(targetType, expression, conversion, null);
-        // return CreateConversion(expression.Syntax, expression, conversion, isCast: false, conversionGroupOpt: null, targetType, diagnostics);
-        // TODO Consider this helper method
+        return CreateConversion(syntax, expression, conversion, false, targetType, diagnostics);
     }
 
     private protected void GenerateImplicitConversionError(
@@ -3479,13 +3872,14 @@ symIsHidden:;
         TypeSymbol targetType,
         ConstantValue sourceConstantValueOpt = null) {
         if (!sourceType.ContainsErrorType() && !targetType.ContainsErrorType()) {
-            // TODO Confirm this condition
-            if (conversion.isNullable && conversion.isIdentity && conversion.isExplicit)
+            if (conversion.kind == ConversionKind.ExplicitNullable &&
+                conversion.underlyingConversions.FirstOrDefault().isIdentity) {
                 diagnostics.Push(Error.CannotConvertImplicitlyNullable(syntax.location, sourceType, targetType));
-            else if (conversion.isExplicit)
+            } else if (conversion.isExplicit) {
                 diagnostics.Push(Error.CannotConvertImplicitly(syntax.location, sourceType, targetType));
-            else
+            } else {
                 diagnostics.Push(Error.CannotConvert(syntax.location, sourceType, targetType));
+            }
         }
     }
 
@@ -3497,8 +3891,11 @@ symIsHidden:;
         TypeSymbol destination,
         BelteDiagnosticQueue diagnostics,
         bool hasErrors = false) {
-        if (conversion.isIdentity && !isCast && source.type.Equals(destination, TypeCompareKind.IgnoreNullability))
+        if (conversion.isIdentity &&
+            !isCast &&
+            (source.IsLiteralNull() || source.type.Equals(destination, TypeCompareKind.IgnoreNullability))) {
             return source;
+        }
 
         // TODO method group conversion
         // if (conversion.isMethodGroup)

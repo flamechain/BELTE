@@ -295,7 +295,8 @@ internal abstract class BoundTreeExpander {
                 leftReplacement,
                 rightReplacement,
                 expression.opKind,
-                expression.type
+                expression.type,
+                expression.constantValue
             );
 
             return statements;

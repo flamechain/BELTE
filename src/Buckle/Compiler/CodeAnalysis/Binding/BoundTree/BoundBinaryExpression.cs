@@ -11,12 +11,13 @@ internal sealed class BoundBinaryExpression : BoundExpression {
         BoundExpression left,
         BoundExpression right,
         BinaryOperatorKind opKind,
-        TypeSymbol type) {
+        TypeSymbol type,
+        ConstantValue constantValue) {
         this.left = left;
         this.right = right;
         this.opKind = opKind;
         this.type = type;
-        constantValue = ConstantFolding.FoldBinary(left, right, opKind, type);
+        this.constantValue = constantValue;
     }
 
     internal override BoundNodeKind kind => BoundNodeKind.BinaryExpression;

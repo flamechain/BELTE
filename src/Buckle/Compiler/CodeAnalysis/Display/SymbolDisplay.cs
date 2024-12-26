@@ -176,15 +176,10 @@ public static class SymbolDisplay {
     private static void DisplayParameter(DisplayText text, ParameterSymbol parameter, SymbolDisplayFormat format) {
         var needSpace = false;
 
-        if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeModifiers) != 0) {
+        if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeModifiers) != 0)
             DisplayConstExprRef(text, false, false, parameter.refKind);
-            needSpace = true;
-        }
 
         if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeType) != 0) {
-            if (needSpace)
-                text.Write(CreateSpace());
-
             DisplayType(text, parameter.type, format);
             needSpace = true;
         }
@@ -268,10 +263,8 @@ public static class SymbolDisplay {
         DisplayText text,
         DataContainerSymbol dataContainer,
         SymbolDisplayFormat format) {
-        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0) {
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0)
             DisplayConstExprRef(text, dataContainer.isConst, dataContainer.isConstExpr, dataContainer.refKind);
-            text.Write(CreateSpace());
-        }
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeType) != 0) {
             DisplayType(text, dataContainer.type, format);
@@ -457,31 +450,24 @@ public static class SymbolDisplay {
     }
 
     private static void DisplayConstExprRef(DisplayText text, bool isConst, bool isConstExpr, RefKind refKind) {
-        var needSpace = false;
-
         if (isConst) {
             text.Write(CreateKeyword(SyntaxKind.ConstKeyword));
-            needSpace = true;
+            text.Write(CreateSpace());
         }
 
         if (isConstExpr) {
             text.Write(CreateKeyword(SyntaxKind.ConstexprKeyword));
-            needSpace = true;
+            text.Write(CreateSpace());
         }
 
         if (refKind != RefKind.None) {
-            if (needSpace)
-                text.Write(CreateSpace());
-
             text.Write(CreateKeyword(SyntaxKind.RefKeyword));
-            needSpace = true;
+            text.Write(CreateSpace());
         }
 
         if (refKind == RefKind.RefConst) {
-            if (needSpace)
-                text.Write(CreateSpace());
-
             text.Write(CreateKeyword(SyntaxKind.ConstKeyword));
+            text.Write(CreateSpace());
         }
     }
 }

@@ -12,6 +12,21 @@ internal static class BinaryOperatorKindExtensions {
         return kind & BinaryOperatorKind.OpMask;
     }
 
+    internal static BinaryOperatorKind OperandTypes(this BinaryOperatorKind kind) {
+        return kind & BinaryOperatorKind.TypeMask;
+    }
+
+    internal static bool IsUserDefined(this BinaryOperatorKind kind) {
+        return (kind & BinaryOperatorKind.TypeMask) == BinaryOperatorKind.UserDefined;
+    }
+
+    internal static bool IsShift(this BinaryOperatorKind kind) {
+        var type = kind.Operator();
+        return type == BinaryOperatorKind.LeftShift ||
+            type == BinaryOperatorKind.RightShift ||
+            type == BinaryOperatorKind.UnsignedRightShift;
+    }
+
     internal static bool IsConditional(this BinaryOperatorKind kind) {
         return 0 != (kind & BinaryOperatorKind.Conditional);
     }

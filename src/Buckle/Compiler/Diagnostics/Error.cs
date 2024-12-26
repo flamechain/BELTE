@@ -132,14 +132,8 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NamedArgumentTwice, location, message);
     }
 
-    internal static BelteDiagnostic InvalidBinaryOperatorUse(
-        TextLocation location,
-        string op,
-        TypeSymbol left,
-        TypeSymbol right,
-        bool isCompound) {
-        var operatorWord = isCompound ? "compound" : "binary";
-        var message = $"{operatorWord} operator '{op}' is not defined for types '{left}' and '{right}'";
+    internal static BelteDiagnostic InvalidBinaryOperatorUse(TextLocation location, string op, TypeSymbol left, TypeSymbol right) {
+        var message = $"binary operator '{op}' is not defined for types '{left}' and '{right}'";
         return CreateError(DiagnosticCode.ERR_InvalidBinaryOperatorUse, location, message);
     }
 

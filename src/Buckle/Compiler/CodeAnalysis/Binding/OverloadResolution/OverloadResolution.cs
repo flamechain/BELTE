@@ -13,7 +13,7 @@ namespace Buckle.CodeAnalysis.Binding;
 /// <summary>
 /// Resolves overloads to find the best overload.
 /// </summary>
-internal sealed class OverloadResolution {
+internal sealed partial class OverloadResolution {
     private readonly Binder _binder;
 
     /// <summary>
@@ -22,6 +22,28 @@ internal sealed class OverloadResolution {
     /// <param name="binder"><see cref="Binder" /> to use diagnostics from.</param>
     internal OverloadResolution(Binder binder) {
         _binder = binder;
+    }
+
+    internal void BinaryOperatorOverloadResolution(
+        BinaryOperatorKind kind,
+        BoundExpression left,
+        BoundExpression right,
+        BinaryOperatorOverloadResolutionResult result) {
+        EasyOut(kind, left, right, result);
+
+        if (result.results.Count > 0)
+            return;
+
+        return;
+
+        void EasyOut(
+            BinaryOperatorKind kind,
+            BoundExpression left,
+            BoundExpression right,
+            BinaryOperatorOverloadResolutionResult result) {
+            var underlyingKind = kind & ~BinaryOperatorKind.Conditional;
+            BinaryOperatorEasyOut(underlyingKind, left, right, result);
+        }
     }
 
     // /// <summary>
