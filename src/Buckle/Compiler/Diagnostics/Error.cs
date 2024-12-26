@@ -89,7 +89,7 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NoImplicitConversion, location, message);
     }
 
-    internal static BelteDiagnostic CannotConvertImplicitly(
+    internal static BelteDiagnostic CannotConvertImplicitlyArgument(
         TextLocation location,
         TypeSymbol from,
         TypeSymbol to,
@@ -103,6 +103,18 @@ internal static class Error {
             message = $"argument {argument}: " + message;
 
         return CreateError(DiagnosticCode.ERR_CannotConvertImplicitly, location, message, suggestions);
+    }
+
+    internal static BelteDiagnostic CannotConvertImplicitly(TextLocation location, TypeSymbol from, TypeSymbol to) {
+        var message = $"cannot convert from type '{from}' to '{to}' implicitly; an explicit conversion exists (are you missing a cast?)";
+        var suggestion = $"({to})%";
+        return CreateError(DiagnosticCode.ERR_CannotConvertImplicitly, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic CannotConvertImplicitlyNullable(TextLocation location, TypeSymbol from, TypeSymbol to) {
+        var message = $"cannot convert from type '{from}' to '{to}' implicitly; an explicit conversion exists (are you missing a cast?)";
+        var suggestions = (string[])[$"({to})%", "(%)!"];
+        return CreateError(DiagnosticCode.ERR_CannotConvertImplicitlyNullable, location, message, suggestions);
     }
 
     internal static BelteDiagnostic InvalidUnaryOperatorUse(TextLocation location, string op, TypeSymbol operand) {
@@ -175,14 +187,14 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NotAllPathsReturn, location, message);
     }
 
-    internal static BelteDiagnostic CannotConvert(
-        TextLocation location, TypeSymbol from, TypeSymbol to, int argument = 0) {
+    internal static BelteDiagnostic CannotConvert(TextLocation location, TypeSymbol from, TypeSymbol to) {
         var message = $"cannot convert from type '{from}' to '{to}'";
-
-        if (argument > 0)
-            message = $"argument {argument}: " + message;
-
         return CreateError(DiagnosticCode.ERR_CannotConvert, location, message);
+    }
+
+    internal static BelteDiagnostic CannotConvertArgument(TextLocation location, TypeSymbol from, TypeSymbol to, int argument) {
+        var message = $"argument {argument}: cannot convert from type '{from}' to '{to}'";
+        return CreateError(DiagnosticCode.ERR_CannotConvertArgument, location, message);
     }
 
     internal static BelteDiagnostic VariableAlreadyDeclared(TextLocation location, string name, bool isConstant) {

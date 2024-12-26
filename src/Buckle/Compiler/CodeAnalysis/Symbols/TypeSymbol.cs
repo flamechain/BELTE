@@ -113,6 +113,23 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
         return specialType == SpecialType.Void;
     }
 
+    internal bool ContainsErrorType() {
+        var result = VisitType(
+            (type, unused1, unused2) => type.IsErrorType(),
+            (object?)null,
+            canDigThroughNullable: true
+        );
+
+        return result is not null;
+    }
+
+    internal TypeSymbol VisitType<T>(
+        Func<TypeSymbol, T, bool, bool> predicate,
+        T arg,
+        bool canDigThroughNullable = false) {
+        return TypeWithAnnotationsExtensions.VisitType(null, this, null, predicate, arg, canDigThroughNullable);
+    }
+
     internal bool IsAtLeastAsVisibleAs(Symbol symbol) {
         return typeKind switch {
             TypeKind.Class or TypeKind.Struct => symbol.declaredAccessibility switch {

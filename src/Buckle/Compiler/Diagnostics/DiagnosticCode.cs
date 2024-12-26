@@ -186,6 +186,8 @@ public enum DiagnosticCode : ushort {
     ERR_LocalShadowsParameter = 175,
     ERR_ParameterOrLocalShadowsTemplateParameter = 176,
     ERR_LocalAlreadyDeclared = 177,
+    ERR_CannotConvertArgument = 178,
+    ERR_CannotConvertImplicitlyNullable = 179,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

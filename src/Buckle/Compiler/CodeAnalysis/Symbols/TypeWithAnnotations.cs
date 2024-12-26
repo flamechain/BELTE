@@ -29,6 +29,8 @@ internal sealed class TypeWithAnnotations {
 
     internal bool isStatic => type.isStatic;
 
+    internal TypeSymbol nullableUnderlyingTypeOrSelf => type.StrippedType();
+
     internal bool IsSameAs(TypeWithAnnotations other) {
         return ReferenceEquals(type, other.type) && isNullable == other.isNullable;
     }

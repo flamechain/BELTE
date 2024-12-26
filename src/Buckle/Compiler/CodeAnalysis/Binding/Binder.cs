@@ -550,7 +550,7 @@ internal partial class Binder {
         out bool isImplicitlyTyped) {
         if (syntax.isImplicitlyTyped) {
             isImplicitlyTyped = true;
-            return new TypeWithAnnotations(null);
+            return new TypeWithAnnotations(null, true);
         } else {
             isImplicitlyTyped = false;
             return BindType(syntax, diagnostics);
@@ -3420,9 +3420,33 @@ symIsHidden:;
         var sourceType = operand.type;
 
         if (sourceType is not null) {
-            // TODO error
-            // GenerateImplicitConversionError(diagnostics, syntax, conversion, sourceType, targetType, operand.constantValue);
+            GenerateImplicitConversionError(
+                diagnostics,
+                syntax,
+                conversion,
+                sourceType,
+                targetType,
+                operand.constantValue
+            );
+
             return;
+        }
+    }
+
+    private protected static void GenerateImplicitConversionError(
+        BelteDiagnosticQueue diagnostics,
+        SyntaxNode syntax,
+        Conversion conversion,
+        TypeSymbol sourceType,
+        TypeSymbol targetType,
+        ConstantValue sourceConstantValueOpt = null) {
+        if (!sourceType.ContainsErrorType() && !targetType.ContainsErrorType()) {
+            if (conversion.isExplicit && conversion.isNullable)
+                diagnostics.Push(Error.CannotConvertImplicitlyNullable(syntax.location, sourceType, targetType));
+            else if (conversion.isExplicit)
+                diagnostics.Push(Error.CannotConvertImplicitly(syntax.location, sourceType, targetType));
+            else
+                diagnostics.Push(Error.CannotConvert(syntax.location, sourceType, targetType));
         }
     }
 
