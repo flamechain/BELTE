@@ -546,6 +546,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                     expression.right,
                     expression.type
                 ),
+                false,
                 expression.type
             )
         );

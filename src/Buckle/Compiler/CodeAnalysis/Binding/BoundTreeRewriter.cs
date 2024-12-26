@@ -475,7 +475,7 @@ internal abstract class BoundTreeRewriter {
         if (left == expression.left && right == expression.right)
             return expression;
 
-        return new BoundAssignmentExpression(left, right, expression.type);
+        return new BoundAssignmentExpression(left, right, expression.isRef, expression.type);
     }
 
     private protected virtual BoundExpression RewriteUnaryExpression(BoundUnaryExpression expression) {

@@ -834,26 +834,19 @@ internal partial class Binder {
             SyntaxKind.ParenthesizedExpression => BindParenthesisExpression((ParenthesisExpressionSyntax)node, diagnostics),
             SyntaxKind.MemberAccessExpression => BindMemberAccess((MemberAccessExpressionSyntax)node, called, indexed, diagnostics),
             SyntaxKind.IdentifierName or SyntaxKind.TemplateName => BindIdentifier((SimpleNameSyntax)node, called, indexed, diagnostics),
+            // SyntaxKind.BinaryExpression => BindBinaryExpression((BinaryExpressionSyntax)node, diagnostics),
+            // SyntaxKind.UnaryExpression => BindUnaryExpression((UnaryExpressionSyntax)node, diagnostics),
+            // SyntaxKind.PrefixExpression => BindPrefixExpression((PrefixExpressionSyntax)node, diagnostics),
+            // SyntaxKind.PostfixExpression => BindPostfixExpression((PostfixExpressionSyntax)node, diagnostics),
+            // SyntaxKind.TernaryExpression => BindTernaryExpression((TernaryExpressionSyntax)node, diagnostics),
+            SyntaxKind.AssignmentExpression => BindAssignmentExpression((AssignmentExpressionSyntax)node, diagnostics),
             /*
             case SyntaxKind.InitializerListExpression:
                 return BindInitializerListExpression((InitializerListExpressionSyntax)expression, initializerListType);
             case SyntaxKind.InitializerDictionaryExpression:
                 return BindInitializerDictionaryExpression((InitializerDictionaryExpressionSyntax)expression);
-            case SyntaxKind.UnaryExpression:
-                return BindUnaryExpression((UnaryExpressionSyntax)expression);
-            case SyntaxKind.BinaryExpression:
-                return BindBinaryExpression((BinaryExpressionSyntax)expression);
-            case SyntaxKind.TernaryExpression:
-                return BindTernaryExpression((TernaryExpressionSyntax)expression);
-            case SyntaxKind.AssignmentExpression:
-                return BindAssignmentExpression((AssignmentExpressionSyntax)expression);
             case SyntaxKind.IndexExpression:
                 return BindIndexExpression((IndexExpressionSyntax)expression);
-            case SyntaxKind.PostfixExpression:
-                return BindPostfixExpression((PostfixExpressionSyntax)expression, ownStatement);
-            case SyntaxKind.PrefixExpression:
-                return BindPrefixExpression((PrefixExpressionSyntax)expression);
-            case SyntaxKind.ReferenceExpression:
                 return BindReferenceExpression((ReferenceExpressionSyntax)expression);
             case SyntaxKind.CastExpression:
                 return BindCastExpression((CastExpressionSyntax)expression);
@@ -876,6 +869,48 @@ internal partial class Binder {
         // This is factored out into a method for debugging purposes
         // TODO consider storing the entire node
         return new BoundErrorExpression(expression?.type ?? CreateErrorType("?"));
+    }
+
+    private BoundExpression BindAssignmentExpression(
+        AssignmentExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        var rhsExpr = node.right.UnwrapRefExpression(out var refKind);
+        var isRef = refKind == RefKind.Ref;
+        var lhsKind = isRef ? BindValueKind.RefAssignable : BindValueKind.Assignable;
+        var op1 = BindValue(node.left, diagnostics, lhsKind);
+        var rhsKind = isRef ? GetRequiredRHSValueKindForRefAssignment(op1) : BindValueKind.RValue;
+        var op2 = BindValue(rhsExpr, diagnostics, rhsKind);
+        return BindAssignment(node.right, op1, op2, isRef, diagnostics);
+    }
+
+    private BoundAssignmentExpression BindAssignment(
+        SyntaxNode node,
+        BoundExpression op1,
+        BoundExpression op2,
+        bool isRef,
+        BelteDiagnosticQueue diagnostics) {
+        var conversion = GenerateConversionForAssignment(
+            op1.type,
+            op2,
+            diagnostics,
+            node,
+            isRef ? ConversionForAssignmentFlags.RefAssignment : ConversionForAssignmentFlags.None
+        );
+
+        op2 = conversion;
+        var type = op1.type;
+
+        return new BoundAssignmentExpression(op1, op2, isRef, type);
+    }
+
+    private static BindValueKind GetRequiredRHSValueKindForRefAssignment(BoundExpression boundLeft) {
+        var rhsKind = BindValueKind.RefersToLocation;
+        var lhsRefKind = boundLeft.GetRefKind();
+
+        if (lhsRefKind is RefKind.Ref)
+            rhsKind |= BindValueKind.Assignable;
+
+        return rhsKind;
     }
 
     private BoundExpression BindIdentifier(
@@ -1285,8 +1320,7 @@ internal partial class Binder {
 
                     break;
                 default:
-                    if (boundLeft.kind == BoundNodeKind.LiteralExpression &&
-                        ConstantValue.IsNull(((BoundLiteralExpression)boundLeft).constantValue)) {
+                    if (boundLeft.IsLiteralNull()) {
                         diagnostics.Push(Error.InvalidUnaryOperatorUse(
                             node.location,
                             operatorToken.text,
@@ -3364,6 +3398,10 @@ symIsHidden:;
             diagnostics = BelteDiagnosticQueue.Discarded;
         }
 
+        // TODO is this not desirable?
+        if (conversion.isIdentity)
+            return expression;
+
         return new BoundCastExpression(targetType, expression, conversion, null);
         // return CreateConversion(expression.Syntax, expression, conversion, isCast: false, conversionGroupOpt: null, targetType, diagnostics);
         // TODO Consider this helper method
@@ -3441,7 +3479,8 @@ symIsHidden:;
         TypeSymbol targetType,
         ConstantValue sourceConstantValueOpt = null) {
         if (!sourceType.ContainsErrorType() && !targetType.ContainsErrorType()) {
-            if (conversion.isExplicit && conversion.isNullable)
+            // TODO Confirm this condition
+            if (conversion.isNullable && conversion.isIdentity && conversion.isExplicit)
                 diagnostics.Push(Error.CannotConvertImplicitlyNullable(syntax.location, sourceType, targetType));
             else if (conversion.isExplicit)
                 diagnostics.Push(Error.CannotConvertImplicitly(syntax.location, sourceType, targetType));

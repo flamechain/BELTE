@@ -141,7 +141,6 @@ public enum SyntaxKind : ushort {
     PrefixExpression,
     PostfixExpression,
     AssignmentExpression,
-    CompoundAssignmentExpression,
 
     // Primary expressions
     LiteralExpression,

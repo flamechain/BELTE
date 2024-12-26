@@ -69,6 +69,8 @@ internal sealed class Evaluator {
         return Value(result);
     }
 
+    #region Internal Model
+
     private object Value(EvaluatorObject evaluatorObject) {
         return evaluatorObject.value;
     }
@@ -140,6 +142,28 @@ internal sealed class Evaluator {
         throw ExceptionUtilities.Unreachable();
     }
 
+    private void Assign(EvaluatorObject left, EvaluatorObject right) {
+        right = Dereference(right, false);
+        left = Dereference(left, false);
+
+        if (right.isExplicitReference) {
+            left.reference = right.reference;
+            return;
+        } else if (left.isExplicitReference) {
+            left = Dereference(left);
+        }
+
+        if (right.members is null)
+            left.members = null;
+
+        if (right.value is null && right.members != null)
+            left.members = Copy(right.members);
+        else
+            left.value = Value(right);
+
+        left.type = right.type;
+    }
+
     private EvaluatorObject GetFromScopeWithFallback(
         DataContainerSymbol variable,
         Dictionary<IDataContainerSymbol, EvaluatorObject> scope) {
@@ -159,6 +183,30 @@ internal sealed class Evaluator {
 
         return reference;
     }
+
+    private static object SpecialTypeCast(object value, SpecialType target) {
+        switch (target) {
+            case SpecialType.Int:
+                if (value.IsFloatingPoint())
+                    value = Math.Truncate(Convert.ToDouble(value));
+
+                return Convert.ToInt32(value);
+            case SpecialType.Decimal:
+                return Convert.ToDouble(value);
+            case SpecialType.Bool:
+                return Convert.ToBoolean(value);
+            case SpecialType.String:
+                return Convert.ToString(value);
+            case SpecialType.Char:
+                return Convert.ToChar(value);
+            default:
+                return value;
+        }
+    }
+
+    #endregion
+
+    #region Statements
 
     private EvaluatorObject EvaluateStatement(
         BoundBlockStatement block,
@@ -248,6 +296,10 @@ internal sealed class Evaluator {
         Create(statement.declaration.dataContainer, value);
     }
 
+    #endregion
+
+    #region Expressions
+
     private EvaluatorObject EvaluateExpression(BoundExpression expression, ValueWrapper<bool> abort) {
         if (expression.constantValue is not null)
             return EvaluateConstant(expression.constantValue);
@@ -260,6 +312,7 @@ internal sealed class Evaluator {
             BoundNodeKind.DataContainerExpression => EvaluateDataContainerExpression((BoundDataContainerExpression)expression),
             BoundNodeKind.ParameterExpression => EvaluateParameterExpression((BoundParameterExpression)expression),
             BoundNodeKind.FieldAccessExpression => EvaluateFieldAccessExpression((BoundFieldAccessExpression)expression, abort),
+            BoundNodeKind.AssignmentExpression => EvaluateAssignmentExpression((BoundAssignmentExpression)expression, abort),
             _ => throw new BelteInternalException($"EvaluateExpression: unexpected node '{expression.kind}'"),
         };
     }
@@ -275,6 +328,15 @@ internal sealed class Evaluator {
 
     private EvaluatorObject EvaluateDataContainerExpression(BoundDataContainerExpression expression) {
         return new EvaluatorObject(expression.dataContainer);
+    }
+
+    private EvaluatorObject EvaluateAssignmentExpression(
+        BoundAssignmentExpression expression,
+        ValueWrapper<bool> abort) {
+        var left = EvaluateExpression(expression.left, abort);
+        var right = EvaluateExpression(expression.right, abort);
+        Assign(left, right);
+        return right;
     }
 
     private EvaluatorObject EvaluateParameterExpression(BoundParameterExpression expression) {
@@ -322,23 +384,5 @@ internal sealed class Evaluator {
         throw new InvalidCastException();
     }
 
-    private static object SpecialTypeCast(object value, SpecialType target) {
-        switch (target) {
-            case SpecialType.Int:
-                if (value.IsFloatingPoint())
-                    value = Math.Truncate(Convert.ToDouble(value));
-
-                return Convert.ToInt32(value);
-            case SpecialType.Decimal:
-                return Convert.ToDouble(value);
-            case SpecialType.Bool:
-                return Convert.ToBoolean(value);
-            case SpecialType.String:
-                return Convert.ToString(value);
-            case SpecialType.Char:
-                return Convert.ToChar(value);
-            default:
-                return value;
-        }
-    }
+    #endregion
 }

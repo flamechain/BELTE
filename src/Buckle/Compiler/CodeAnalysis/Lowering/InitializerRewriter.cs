@@ -25,17 +25,18 @@ internal static class InitializerRewriter {
 
     private static BoundExpressionStatement RewriteFieldInitializer(BoundFieldEqualsValue fieldInitializer) {
         var field = fieldInitializer.field;
-        var boundReciever = field.isStatic ? null : new BoundThisExpression(field.containingType);
+        var boundReceiver = field.isStatic ? null : new BoundThisExpression(field.containingType);
 
         var boundStatement = new BoundExpressionStatement(
             new BoundAssignmentExpression(
                 new BoundFieldAccessExpression(
-                    boundReciever,
+                    boundReceiver,
                     field,
                     field.type,
                     null
                 ),
                 fieldInitializer.value,
+                field.refKind != Symbols.RefKind.None,
                 field.type
             )
         );

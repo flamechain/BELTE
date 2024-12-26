@@ -413,7 +413,13 @@ internal abstract class BoundTreeExpander {
         statements.AddRange(ExpandExpression(expression.right, out var rightReplacement));
 
         if (statements.Count != 0) {
-            replacement = new BoundAssignmentExpression(leftReplacement, rightReplacement, expression.type);
+            replacement = new BoundAssignmentExpression(
+                leftReplacement,
+                rightReplacement,
+                expression.isRef,
+                expression.type
+            );
+
             return statements;
         }
 

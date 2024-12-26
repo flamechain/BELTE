@@ -11,14 +11,22 @@ internal sealed class Conversions {
     }
 
     internal Conversion ClassifyConversionFromExpression(BoundExpression sourceExpression, TypeSymbol target) {
+        if (sourceExpression.IsLiteralNull()) {
+            if (target.IsNullableType())
+                return Conversion.Identity;
+            else
+                return Conversion.None;
+        }
+
         return Conversion.Classify(sourceExpression.type, target);
     }
 
     internal Conversion ClassifyConversionFromType(TypeSymbol source, TypeSymbol target) {
         return Conversion.Classify(source, target);
     }
+
     public Conversion ClassifyImplicitConversionFromExpression(BoundExpression sourceExpression, TypeSymbol target) {
-        var conversion = Conversion.Classify(sourceExpression.type, target);
+        var conversion = ClassifyConversionFromExpression(sourceExpression, target);
 
         if (conversion.isImplicit)
             return conversion;

@@ -69,8 +69,12 @@ internal static partial class BoundFactory {
         return new BoundConditionalExpression(@if, @then, @else, type);
     }
 
-    internal static BoundAssignmentExpression Assignment(BoundExpression left, BoundExpression right, TypeSymbol type) {
-        return new BoundAssignmentExpression(left, right, type);
+    internal static BoundAssignmentExpression Assignment(
+        BoundExpression left,
+        BoundExpression right,
+        bool isRef,
+        TypeSymbol type) {
+        return new BoundAssignmentExpression(left, right, isRef, type);
     }
 
     internal static BoundCompoundAssignmentExpression Increment(BoundExpression operand) {
