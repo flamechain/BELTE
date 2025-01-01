@@ -874,9 +874,239 @@ internal partial class Binder {
 
     private BoundExpression BindBinaryExpression(BinaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
         if (IsSimpleBinaryOperator(node))
-            return BindSimpleBinaryExpression(node, diagnostics);
+            return BindSimpleBinaryOperator(node, diagnostics);
+        else if (node.operatorToken.kind is SyntaxKind.IsKeyword or SyntaxKind.IsntKeyword)
+            return BindIsOperator(node, diagnostics);
+        else if (node.operatorToken.kind == SyntaxKind.AsKeyword)
+            return BindAsOperator(node, diagnostics);
+        else if (node.operatorToken.kind is SyntaxKind.PipePipeToken or SyntaxKind.AmpersandAmpersandToken)
+            return BindConditionalOperator(node, diagnostics);
+        else if (node.operatorToken.kind == SyntaxKind.QuestionQuestionToken)
+            return BindNullCoalescingOperator(node, diagnostics);
 
-        return ErrorExpression(null);
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    private BoundExpression BindIsOperator(BinaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var isIsntOperator = node.operatorToken.kind == SyntaxKind.IsntKeyword;
+        var resultType = (TypeSymbol)CorLibrary.GetSpecialType(SpecialType.Bool);
+        var operand = BindValue(node.left, diagnostics, BindValueKind.RValue);
+
+        if (node.right is LiteralExpressionSyntax l && l.token.value is null) {
+            if (ConstantValue.IsNotNull(operand.constantValue)) {
+                diagnostics.Push(Warning.AlwaysValue(node.location, isIsntOperator));
+                return new BoundLiteralExpression(new ConstantValue(isIsntOperator, SpecialType.Bool), resultType);
+            }
+
+            var boundRight = BindLiteralExpression(l, diagnostics);
+            return isIsntOperator
+                ? new BoundIsntExpression(operand, boundRight, resultType)
+                : new BoundIsExpression(operand, boundRight, resultType);
+        }
+
+        var targetTypeWithAnnotations = BindType(node.right, diagnostics);
+        var targetType = targetTypeWithAnnotations.type;
+        var boundType = new BoundTypeExpression(targetType, targetTypeWithAnnotations);
+
+        if ((operand.type.isObjectType && targetType.isPrimitiveType) ||
+            (operand.type.isPrimitiveType && targetType.isObjectType) ||
+            targetType.isStatic) {
+            diagnostics.Push(Warning.NeverGivenType(node.location, targetType));
+            return new BoundLiteralExpression(new ConstantValue(isIsntOperator, SpecialType.Bool), resultType);
+        }
+
+        if (ConstantValue.IsNull(operand.constantValue) ||
+            operand.kind == BoundNodeKind.MethodGroup ||
+            operand.type.IsVoidType()) {
+            diagnostics.Push(Warning.AlwaysValue(node.location, isIsntOperator));
+            return new BoundLiteralExpression(new ConstantValue(isIsntOperator, SpecialType.Bool), resultType);
+        }
+
+        var operandType = operand.type;
+        var conversion = conversions.ClassifyBuiltInConversion(operandType, targetType);
+        var cast = CreateConversion(node.left, operand, conversion, false, targetType, diagnostics);
+        return isIsntOperator
+            ? new BoundIsntExpression(cast, boundType, resultType)
+            : new BoundIsExpression(cast, boundType, resultType);
+    }
+
+    private BoundExpression BindAsOperator(BinaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var operand = BindValue(node.left, diagnostics, BindValueKind.RValue);
+        var targetTypeWithAnnotations = BindType(node.right, diagnostics);
+        var targetType = targetTypeWithAnnotations.type;
+        var boundType = new BoundTypeExpression(targetType, targetTypeWithAnnotations);
+        var resultType = targetType;
+
+        if ((operand.type.isObjectType && targetType.isPrimitiveType) ||
+            (operand.type.isPrimitiveType && targetType.isObjectType) ||
+            targetType.isStatic) {
+            diagnostics.Push(Warning.NeverGivenType(node.location, targetType));
+            return new BoundLiteralExpression(new ConstantValue(false, SpecialType.Bool), resultType);
+        }
+
+        var operandType = operand.type;
+        var conversion = conversions.ClassifyBuiltInConversion(operandType, targetType);
+        var cast = CreateConversion(node.left, operand, conversion, false, targetType, diagnostics);
+        return new BoundAsExpression(cast, boundType, resultType);
+    }
+
+    private BoundExpression BindNullCoalescingOperator(BinaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var leftOperand = BindValue(node.left, diagnostics, BindValueKind.RValue);
+        var rightOperand = BindValue(node.right, diagnostics, BindValueKind.RValue);
+
+        var optLeftType = leftOperand.type;   // "A"
+        var optRightType = rightOperand.type; // "B"
+        var isLeftNullable = optLeftType is not null && optLeftType.IsNullableType();
+        var optLeftType0 = isLeftNullable ? optLeftType.GetNullableUnderlyingType() : optLeftType; // "A0"
+
+        if (leftOperand.kind == BoundNodeKind.MethodGroup)
+            return new BoundNullCoalescingExpression(leftOperand, rightOperand, CreateErrorType());
+
+        if (isLeftNullable) {
+            var rightConversion = conversions.ClassifyImplicitConversionFromExpression(rightOperand, optLeftType0);
+
+            if (rightConversion.exists) {
+                var convertedRightOperand = CreateConversion(
+                    node.right,
+                    rightOperand,
+                    rightConversion,
+                    false,
+                    optLeftType0,
+                    diagnostics
+                );
+
+                return new BoundNullCoalescingExpression(leftOperand, convertedRightOperand, optLeftType0);
+            }
+        }
+
+        if (optLeftType is not null) {
+            var rightConversion = conversions.ClassifyImplicitConversionFromExpression(rightOperand, optLeftType);
+
+            if (rightConversion.exists) {
+                var convertedRightOperand = CreateConversion(
+                    node.right,
+                    rightOperand,
+                    rightConversion,
+                    false,
+                    optLeftType,
+                    diagnostics
+                );
+
+                return new BoundNullCoalescingExpression(leftOperand, convertedRightOperand, optLeftType);
+            }
+        }
+
+        if (optRightType is not null) {
+            Conversion leftConversionClassification;
+
+            if (isLeftNullable) {
+                leftConversionClassification = conversions.ClassifyImplicitConversionFromType(optLeftType0, optRightType);
+
+                if (leftConversionClassification.exists) {
+                    var leftConversion = CreateConversion(
+                        node,
+                        leftOperand,
+                        leftConversionClassification,
+                        false,
+                        optRightType,
+                        diagnostics
+                    );
+
+                    return new BoundNullCoalescingExpression(leftConversion, rightOperand, optRightType);
+                }
+            } else {
+                leftConversionClassification = conversions.ClassifyImplicitConversionFromExpression(
+                    leftOperand,
+                    optRightType
+                );
+
+                if (leftConversionClassification.exists) {
+                    var leftConversion = CreateConversion(
+                        node,
+                        leftOperand,
+                        leftConversionClassification,
+                        false,
+                        optRightType,
+                        diagnostics
+                    );
+
+                    return new BoundNullCoalescingExpression(leftConversion, rightOperand, optRightType);
+                }
+            }
+        }
+
+        return new BoundNullCoalescingExpression(leftOperand, rightOperand, CreateErrorType());
+    }
+
+    private BoundExpression BindConditionalOperator(BinaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var binary = node;
+        ExpressionSyntax child;
+
+        while (true) {
+            child = binary.left;
+
+            if (child is not BinaryExpressionSyntax childAsBinary ||
+                (childAsBinary.operatorToken.kind is not SyntaxKind.PipePipeToken and
+                    not SyntaxKind.AmpersandAmpersandToken)) {
+                break;
+            }
+
+            binary = childAsBinary;
+        }
+
+        var left = BindValue(child, diagnostics, BindValueKind.RValue);
+
+        do {
+            binary = (BinaryExpressionSyntax)child.parent;
+            var right = BindValue(binary.right, diagnostics, BindValueKind.RValue);
+            left = BindConditionalOperator(binary, left, right, diagnostics);
+            child = binary;
+        } while ((object)child != node);
+
+        return left;
+    }
+
+    private BoundExpression BindConditionalOperator(
+        BinaryExpressionSyntax node,
+        BoundExpression left,
+        BoundExpression right,
+        BelteDiagnosticQueue diagnostics) {
+        var kind = SyntaxKindToBinaryOperatorKind(node.operatorToken.kind);
+
+        if (left.type is not null && left.type.specialType == SpecialType.Bool &&
+            right.type is not null && right.type.specialType == SpecialType.Bool) {
+            var constantValue = ConstantFolding.FoldBinary(left, right, kind | BinaryOperatorKind.Bool, left.type);
+            return new BoundBinaryExpression(left, right, kind | BinaryOperatorKind.Bool, left.type, constantValue);
+        }
+
+        var best = BinaryOperatorOverloadResolution(
+            kind,
+            left,
+            right,
+            node,
+            diagnostics,
+            out var lookupResult,
+            out var originalUserDefinedOperators
+        );
+
+        if (!best.hasValue) {
+            ReportBinaryOperatorError(node, diagnostics, node.operatorToken, left, right, lookupResult);
+        } else {
+            var signature = best.signature;
+            var bothBool = signature.leftType.specialType == SpecialType.Bool &&
+                signature.rightType.specialType == SpecialType.Bool;
+
+            if (!bothBool) {
+                ReportBinaryOperatorError(node, diagnostics, node.operatorToken, left, right, lookupResult);
+            } else if (bothBool) {
+                var resultLeft = CreateConversion(node.left, left, best.leftConversion, false, signature.leftType, diagnostics);
+                var resultRight = CreateConversion(node.right, right, best.rightConversion, false, signature.rightType, diagnostics);
+                var resultKind = kind | signature.kind.OperandTypes();
+                return new BoundBinaryExpression(resultLeft, resultRight, resultKind, signature.returnType, null);
+            }
+        }
+
+        return new BoundBinaryExpression(left, right, kind, CreateErrorType(), null);
     }
 
     private bool IsSimpleBinaryOperator(ExpressionSyntax node) {
@@ -915,7 +1145,7 @@ internal partial class Binder {
         return false;
     }
 
-    private BoundExpression BindSimpleBinaryExpression(BinaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+    private BoundExpression BindSimpleBinaryOperator(BinaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
         var syntaxNodes = ArrayBuilder<BinaryExpressionSyntax>.GetInstance();
 
         ExpressionSyntax current = node;
@@ -956,6 +1186,31 @@ internal partial class Binder {
         return result;
     }
 
+    private void ReportBinaryOperatorError(
+        ExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics,
+        SyntaxToken operatorToken,
+        BoundExpression left,
+        BoundExpression right,
+        LookupResultKind resultKind) {
+        var isEquality = operatorToken.kind is SyntaxKind.EqualsEqualsToken or SyntaxKind.ExclamationEqualsToken;
+
+        switch (resultKind) {
+            case LookupResultKind.Ambiguous:
+                diagnostics.Push(
+                    Error.AmbiguousBinaryOperator(node.location, operatorToken.text, left.type, right.type)
+                );
+
+                break;
+            default:
+                diagnostics.Push(
+                    Error.InvalidBinaryOperatorUse(node.location, operatorToken.text, left.type, right.type)
+                );
+
+                break;
+        }
+    }
+
     private BoundExpression BindSimpleBinaryOperator(
         BinaryExpressionSyntax node,
         BelteDiagnosticQueue diagnostics,
@@ -982,10 +1237,7 @@ internal partial class Binder {
         var hasErrors = false;
 
         if (!foundOperator) {
-            diagnostics.Push(
-                Error.InvalidBinaryOperatorUse(node.location, node.operatorToken.text, leftType, rightType)
-            );
-
+            ReportBinaryOperatorError(node, diagnostics, node.operatorToken, left, right, resultKind);
             resultOperatorKind &= ~BinaryOperatorKind.TypeMask;
             hasErrors = true;
         }
@@ -1879,7 +2131,7 @@ internal partial class Binder {
                         // TODO templates
                     }
 
-                    result = new BoundTypeExpression(type);
+                    result = new BoundTypeExpression(type, null);
                     break;
                 case SymbolKind.Field:
                     result = BindFieldAccess(

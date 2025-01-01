@@ -1,9 +1,8 @@
 using System;
+using System.IO;
 using System.Threading;
-using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
@@ -122,18 +121,11 @@ public abstract partial class SyntaxNode {
     internal bool isList => green.isList;
 
     public override string ToString() {
-        var text = new DisplayText();
-        PrettyPrint(text, this);
-
-        return text.ToString();
+        return green.ToString();
     }
 
-    /// <summary>
-    /// Write a pretty-print text representation of this <see cref="SyntaxNode" /> to an out.
-    /// </summary>
-    /// <param name="text">Out.</param>
-    public void WriteTo(DisplayText text) {
-        PrettyPrint(text, this);
+    public virtual void WriteTo(TextWriter writer) {
+        green.WriteTo(writer, true, true);
     }
 
     /// <summary>
@@ -428,62 +420,5 @@ public abstract partial class SyntaxNode {
 
         endOfFile = null;
         return false;
-    }
-
-    private static void PrettyPrint(DisplayText text, SyntaxNodeOrToken node, string indent = "", bool isLast = true) {
-        var token = node.AsToken();
-
-        if (token is not null) {
-            foreach (var trivia in token.leadingTrivia) {
-                text.Write(CreatePunctuation(indent));
-                text.Write(CreatePunctuation("├─"));
-                text.Write(CreateRedNode($"Lead: {trivia.kind} [{trivia.span.start}..{trivia.span.end})"));
-                text.Write(CreateLine());
-            }
-        }
-
-        var hasTrailingTrivia = token is not null && token.trailingTrivia.Any();
-        var tokenMarker = !hasTrailingTrivia && isLast ? "└─" : "├─";
-
-        text.Write(CreatePunctuation($"{indent}{tokenMarker}"));
-
-        if (node.isToken)
-            text.Write(CreateGreenNode(node.AsToken().kind.ToString()));
-        else
-            text.Write(CreateBlueNode(node.AsNode().kind.ToString()));
-
-        if (node.AsToken(out var t) && t.text is not null)
-            text.Write(CreatePunctuation($" {t.text}"));
-
-        if (node.isToken) {
-            text.Write(CreateGreenNode($" [{node.span.start}..{node.span.end})"));
-            text.Write(CreateLine());
-        } else {
-            text.Write(CreateBlueNode($" [{node.span.start}..{node.span.end})"));
-            text.Write(CreateLine());
-        }
-
-        if (token is not null) {
-            foreach (var trivia in token.trailingTrivia) {
-                var isLastTrailingTrivia = trivia.index == token.trailingTrivia.Count - 1;
-                var triviaMarker = isLast && isLastTrailingTrivia ? "└─" : "├─";
-
-                text.Write(CreatePunctuation(indent));
-                text.Write(CreatePunctuation(triviaMarker));
-                text.Write(CreateRedNode($"Trail: {trivia.kind} [{trivia.span.start}..{trivia.span.end})"));
-                text.Write(CreateLine());
-            }
-        }
-
-        indent += isLast ? "  " : "│ ";
-
-        if (node.isToken)
-            return;
-
-        var children = node.AsNode().ChildNodesAndTokens();
-        var lastChild = children.Last();
-
-        foreach (var child in children)
-            PrettyPrint(text, child, indent, child == lastChild);
     }
 }

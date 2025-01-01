@@ -21,7 +21,7 @@ public class SyntaxTrivia {
     /// <summary>
     /// The token that this trivia is wrapping.
     /// </summary>
-    internal SyntaxToken token { get; }
+    public SyntaxToken token { get; }
 
     /// <summary>
     /// The underlying trivia.
@@ -31,33 +31,33 @@ public class SyntaxTrivia {
     /// <summary>
     /// The index that this trivia is in relation to an owning trivia list.
     /// </summary>
-    internal int index { get; }
+    public int index { get; }
 
     /// <summary>
     /// The start position of this trivia.
     /// </summary>
-    internal int position { get; }
+    public int position { get; }
 
     /// <summary>
     /// The width of the trivia. Is the same as <see cref="fullWidth" />.
     /// </summary>
-    internal int width => green?.width ?? 0;
+    public int width => green?.width ?? 0;
 
     /// <summary>
     /// The full width of the trivia. Is the same as <see cref="width" />.
     /// </summary>
-    internal int fullWidth => green?.width ?? 0;
+    public int fullWidth => green?.width ?? 0;
 
     /// <summary>
     /// The kind of trivia.
     /// </summary>
-    internal SyntaxKind kind => green?.kind ?? SyntaxKind.None;
+    public SyntaxKind kind => green?.kind ?? SyntaxKind.None;
 
     /// <summary>
     /// The span of the trivia. Should be the same as <see cref="fullSpan" />.
     /// </summary>
     /// <returns></returns>
-    internal TextSpan span => green is not null
+    public TextSpan span => green is not null
         ? new TextSpan(position + green.GetLeadingTriviaWidth(), green.width)
         : null;
 
@@ -65,21 +65,21 @@ public class SyntaxTrivia {
     /// The full span of the trivia. Should be the same as <see cref="span" />.
     /// </summary>
     /// <returns></returns>
-    internal TextSpan fullSpan => green is not null ? new TextSpan(position, green.fullWidth) : null;
+    public TextSpan fullSpan => green is not null ? new TextSpan(position, green.fullWidth) : null;
 
     /// <summary>
     /// If the trivia contains any diagnostics.
     /// </summary>
-    internal bool containsDiagnostics => green?.containsDiagnostics ?? false;
+    public bool containsDiagnostics => green?.containsDiagnostics ?? false;
 
     /// <summary>
     /// The <see cref="SyntaxTree" /> that contains this trivia.
     /// </summary>
-    internal SyntaxTree syntaxTree => token.syntaxTree;
+    public SyntaxTree syntaxTree => token.syntaxTree;
 
     /// <summary>
     /// The location of this trivia in the <see cref="SourceText" /> that contains it.
     /// </summary>
     /// <returns></returns>
-    internal TextLocation location => new TextLocation(syntaxTree.text, span);
+    public TextLocation location => new TextLocation(syntaxTree.text, span);
 }

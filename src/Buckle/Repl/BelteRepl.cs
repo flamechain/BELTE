@@ -273,7 +273,7 @@ public sealed partial class BelteRepl : Repl {
 
     private void IterateTokens(SyntaxNodeOrToken node, DisplayText text) {
         if (node.isToken) {
-            node.AsToken().WriteTo(text);
+            SyntaxTokenExtensions.PrettyPrint(text, node.AsToken());
             text.Write(CreateSpace());
         }
 
@@ -300,7 +300,7 @@ public sealed partial class BelteRepl : Repl {
         }
 
         if (state.showTree) {
-            syntaxTree.GetRoot().WriteTo(displayText);
+            SyntaxNodeExtensions.PrettyPrint(displayText, syntaxTree.GetRoot());
             WriteDisplayText(displayText);
         }
 

@@ -133,7 +133,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic InvalidBinaryOperatorUse(TextLocation location, string op, TypeSymbol left, TypeSymbol right) {
-        var message = $"binary operator '{op}' is not defined for types '{left}' and '{right}'";
+        var message = $"binary operator '{op}' is not defined for operands of types '{left}' and '{right}'";
         return CreateError(DiagnosticCode.ERR_InvalidBinaryOperatorUse, location, message);
     }
 
@@ -1066,6 +1066,11 @@ internal static class Error {
     internal static BelteDiagnostic LocalAlreadyDeclared(TextLocation location, string name) {
         var message = $"a local or local function with the name '{name}' has already been declared in this scope";
         return CreateError(DiagnosticCode.ERR_LocalAlreadyDeclared, location, message);
+    }
+
+    internal static BelteDiagnostic AmbiguousBinaryOperator(TextLocation location, string op, TypeSymbol left, TypeSymbol right) {
+        var message = $"binary operator '{op}' is ambiguous for operands with types '{left}' and '{right}'";
+        return CreateError(DiagnosticCode.ERR_AmbiguousBinaryOperator, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

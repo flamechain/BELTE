@@ -50,12 +50,13 @@ public sealed class EvaluatorObject {
     /// <param name="isExplicitReference">
     /// If this is just a variable, or if it explicitly a reference expression.
     /// </param>
-    internal EvaluatorObject(Symbol reference, bool isExplicitReference = false) {
+    internal EvaluatorObject(Symbol reference, TypeSymbol type, bool isExplicitReference = false) {
         value = null;
         isReference = true;
         this.reference = reference;
         this.isExplicitReference = isExplicitReference;
         members = null;
+        this.type = type;
     }
 
     internal object value { get; set; }

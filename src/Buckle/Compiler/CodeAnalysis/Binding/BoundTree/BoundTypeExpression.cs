@@ -10,7 +10,14 @@ internal sealed class BoundTypeExpression : BoundExpression {
         this.type = type;
     }
 
+    internal BoundTypeExpression(TypeSymbol type, TypeWithAnnotations typeWithAnnotations) {
+        this.type = type;
+        this.typeWithAnnotations = typeWithAnnotations;
+    }
+
     internal override BoundNodeKind kind => BoundNodeKind.TypeExpression;
 
     internal override TypeSymbol type { get; }
+
+    internal TypeWithAnnotations typeWithAnnotations { get; }
 }

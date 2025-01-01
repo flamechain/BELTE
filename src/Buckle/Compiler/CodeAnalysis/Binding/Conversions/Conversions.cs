@@ -33,11 +33,24 @@ internal sealed class Conversions {
         return Conversion.Classify(sourceExpression.type, target);
     }
 
+    internal Conversion ClassifyBuiltInConversion(TypeSymbol source, TypeSymbol target) {
+        return FastClassifyConversion(source, target);
+    }
+
     internal Conversion ClassifyConversionFromType(TypeSymbol source, TypeSymbol target) {
         return Conversion.Classify(source, target);
     }
 
-    public Conversion ClassifyImplicitConversionFromExpression(BoundExpression sourceExpression, TypeSymbol target) {
+    internal Conversion ClassifyImplicitConversionFromType(TypeSymbol source, TypeSymbol target) {
+        var conversion = ClassifyConversionFromType(source, target);
+
+        if (conversion.isImplicit)
+            return conversion;
+
+        return Conversion.None;
+    }
+
+    internal Conversion ClassifyImplicitConversionFromExpression(BoundExpression sourceExpression, TypeSymbol target) {
         var conversion = ClassifyConversionFromExpression(sourceExpression, target);
 
         if (conversion.isImplicit)

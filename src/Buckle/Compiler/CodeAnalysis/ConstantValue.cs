@@ -35,17 +35,11 @@ internal partial class ConstantValue {
     internal BelteDiagnostic[] diagnostics { get; }
 
     internal static bool IsNull(ConstantValue constant) {
-        if (constant is not null && constant.value is null)
-            return true;
-
-        return false;
+        return constant is not null && constant.value is null;
     }
 
     internal static bool IsNotNull(ConstantValue constant) {
-        if (constant is not null && constant.value is not null)
-            return true;
-
-        return false;
+        return constant is not null && constant.value is not null;
     }
 
     public override int GetHashCode() {

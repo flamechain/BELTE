@@ -80,21 +80,21 @@ public sealed partial class SyntaxTriviaList : IReadOnlyList<SyntaxTrivia> {
         }
     }
 
-    internal SyntaxTrivia First() {
+    public SyntaxTrivia First() {
         if (Any())
             return this[0];
 
         throw new InvalidOperationException();
     }
 
-    internal SyntaxTrivia Last() {
+    public SyntaxTrivia Last() {
         if (Any())
             return this[Count - 1];
 
         throw new InvalidOperationException();
     }
 
-    internal bool Any() {
+    public bool Any() {
         return node is not null;
     }
 

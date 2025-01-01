@@ -19,26 +19,17 @@ internal static class Warning {
     /// Once the compiler is finished, this class will be unnecessary.
     /// </summary>
     internal static class Unsupported {
-        /// <summary>
-        /// BU9001. Run `buckle --explain BU9001` on the command line for more info.
-        /// </summary>
         internal static BelteDiagnostic Assembling() {
             var message = "assembling not supported (yet); skipping";
             return new BelteDiagnostic(WarningInfo(DiagnosticCode.UNS_Assembling), message);
         }
 
-        /// <summary>
-        /// BU9002. Run `buckle --explain BU9002` on the command line for more info.
-        /// </summary>
         internal static BelteDiagnostic Linking() {
             var message = "linking not supported (yet); skipping";
             return new BelteDiagnostic(WarningInfo(DiagnosticCode.UNS_Linking), message);
         }
     }
 
-    /// <summary>
-    /// BU0001. Run `buckle --explain BU0001` on the command line for more info.
-    /// </summary>
     internal static BelteDiagnostic AlwaysValue(TextLocation location, object value) {
         var valueString = value is null ? "null" : value.ToString();
 
@@ -51,17 +42,11 @@ internal static class Warning {
         return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_AlwaysValue), location, message);
     }
 
-    /// <summary>
-    /// BU0002. Run `buckle --explain BU0002` on the command line for more info.
-    /// </summary>
     internal static BelteDiagnostic NullDeference(TextLocation location) {
         var message = "deference of a possibly null value";
         return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_NullDeference), location, message);
     }
 
-    /// <summary>
-    /// BU0026. Run `buckle --explain BU0026` on the command line for more info.
-    /// </summary>
     internal static BelteDiagnostic UnreachableCode(SyntaxNode node) {
         if (node.kind == SyntaxKind.BlockStatement) {
             var firstStatement = ((BlockStatementSyntax)node).statements.FirstOrDefault();
@@ -77,32 +62,24 @@ internal static class Warning {
         return UnreachableCode(node.location);
     }
 
-    /// <summary>
-    /// BU0026. Run `buckle --explain BU0026` on the command line for more info.
-    /// </summary>
     internal static BelteDiagnostic UnreachableCode(TextLocation location) {
         var message = "unreachable code";
         return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_UnreachableCode), location, message);
     }
 
-    /// <summary>
-    /// BU0133. Run `buckle --explain BU0133` on the command line for more info.
-    /// </summary>
     internal static BelteDiagnostic MemberShadowsNothing(TextLocation location, string signature, string typeName) {
         var message = $"the member '{typeName}.{signature}' does not hide a member; the 'new' keyword is unnecessary";
         return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_MemberShadowsNothing), location, message);
     }
 
-    /// <summary>
-    /// BU0145. Run `buckle --explain BU0145` on the command line for more info.
-    /// </summary>
-    internal static BelteDiagnostic ProtectedMemberInSealedType(
-        TextLocation location,
-        NamespaceOrTypeSymbol containingSymbol,
-        Symbol member) {
-        var message = $"'{containingSymbol}.{member}': " +
-            "new protected member declared in sealed type; no different than private";
+    internal static BelteDiagnostic ProtectedMemberInSealedType(TextLocation location, NamespaceOrTypeSymbol containingSymbol, Symbol member) {
+        var message = $"'{containingSymbol}.{member}': new protected member declared in sealed type; no different than private";
         return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_ProtectedMemberInSealedType), location, message);
+    }
+
+    internal static BelteDiagnostic NeverGivenType(TextLocation location, TypeSymbol type) {
+        var message = $"the given expression is never of the provided type ('{type}')";
+        return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_NeverGivenType), location, message);
     }
 
     private static DiagnosticInfo WarningInfo(DiagnosticCode code) {

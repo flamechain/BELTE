@@ -120,12 +120,15 @@ internal abstract partial class GreenNode {
     /// </summary>
     internal bool isList => kind == ListKind;
 
-
     public override string ToString() {
         var sb = PooledStringBuilder.GetInstance();
         var writer = new StringWriter(sb.Builder);
         WriteTo(writer, leading: false, trailing: false);
         return sb.ToStringAndFree();
+    }
+
+    public void WriteTo(TextWriter writer) {
+        WriteTo(writer, leading: true, trailing: true);
     }
 
     /// <summary>
@@ -345,7 +348,7 @@ internal abstract partial class GreenNode {
         return NoDiagnostics;
     }
 
-    private protected void WriteTo(TextWriter writer, bool leading, bool trailing) {
+    protected internal void WriteTo(TextWriter writer, bool leading, bool trailing) {
         var stack = new Stack<(GreenNode node, bool leading, bool trailing)>();
         stack.Push((this, leading, trailing));
 

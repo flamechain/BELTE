@@ -33,7 +33,7 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
     /// <summary>
     /// The parent of the child list.
     /// </summary>
-    internal SyntaxNode node { get; }
+    public SyntaxNode node { get; }
 
     public Enumerator GetEnumerator() {
         return new Enumerator(node, Count);
@@ -52,7 +52,6 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
 
         return new EnumeratorImpl(node, Count);
     }
-
 
     internal static SyntaxNodeOrToken ItemInternal(SyntaxNode node, int index) {
         var slotData = new SlotData(node);
@@ -113,7 +112,7 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
     /// <summary>
     /// Returns the child node or token of the given node whose span contains the target position.
     /// </summary>
-    internal static SyntaxNodeOrToken ChildThatContainsPosition(SyntaxNode node, int targetPosition) {
+    public static SyntaxNodeOrToken ChildThatContainsPosition(SyntaxNode node, int targetPosition) {
         var green = node.green;
         var position = node.position;
         var index = 0;
@@ -159,22 +158,22 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
         return new SyntaxNodeOrToken(node, green, position, index);
     }
 
-    internal Reversed Reverse() {
+    public Reversed Reverse() {
         return new Reversed(node, Count);
     }
 
-    internal bool Any() {
+    public bool Any() {
         return Count != 0;
     }
 
-    internal SyntaxNodeOrToken First() {
+    public SyntaxNodeOrToken First() {
         if (Any())
             return this[0];
 
         throw new InvalidOperationException();
     }
 
-    internal SyntaxNodeOrToken Last() {
+    public SyntaxNodeOrToken Last() {
         if (Any())
             return this[Count - 1];
 

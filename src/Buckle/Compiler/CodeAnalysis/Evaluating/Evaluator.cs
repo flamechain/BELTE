@@ -160,7 +160,7 @@ internal sealed class Evaluator {
         if (evaluatorObject.reference is not null && !evaluatorObject.isExplicitReference)
             return Copy(Get(evaluatorObject.reference));
         else if (evaluatorObject.reference is not null)
-            return new EvaluatorObject(evaluatorObject.reference, isExplicitReference: true);
+            return new EvaluatorObject(evaluatorObject.reference, evaluatorObject.type, isExplicitReference: true);
         else if (evaluatorObject.members is not null)
             return new EvaluatorObject(Copy(evaluatorObject.members), evaluatorObject.type);
         else
@@ -381,7 +381,7 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateDataContainerExpression(BoundDataContainerExpression expression) {
-        return new EvaluatorObject(expression.dataContainer);
+        return new EvaluatorObject(expression.dataContainer, expression.dataContainer.type);
     }
 
     private EvaluatorObject EvaluateConditionalExpression(
@@ -442,7 +442,7 @@ internal sealed class Evaluator {
         if (dereferenced.members is null) {
             return new EvaluatorObject(
                 (right.type.StrippedType().specialType == SpecialType.Any) ||
-                (SpecialTypeExtensions.SpecialTypeFromLiteralValue(leftValue) == right.type.specialType) ^ true,
+                (SpecialTypeExtensions.SpecialTypeFromLiteralValue(leftValue) == right.type.specialType),
                 expression.type
             );
         }
@@ -473,8 +473,8 @@ internal sealed class Evaluator {
 
         if (dereferenced.members is null) {
             return new EvaluatorObject(
-                (right.type.StrippedType().specialType == SpecialType.Any) ||
-                (SpecialTypeExtensions.SpecialTypeFromLiteralValue(leftValue) == right.type.specialType) ^ false,
+                !((right.type.StrippedType().specialType == SpecialType.Any) ||
+                (SpecialTypeExtensions.SpecialTypeFromLiteralValue(leftValue) == right.type.specialType)),
                 expression.type
             );
         }
@@ -642,7 +642,7 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateParameterExpression(BoundParameterExpression expression) {
-        return new EvaluatorObject(expression.parameter);
+        return new EvaluatorObject(expression.parameter, expression.parameter.type);
     }
 
     private EvaluatorObject EvaluateFieldAccessExpression(
