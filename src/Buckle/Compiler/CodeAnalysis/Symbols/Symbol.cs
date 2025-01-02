@@ -258,8 +258,6 @@ internal abstract class Symbol : ISymbol {
         var symbol = this;
 
         while (true) {
-            NamedTypeSymbol type;
-
             switch (symbol.kind) {
                 case SymbolKind.Method:
                     var method = (MethodSymbol)symbol;
@@ -270,22 +268,24 @@ internal abstract class Symbol : ISymbol {
                     }
 
                     return method.thisParameter;
-                case SymbolKind.Field:
-                    type = symbol.containingType;
-                    break;
-                case SymbolKind.NamedType:
-                    type = (NamedTypeSymbol)symbol;
-                    break;
                 default:
                     return null;
             }
-
-            return null;
         }
     }
 
     internal bool IsNoMoreVisibleThan(TypeSymbol type) {
         return type.IsAtLeastAsVisibleAs(this);
+    }
+
+    internal Symbol GetLeastOverriddenMember(NamedTypeSymbol accessingTypeOpt) {
+        switch (kind) {
+            case SymbolKind.Method:
+                var method = (MethodSymbol)this;
+                return method.GetConstructedLeastOverriddenMethod(accessingTypeOpt, requireSameReturnType: false);
+            default:
+                return this;
+        }
     }
 
     internal bool IsFromCompilation(Compilation compilation) {

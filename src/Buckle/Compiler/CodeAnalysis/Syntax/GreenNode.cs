@@ -431,7 +431,7 @@ internal abstract partial class GreenNode {
         return lastIndex;
     }
 
-    private protected string GetDebuggerDisplay() {
+    private string GetDebuggerDisplay() {
         return GetType().Name + " " + kind + " " + ToString();
     }
 }

@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -8,72 +9,49 @@ namespace Buckle.CodeAnalysis.Binding;
 /// The results of the <see cref="OverloadResolution" />. Describes if it succeeded, and which method was picked if it
 /// succeeded.
 /// </summary>
-internal sealed class OverloadResolutionResult<T> where T : ISymbol {
+internal sealed class OverloadResolutionResult<T> where T : Symbol {
     private static readonly ObjectPool<OverloadResolutionResult<T>> Pool = CreatePool();
 
+    private ThreeState _bestResultState;
     private MemberResolutionResult<T> _bestResult;
 
     internal readonly ArrayBuilder<MemberResolutionResult<T>> resultsBuilder;
 
-    private OverloadResolutionResult(T[] bestOverloads, ImmutableArray<BoundExpression> arguments, bool succeeded) {
-        this.bestOverloads = bestOverloads;
-        this.arguments = arguments;
-        this.succeeded = succeeded;
-        ambiguous = false;
+    internal OverloadResolutionResult() {
+        resultsBuilder = [];
     }
 
-    /// <summary>
-    /// Creates a failed result, indicating the <see cref="OverloadResolution" /> failed to resolve a single overload.
-    /// </summary>
-    internal static OverloadResolutionResult<T> Failed() {
-        return new OverloadResolutionResult<T>(default, ImmutableArray<BoundExpression>.Empty, false);
+    internal bool succeeded {
+        get {
+            EnsureBestResultLoaded();
+            return _bestResultState == ThreeState.True && _bestResult.result.isValid;
+        }
     }
 
-    /// <summary>
-    /// Creates a failed result due to an ambiguity error.
-    /// </summary>
-    internal static OverloadResolutionResult<T> Ambiguous() {
-        var result = Failed();
-        result.ambiguous = true;
-        return result;
+    internal MemberResolutionResult<T> bestResult {
+        get {
+            EnsureBestResultLoaded();
+            return _bestResult;
+        }
     }
 
-    /// <summary>
-    /// Creates a succeeded result with a single chosen overload and the resulting fully-bound arguments.
-    /// </summary>
-    internal static OverloadResolutionResult<T> Succeeded(T bestOverload, ImmutableArray<BoundExpression> arguments) {
-        return new OverloadResolutionResult<T>([bestOverload], arguments, true);
+    internal ImmutableArray<MemberResolutionResult<T>> results => resultsBuilder.ToImmutable();
+
+    internal bool hasAnyApplicableMember {
+        get {
+            foreach (var result in resultsBuilder) {
+                if (result.result.isApplicable)
+                    return true;
+            }
+
+            return false;
+        }
     }
-
-    /// <summary>
-    /// Creates a succeeded result with multiple chosen overloads and the resulting fully-bound arguments.
-    /// </summary>
-    internal static OverloadResolutionResult<T> Succeeded(T[] bestOverloads, ImmutableArray<BoundExpression> arguments) {
-        return new OverloadResolutionResult<T>(bestOverloads, arguments, true);
-    }
-
-    internal bool succeeded { get; }
-
-    /// <summary>
-    /// If the <see cref="OverloadResolution"/> resulted in an ambiguous failure.
-    /// </summary>
-    /// <value></value>
-    internal bool ambiguous { get; private set; }
-
-    internal T[] bestOverloads { get; }
-
-    internal T bestOverload => bestOverloads[0];
-
-    /// <summary>
-    /// Modified arguments (accounts for default parameters, etc.)
-    /// </summary>
-    internal ImmutableArray<BoundExpression> arguments { get; }
-
 
     internal void Clear() {
-        _bestResult = default(MemberResolutionResult<TMember>);
+        _bestResult = default;
         _bestResultState = ThreeState.Unknown;
-        this.ResultsBuilder.Clear();
+        resultsBuilder.Clear();
     }
 
     internal static OverloadResolutionResult<T> GetInstance() {
@@ -89,5 +67,31 @@ internal sealed class OverloadResolutionResult<T> where T : ISymbol {
         ObjectPool<OverloadResolutionResult<T>> pool = null;
         pool = new ObjectPool<OverloadResolutionResult<T>>(() => new OverloadResolutionResult<T>(), 10);
         return pool;
+    }
+
+    private void EnsureBestResultLoaded() {
+        if (!_bestResultState.HasValue())
+            _bestResultState = TryGetBestResult(resultsBuilder, out _bestResult);
+    }
+
+    private static ThreeState TryGetBestResult(
+        ArrayBuilder<MemberResolutionResult<T>> allResults,
+        out MemberResolutionResult<T> best) {
+        best = default;
+        var haveBest = ThreeState.False;
+
+        foreach (var pair in allResults) {
+            if (pair.result.isValid) {
+                if (haveBest == ThreeState.True) {
+                    best = default;
+                    return ThreeState.False;
+                }
+
+                haveBest = ThreeState.True;
+                best = pair;
+            }
+        }
+
+        return haveBest;
     }
 }

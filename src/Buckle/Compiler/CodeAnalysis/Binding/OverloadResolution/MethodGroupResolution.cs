@@ -4,14 +4,14 @@ using Buckle.Diagnostics;
 namespace Buckle.CodeAnalysis.Binding;
 
 internal readonly struct MethodGroupResolution {
-    internal readonly BoundMethodGroup methodGroup;
+    internal readonly MethodGroup methodGroup;
     internal readonly Symbol otherSymbol;
     internal readonly OverloadResolutionResult<MethodSymbol> overloadResolutionResult;
     internal readonly AnalyzedArguments analyzedArguments;
     internal readonly BelteDiagnosticQueue diagnostics;
     internal readonly LookupResultKind resultKind;
 
-    internal MethodGroupResolution(BoundMethodGroup methodGroup, BelteDiagnosticQueue diagnostics)
+    internal MethodGroupResolution(MethodGroup methodGroup, BelteDiagnosticQueue diagnostics)
         : this(methodGroup, null, null, null, methodGroup.resultKind, diagnostics) {
     }
 
@@ -20,7 +20,7 @@ internal readonly struct MethodGroupResolution {
     }
 
     internal MethodGroupResolution(
-        BoundMethodGroup methodGroup,
+        MethodGroup methodGroup,
         Symbol otherSymbol,
         OverloadResolutionResult<MethodSymbol> overloadResolutionResult,
         AnalyzedArguments analyzedArguments,
@@ -49,5 +49,6 @@ internal readonly struct MethodGroupResolution {
         analyzedArguments?.Free();
         methodGroup?.Free();
         overloadResolutionResult?.Free();
+        diagnostics?.Free();
     }
 }

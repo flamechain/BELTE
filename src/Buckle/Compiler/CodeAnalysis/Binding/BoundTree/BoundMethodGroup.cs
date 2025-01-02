@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -10,10 +11,20 @@ internal sealed class BoundMethodGroup : BoundExpression {
     internal BoundMethodGroup(
         string name,
         ImmutableArray<MethodSymbol> methods,
-        ImmutableArray<TypeOrConstant> templateArguments) {
+        ImmutableArray<TypeOrConstant> templateArguments,
+        Symbol lookupSymbol,
+        BelteDiagnostic lookupError,
+        BoundMethodGroupFlags flags,
+        BoundExpression receiver,
+        LookupResultKind resultKind) {
         this.name = name;
         this.methods = methods;
         this.templateArguments = templateArguments;
+        this.lookupSymbol = lookupSymbol;
+        this.lookupError = lookupError;
+        this.flags = flags;
+        this.receiver = receiver;
+        this.resultKind = resultKind;
     }
 
     internal override BoundNodeKind kind => BoundNodeKind.MethodGroup;
@@ -25,4 +36,14 @@ internal sealed class BoundMethodGroup : BoundExpression {
     internal ImmutableArray<MethodSymbol> methods { get; }
 
     internal ImmutableArray<TypeOrConstant> templateArguments { get; }
+
+    internal Symbol lookupSymbol { get; }
+
+    internal BelteDiagnostic lookupError { get; }
+
+    internal BoundMethodGroupFlags flags { get; }
+
+    internal BoundExpression receiver { get; }
+
+    internal LookupResultKind resultKind { get; }
 }

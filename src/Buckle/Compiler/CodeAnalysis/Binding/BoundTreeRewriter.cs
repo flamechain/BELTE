@@ -388,7 +388,7 @@ internal abstract class BoundTreeRewriter {
     }
 
     private protected virtual BoundExpression RewriteCallExpression(BoundCallExpression expression) {
-        var rewrote = RewriteExpression(expression.expression);
+        var rewrote = RewriteExpression(expression.receiver);
         var arguments = RewriteArguments(expression.arguments);
 
         if (!arguments.HasValue)

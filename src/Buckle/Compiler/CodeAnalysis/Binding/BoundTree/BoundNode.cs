@@ -15,6 +15,6 @@ internal abstract class BoundNode {
     }
 
     private string GetDebuggerDisplay() {
-        return ToString();
+        return GetType().Name + " " + ToString();
     }
 }

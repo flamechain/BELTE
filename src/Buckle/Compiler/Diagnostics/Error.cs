@@ -437,6 +437,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NoSuchMember, location, message);
     }
 
+    internal static BelteDiagnostic NoSuchMember(TextLocation location, BoundExpression operand, string text) {
+        var message = $"'{operand}' contains no such member '{text}'";
+        return CreateError(DiagnosticCode.ERR_NoSuchMember, location, message);
+    }
+
     internal static BelteDiagnostic CannotAssign(TextLocation location) {
         var message = "left side of assignment operation must be a variable, field, or indexer";
         return CreateError(DiagnosticCode.ERR_CannotAssign, location, message);

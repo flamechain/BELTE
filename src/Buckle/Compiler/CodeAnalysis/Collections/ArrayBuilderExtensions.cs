@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -27,6 +28,15 @@ internal static class ArrayBuilderExtensions {
 
     internal static T Peek<T>(this ArrayBuilder<T> builder) {
         return builder[^1];
+    }
+
+    internal static bool All<T>(this ArrayBuilder<T> builder, Func<T, bool> predicate) {
+        foreach (var item in builder) {
+            if (!predicate(item))
+                return false;
+        }
+
+        return true;
     }
 
     internal static ImmutableArray<U> ToDowncastedImmutableAndFree<T, U>(this ArrayBuilder<T> builder) where U : T {

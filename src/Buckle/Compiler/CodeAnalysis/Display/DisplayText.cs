@@ -88,7 +88,6 @@ public sealed class DisplayText {
     internal static DisplayText DisplayNode(BoundNode node) {
         var text = new DisplayText();
         DisplayNode(text, node);
-
         return text;
     }
 
@@ -695,8 +694,8 @@ public sealed class DisplayText {
     }
 
     private static void DisplayCallExpression(DisplayText text, BoundCallExpression node) {
-        if (node.expression is not BoundEmptyExpression) {
-            DisplayNode(text, node.expression);
+        if (node.receiver is not BoundEmptyExpression) {
+            DisplayNode(text, node.receiver);
             text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
         }
 

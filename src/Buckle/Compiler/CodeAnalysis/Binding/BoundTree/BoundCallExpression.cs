@@ -8,11 +8,11 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal sealed class BoundCallExpression : BoundExpression {
     internal BoundCallExpression(
-        BoundExpression expression,
+        BoundExpression receiver,
         MethodSymbol method,
         ImmutableArray<BoundExpression> arguments,
         ImmutableArray<RefKind> argumentRefKinds) {
-        this.expression = expression;
+        this.receiver = receiver;
         this.method = method;
         this.arguments = arguments;
         this.argumentRefKinds = argumentRefKinds;
@@ -23,7 +23,7 @@ internal sealed class BoundCallExpression : BoundExpression {
 
     internal override TypeSymbol type { get; }
 
-    internal BoundExpression expression { get; }
+    internal BoundExpression receiver { get; }
 
     internal MethodSymbol method { get; }
 
