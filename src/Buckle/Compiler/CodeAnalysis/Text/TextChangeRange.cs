@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Buckle.Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -9,6 +10,7 @@ namespace Buckle.CodeAnalysis.Text;
 /// <summary>
 /// Represents a change to a span of text.
 /// </summary>
+[DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
 internal sealed partial class TextChangeRange {
     /// <summary>
     /// Creates a <see cref="TextChangeRange" /> instance.
@@ -230,4 +232,8 @@ internal sealed partial class TextChangeRange {
     }
 
     private static int NewEnd(TextChangeRange range) => range.span.start + range.newLength;
+
+    private string GetDebuggerDisplay() {
+        return $"new TextChangeRange(new TextSpan({span.start}, {span.length}), {newLength})";
+    }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using Buckle.CodeAnalysis.Text;
@@ -9,6 +10,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// <summary>
 /// Base building block of all things on the syntax trees.
 /// </summary>
+[DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
 public abstract partial class SyntaxNode {
     private protected SyntaxTree _syntaxTree;
 
@@ -420,5 +422,9 @@ public abstract partial class SyntaxNode {
 
         endOfFile = null;
         return false;
+    }
+
+    private string GetDebuggerDisplay() {
+        return GetType().Name + " " + kind + " " + ToString();
     }
 }

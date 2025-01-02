@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
 
@@ -7,6 +8,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// <summary>
 /// Represents a token in the syntax tree.
 /// </summary>
+[DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
 public sealed class SyntaxToken {
     /// <summary>
     /// A predicate function that checks if the passed <see cref="SyntaxToken" /> has a width greater than zero.
@@ -182,5 +184,9 @@ public sealed class SyntaxToken {
 
     public override int GetHashCode() {
         return Hash.Combine(parent, Hash.Combine(node, Hash.Combine(position, index)));
+    }
+
+    private string GetDebuggerDisplay() {
+        return GetType().Name + " " + (node is not null ? node.kind : "None") + " " + ToString();
     }
 }

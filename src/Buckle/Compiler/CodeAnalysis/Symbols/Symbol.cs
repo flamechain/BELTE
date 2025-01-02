@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -10,6 +11,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// A base symbol.
 /// </summary>
+[DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
 internal abstract class Symbol : ISymbol {
     /// <summary>
     /// Name of the symbol.
@@ -300,6 +302,10 @@ internal abstract class Symbol : ISymbol {
 
     internal virtual bool Equals(Symbol other, TypeCompareKind compareKind) {
         return (object)this == other;
+    }
+
+    private string GetDebuggerDisplay() {
+        return $"{kind} {ToDisplayString(SymbolDisplayFormat.Everything)}";
     }
 
     public string ToDisplayString(SymbolDisplayFormat format) {

@@ -1494,6 +1494,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
                     var empty = SyntaxFactory.Argument(
                         null,
                         null,
+                        null,
                         SyntaxFactory.Empty()
                     );
 
@@ -1515,13 +1516,18 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private ArgumentSyntax ParseArgument() {
         SyntaxToken name = null;
         SyntaxToken colon = null;
+        SyntaxToken refKeyword = null;
 
         if (currentToken.kind == SyntaxKind.IdentifierToken && Peek(1).kind == SyntaxKind.ColonToken) {
             name = EatToken();
-            colon = Match(SyntaxKind.ColonToken);
+            colon = EatToken();
         }
 
+        if (currentToken.kind == SyntaxKind.RefKeyword)
+            refKeyword = EatToken();
+
         ExpressionSyntax expression;
+
         if (currentToken.kind is SyntaxKind.CommaToken or SyntaxKind.CloseParenToken)
             expression = SyntaxFactory.Empty();
         else if ((_context & ParserContext.InTemplateArgumentList) != 0 && PeekIsType(0, out _, out _, out _))
@@ -1529,7 +1535,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         else
             expression = ParseNonAssignmentExpression();
 
-        return SyntaxFactory.Argument(name, colon, expression);
+        return SyntaxFactory.Argument(name, colon, refKeyword, expression);
     }
 
     private SyntaxList<AttributeListSyntax> ParseAttributeLists() {

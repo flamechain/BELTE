@@ -202,7 +202,8 @@ internal sealed class Expander : BoundTreeExpander {
             statements.Add(new BoundExpressionStatement(new BoundCallExpression(
                 new BoundDataContainerExpression(tempLocal),
                 dictionaryType.GetMembers("Add").Single() as MethodSymbol,
-                [pair.Item1, pair.Item2]
+                [pair.Item1, pair.Item2],
+                [RefKind.Ref, RefKind.Ref]
             )));
         }
 

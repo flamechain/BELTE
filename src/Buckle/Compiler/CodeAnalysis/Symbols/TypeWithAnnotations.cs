@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Display;
 using Buckle.Libraries;
 
@@ -6,6 +7,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// A type symbol with null clarification.
 /// </summary>
+[DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
 internal sealed class TypeWithAnnotations {
     internal TypeWithAnnotations(TypeSymbol underlyingType, bool isNullable) {
         type = underlyingType;
@@ -108,5 +110,9 @@ internal sealed class TypeWithAnnotations {
             return 0;
 
         return type.GetHashCode();
+    }
+
+    private string GetDebuggerDisplay() {
+        return !hasType ? "<null>" : ToDisplayString(SymbolDisplayFormat.Everything);
     }
 }

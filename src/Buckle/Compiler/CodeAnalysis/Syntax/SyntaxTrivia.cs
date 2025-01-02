@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax;
@@ -5,6 +6,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// <summary>
 /// All trivia: comments and whitespace. Text that does not affect compilation.
 /// </summary>
+[DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
 public class SyntaxTrivia {
     /// <summary>
     /// Creates a new <see cref="SyntaxTrivia" /> with an existing token, underlying trivia, and position.
@@ -82,4 +84,8 @@ public class SyntaxTrivia {
     /// </summary>
     /// <returns></returns>
     public TextLocation location => new TextLocation(syntaxTree.text, span);
+
+    private string GetDebuggerDisplay() {
+        return GetType().Name + " " + kind + " " + ToString();
+    }
 }

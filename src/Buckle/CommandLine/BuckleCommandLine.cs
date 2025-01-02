@@ -4,10 +4,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text.RegularExpressions;
 using System.Threading;
 using Buckle;
-using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Diagnostics;
 using Repl;
@@ -229,113 +227,6 @@ public static partial class BuckleCommandLine {
         Console.WriteLine($"Version: Buckle {reader.ReadLine()}");
     }
 
-    private static void PrettyPrintDiagnostic(BelteDiagnostic diagnostic, ConsoleColor? textColor) {
-        void ResetColor() {
-            if (textColor is not null)
-                Console.ForegroundColor = textColor.Value;
-            else
-                Console.ResetColor();
-        }
-
-        var span = diagnostic.location.span;
-        var text = diagnostic.location.text;
-
-        var lineNumber = text.GetLineIndex(span.start);
-        var line = text.GetLine(lineNumber);
-        var column = span.start - line.start + 1;
-        var lineText = line.ToString();
-
-        var fileName = diagnostic.location.fileName;
-
-        if (!string.IsNullOrEmpty(fileName))
-            Console.Write($"{fileName}:");
-
-        Console.Write($"{lineNumber + 1}:{column}:");
-
-        var highlightColor = ConsoleColor.White;
-
-        var severity = diagnostic.info.severity;
-
-        switch (severity) {
-            case DiagnosticSeverity.Debug:
-                highlightColor = ConsoleColor.Gray;
-                Console.ForegroundColor = highlightColor;
-                Console.Write(" debug");
-                break;
-            case DiagnosticSeverity.Info:
-                highlightColor = ConsoleColor.Yellow;
-                Console.ForegroundColor = highlightColor;
-                Console.Write(" info");
-                break;
-            case DiagnosticSeverity.Warning:
-                highlightColor = ConsoleColor.Magenta;
-                Console.ForegroundColor = highlightColor;
-                Console.Write(" warning");
-                break;
-            case DiagnosticSeverity.Error:
-                highlightColor = ConsoleColor.Red;
-                Console.ForegroundColor = highlightColor;
-                Console.Write(" error");
-                break;
-            case DiagnosticSeverity.Fatal:
-                highlightColor = ConsoleColor.Red;
-                Console.ForegroundColor = highlightColor;
-                Console.Write(" fatal");
-                break;
-        }
-
-        if (diagnostic.info.code is not null && diagnostic.info.code > 0)
-            Console.Write($" {diagnostic.info}: ");
-        else
-            Console.Write(": ");
-
-        ResetColor();
-        Console.WriteLine(diagnostic.message);
-
-        if (text.IsAtEndOfInput(span))
-            return;
-
-        var prefixSpan = TextSpan.FromBounds(line.start, span.start);
-        var suffixSpan = span.end > line.end
-            ? TextSpan.FromBounds(line.end, line.end)
-            : TextSpan.FromBounds(span.end, line.end);
-
-        var prefix = text.ToString(prefixSpan);
-        var focus = text.ToString(span);
-        var suffix = text.ToString(suffixSpan);
-
-        Console.Write($" {prefix}");
-        Console.ForegroundColor = highlightColor;
-        Console.Write(focus);
-        ResetColor();
-        Console.WriteLine(suffix);
-
-        Console.ForegroundColor = highlightColor;
-        var markerPrefix = " " + MyRegex().Replace(prefix, " ");
-        var marker = "^";
-
-        if (span.length > 0 && column != lineText.Length)
-            marker += new string('~', span.length - 1);
-
-        Console.WriteLine(markerPrefix + marker);
-
-        if (diagnostic.suggestions.Length > 0) {
-            Console.ForegroundColor = ConsoleColor.Green;
-            var firstSuggestion = diagnostic.suggestions[0].Replace("%", focus);
-            Console.WriteLine(markerPrefix + firstSuggestion);
-
-            for (var i = 1; i < diagnostic.suggestions.Length; i++) {
-                var suggestion = diagnostic.suggestions[i].Replace("%", focus);
-                ResetColor();
-                Console.Write(string.Concat(markerPrefix.AsSpan(0, markerPrefix.Length - 3), "or "));
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine(suggestion);
-            }
-        }
-
-        ResetColor();
-    }
-
     private static DiagnosticSeverity ResolveDiagnostic<Type>(
         Type diagnostic,
         string me,
@@ -393,7 +284,7 @@ public static partial class BuckleCommandLine {
             ResetColor();
             Console.WriteLine(diagnostic.message);
         } else {
-            PrettyPrintDiagnostic(diagnostic as BelteDiagnostic, textColor);
+            DiagnosticFormatter.PrettyPrint(diagnostic as BelteDiagnostic, textColor);
         }
 
         Console.ForegroundColor = previous;
@@ -922,7 +813,4 @@ public static partial class BuckleCommandLine {
 
         return diagnostics;
     }
-
-    [GeneratedRegex(@"\S")]
-    private static partial Regex MyRegex();
 }

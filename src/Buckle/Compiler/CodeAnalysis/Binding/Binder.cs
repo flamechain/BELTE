@@ -741,7 +741,7 @@ internal partial class Binder {
         }
 
         var receiver = new BoundThisExpression(containingType);
-        return new BoundCallExpression(receiver, baseConstructor, []);
+        return new BoundCallExpression(receiver, baseConstructor, [], []);
     }
 
     private static bool IsInitializerRefKindValid(
@@ -2329,71 +2329,425 @@ internal partial class Binder {
         }
     }
 
+    private BoundExpression BindMethodGroup(
+        ExpressionSyntax node,
+        bool called,
+        bool indexed,
+        BelteDiagnosticQueue diagnostics) {
+        switch (node.kind) {
+            case SyntaxKind.IdentifierName:
+            case SyntaxKind.TemplateName:
+                return BindIdentifier((SimpleNameSyntax)node, called, indexed, diagnostics);
+            case SyntaxKind.MemberAccessExpression:
+                return BindMemberAccess((MemberAccessExpressionSyntax)node, called, indexed, diagnostics);
+            case SyntaxKind.ParenthesizedExpression:
+                return BindMethodGroup(((ParenthesisExpressionSyntax)node).expression, false, false, diagnostics);
+            default:
+                return BindExpressionInternal(node, diagnostics, called, indexed);
+        }
+    }
+
     private BoundExpression BindCallExpression(CallExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
-        // TODO This should never happen because lexing would create a nameof keyword token not an identifier?
-        // if (TryBindNameofOperator(node, diagnostics, out var result)) {
-        //     return result; // all of the binding is done by BindNameofOperator
-        // }
+        BoundExpression result;
+        var analyzedArguments = AnalyzedArguments.GetInstance();
 
-        // TODO Calls are the final boss of expressions
-        // AnalyzedArguments analyzedArguments = AnalyzedArguments.GetInstance();
+        if (ReceiverIsInvocation(node, out var nested)) {
+            var invocations = ArrayBuilder<CallExpressionSyntax>.GetInstance();
 
-        // if (isArglist) {
-        //     BindArgumentsAndNames(node.ArgumentList, diagnostics, analyzedArguments, allowArglist: false);
-        //     result = BindArgListOperator(node, diagnostics, analyzedArguments);
-        // } else if (receiverIsInvocation(node, out InvocationExpressionSyntax nested)) {
-        //     var invocations = ArrayBuilder<InvocationExpressionSyntax>.GetInstance();
+            invocations.Push(node);
+            node = nested;
 
-        //     invocations.Push(node);
-        //     node = nested;
-        //     while (receiverIsInvocation(node, out nested)) {
-        //         invocations.Push(node);
-        //         node = nested;
-        //     }
+            while (ReceiverIsInvocation(node, out nested)) {
+                invocations.Push(node);
+                node = nested;
+            }
 
-        //     BoundExpression boundExpression = BindMethodGroup(node.Expression, invoked: true, indexed: false, diagnostics: diagnostics);
+            var boundExpression = BindMethodGroup(node.expression, true, false, diagnostics);
 
-        //     while (true) {
-        //         result = bindArgumentsAndInvocation(node, boundExpression, analyzedArguments, diagnostics);
-        //         nested = node;
+            while (true) {
+                result = BindArgumentsAndInvocation(node, boundExpression, analyzedArguments, diagnostics);
 
-        //         if (!invocations.TryPop(out node)) {
-        //             break;
-        //         }
+                if (!invocations.TryPop(out node))
+                    break;
 
-        //         Debug.Assert(node.Expression.Kind() is SyntaxKind.SimpleMemberAccessExpression);
-        //         var memberAccess = (MemberAccessExpressionSyntax)node.Expression;
-        //         analyzedArguments.Clear();
-        //         CheckContextForPointerTypes(nested, diagnostics, result); // BindExpression does this after calling BindExpressionInternal
-        //         boundExpression = BindMemberAccessWithBoundLeft(memberAccess, result, memberAccess.Name, memberAccess.OperatorToken, invoked: true, indexed: false, diagnostics);
-        //     }
+                var memberAccess = (MemberAccessExpressionSyntax)node.expression;
+                analyzedArguments.Clear();
+                boundExpression = BindMemberAccessWithBoundLeft(
+                    memberAccess,
+                    result,
+                    memberAccess.name,
+                    memberAccess.operatorToken,
+                    true,
+                    false,
+                    diagnostics
+                );
+            }
 
-        //     invocations.Free();
-        // } else {
-        //     BoundExpression boundExpression = BindMethodGroup(node.Expression, invoked: true, indexed: false, diagnostics: diagnostics);
-        //     result = bindArgumentsAndInvocation(node, boundExpression, analyzedArguments, diagnostics);
-        // }
+            invocations.Free();
+        } else {
+            var boundExpression = BindMethodGroup(node.expression, true, false, diagnostics);
+            result = BindArgumentsAndInvocation(node, boundExpression, analyzedArguments, diagnostics);
+        }
 
-        // analyzedArguments.Free();
-        // return result;
+        analyzedArguments.Free();
+        return result;
 
-        // BoundExpression bindArgumentsAndInvocation(InvocationExpressionSyntax node, BoundExpression boundExpression, AnalyzedArguments analyzedArguments, BindingDiagnosticBag diagnostics) {
-        //     boundExpression = CheckValue(boundExpression, BindValueKind.RValueOrMethodGroup, diagnostics);
-        //     string name = boundExpression.Kind == BoundKind.MethodGroup ? GetName(node.Expression) : null;
-        //     BindArgumentsAndNames(node.ArgumentList, diagnostics, analyzedArguments, allowArglist: true);
-        //     return BindInvocationExpression(node, node.Expression, name, boundExpression, analyzedArguments, diagnostics);
-        // }
+        BoundExpression BindArgumentsAndInvocation(
+            CallExpressionSyntax node,
+            BoundExpression boundExpression,
+            AnalyzedArguments analyzedArguments,
+            BelteDiagnosticQueue diagnostics) {
+            boundExpression = CheckValue(boundExpression, BindValueKind.RValueOrMethodGroup, diagnostics);
+            var name = boundExpression.kind == BoundNodeKind.MethodGroup ? GetName(node.expression) : null;
+            BindArgumentsAndNames(node.argumentList, diagnostics, analyzedArguments);
+            return BindCallExpression(node, node.expression, name, boundExpression, analyzedArguments, diagnostics);
+        }
 
-        // static bool receiverIsInvocation(InvocationExpressionSyntax node, out InvocationExpressionSyntax nested) {
-        //     if (node.Expression is MemberAccessExpressionSyntax { Expression: InvocationExpressionSyntax receiver, RawKind: (int)SyntaxKind.SimpleMemberAccessExpression } && !receiver.MayBeNameofOperator()) {
-        //         nested = receiver;
-        //         return true;
-        //     }
+        static bool ReceiverIsInvocation(CallExpressionSyntax node, out CallExpressionSyntax nested) {
+            if (node.expression is MemberAccessExpressionSyntax {
+                expression: CallExpressionSyntax receiver,
+                kind: SyntaxKind.MemberAccessExpression
+            }) {
+                nested = receiver;
+                return true;
+            }
 
-        //     nested = null;
-        //     return false;
-        // }
-        return ErrorExpression(null);
+            nested = null;
+            return false;
+        }
+    }
+
+    private BoundExpression BindCallExpression(
+        SyntaxNode node,
+        SyntaxNode expression,
+        string methodName,
+        BoundExpression boundExpression,
+        AnalyzedArguments analyzedArguments,
+        BelteDiagnosticQueue diagnostics) {
+        BoundExpression result;
+
+        if (boundExpression.kind == BoundNodeKind.MethodGroup) {
+            result = BindMethodGroupInvocation(
+                node,
+                expression,
+                methodName,
+                (BoundMethodGroup)boundExpression,
+                analyzedArguments,
+                diagnostics
+            );
+        } else {
+            diagnostics.Push(Error.CannotCallNonMethod(expression.location, methodName));
+            result = CreateBadCall(node, boundExpression, analyzedArguments);
+        }
+
+        return result;
+    }
+
+    internal MethodGroupResolution ResolveMethodGroup(
+        BoundMethodGroup node,
+        SyntaxNode expression,
+        string methodName,
+        AnalyzedArguments analyzedArguments,
+        RefKind returnRefKind = default,
+        TypeSymbol returnType = null) {
+        var methodResolution = ResolveMethodGroupInternal(
+            node,
+            expression,
+            methodName,
+            analyzedArguments,
+            returnRefKind,
+            returnType
+        );
+
+        if (methodResolution.isEmpty && !methodResolution.hasAnyErrors) {
+            var diagnostics = BelteDiagnosticQueue.GetInstance();
+            diagnostics.AddRange(methodResolution.diagnostics);
+            BindMemberAccessReportError(node, diagnostics);
+
+            return new MethodGroupResolution(methodResolution.MethodGroup, methodResolution.otherSymbol, methodResolution.overloadResolutionResult, methodResolution.analyzedArguments, methodResolution.resultKind, diagnostics.ToReadOnlyAndFree());
+        }
+
+        return methodResolution;
+    }
+
+    private MethodGroupResolution ResolveMethodGroupInternal(
+        BoundMethodGroup methodGroup,
+        SyntaxNode expression,
+        string methodName,
+        AnalyzedArguments analyzedArguments,
+        ref CompoundUseSiteInfo<AssemblySymbol> useSiteInfo,
+        OverloadResolution.Options options,
+        RefKind returnRefKind = default,
+        TypeSymbol returnType = null,
+        in CallingConventionInfo callingConvention = default) {
+        var methodResolution = ResolveDefaultMethodGroup(
+            methodGroup, analyzedArguments, ref useSiteInfo,
+            options,
+            returnRefKind, returnType, callingConvention);
+
+        // If the method group's receiver is dynamic then there is no point in looking for extension methods;
+        // it's going to be a dynamic invocation.
+        if (!methodGroup.SearchExtensionMethods || methodResolution.HasAnyApplicableMethod || methodGroup.MethodGroupReceiverIsDynamic()) {
+            return methodResolution;
+        }
+
+        var extensionMethodResolution = BindExtensionMethod(
+            expression, methodName, analyzedArguments, methodGroup.ReceiverOpt, methodGroup.TypeArgumentsOpt, options,
+            returnRefKind: returnRefKind, returnType: returnType, withDependencies: useSiteInfo.AccumulatesDependencies,
+            in callingConvention);
+        bool preferExtensionMethodResolution = false;
+
+        if (extensionMethodResolution.HasAnyApplicableMethod) {
+            preferExtensionMethodResolution = true;
+        } else if (extensionMethodResolution.IsEmpty) {
+            preferExtensionMethodResolution = false;
+        } else if (methodResolution.IsEmpty) {
+            preferExtensionMethodResolution = true;
+        } else {
+            // At this point, both method group resolutions are non-empty but neither contains any applicable method.
+            // Choose the MethodGroupResolution with the better (i.e. less worse) result kind.
+
+            Debug.Assert(!methodResolution.HasAnyApplicableMethod);
+            Debug.Assert(!extensionMethodResolution.HasAnyApplicableMethod);
+            Debug.Assert(!methodResolution.IsEmpty);
+            Debug.Assert(!extensionMethodResolution.IsEmpty);
+
+            LookupResultKind methodResultKind = methodResolution.ResultKind;
+            LookupResultKind extensionMethodResultKind = extensionMethodResolution.ResultKind;
+            if (methodResultKind != extensionMethodResultKind &&
+                methodResultKind == extensionMethodResultKind.WorseResultKind(methodResultKind)) {
+                preferExtensionMethodResolution = true;
+            }
+        }
+
+        if (preferExtensionMethodResolution) {
+            methodResolution.Free();
+            Debug.Assert(!extensionMethodResolution.IsEmpty);
+            return extensionMethodResolution;  //NOTE: the first argument of this MethodGroupResolution could be a BoundTypeOrValueExpression
+        }
+
+        extensionMethodResolution.Free();
+
+        return methodResolution;
+    }
+
+    private BoundExpression BindMethodGroupInvocation(
+        SyntaxNode syntax,
+        SyntaxNode expression,
+        string methodName,
+        BoundMethodGroup methodGroup,
+        AnalyzedArguments analyzedArguments,
+        BelteDiagnosticQueue diagnostics) {
+        BoundExpression result = null;
+
+        var resolution = ResolveMethodGroup(
+            methodGroup,
+            expression,
+            methodName,
+            analyzedArguments
+        );
+
+        diagnostics.AddRange(resolution.diagnostics);
+
+        if (resolution.hasAnyErrors) {
+            ImmutableArray<MethodSymbol> originalMethods;
+            LookupResultKind resultKind;
+            ImmutableArray<TypeWithAnnotations> typeArguments;
+            if (resolution.overloadResolutionResult != null) {
+                originalMethods = GetOriginalMethods(resolution.overloadResolutionResult);
+                resultKind = resolution.MethodGroup.ResultKind;
+                typeArguments = resolution.MethodGroup.TypeArguments.ToImmutable();
+            } else {
+                originalMethods = methodGroup.Methods;
+                resultKind = methodGroup.ResultKind;
+                typeArguments = methodGroup.TypeArgumentsOpt;
+            }
+
+            result = CreateBadCall(
+                syntax,
+                methodName,
+                methodGroup.ReceiverOpt,
+                originalMethods,
+                resultKind,
+                typeArguments,
+                analyzedArguments,
+                invokedAsExtensionMethod: resolution.IsExtensionMethodGroup,
+                isDelegate: false);
+        } else if (!resolution.isEmpty) {
+            // We're checking resolution.ResultKind, rather than methodGroup.HasErrors
+            // to better handle the case where there's a problem with the receiver
+            // (e.g. inaccessible), but the method group resolved correctly (e.g. because
+            // it's actually an accessible static method on a base type).
+            // CONSIDER: could check for error types amongst method group type arguments.
+            if (resolution.resultKind != LookupResultKind.Viable) {
+                if (resolution.MethodGroup != null) {
+                    // we want to force any unbound lambda arguments to cache an appropriate conversion if possible; see 9448.
+                    result = BindInvocationExpressionContinued(
+                        syntax, expression, methodName, resolution.overloadResolutionResult, resolution.analyzedArguments,
+                        resolution.MethodGroup, delegateTypeOpt: null, diagnostics: BindingDiagnosticBag.Discarded, queryClause: queryClause);
+                }
+
+                // Since the resolution is non-empty and has no diagnostics, the LookupResultKind in its MethodGroup is uninteresting.
+                result = CreateBadCall(syntax, methodGroup, methodGroup.ResultKind, analyzedArguments);
+            } else {
+                // If overload resolution found one or more applicable methods and at least one argument
+                // was dynamic then treat this as a dynamic call.
+                if (resolution.analyzedArguments.HasDynamicArgument &&
+                    resolution.overloadResolutionResult.HasAnyApplicableMember) {
+                    // Note that the runtime binder may consider candidates that haven't passed compile-time final validation
+                    // and an ambiguity error may be reported. Also additional checks are performed in runtime final validation
+                    // that are not performed at compile-time.
+                    // Only if the set of final applicable candidates is empty we know for sure the call will fail at runtime.
+                    var finalApplicableCandidates = GetCandidatesPassingFinalValidation(syntax, resolution.overloadResolutionResult,
+                                                                                        methodGroup.ReceiverOpt,
+                                                                                        methodGroup.TypeArgumentsOpt,
+                                                                                        invokedAsExtensionMethod: resolution.IsExtensionMethodGroup,
+                                                                                        diagnostics);
+
+                    if (finalApplicableCandidates.Length == 0) {
+                        result = CreateBadCall(syntax, methodGroup, methodGroup.ResultKind, analyzedArguments);
+                    } else if (finalApplicableCandidates.Length == 1) {
+                        Debug.Assert(finalApplicableCandidates[0].IsApplicable);
+
+                        result = TryEarlyBindSingleCandidateInvocationWithDynamicArgument(syntax, expression, methodName, methodGroup, diagnostics, queryClause, resolution, finalApplicableCandidates[0]);
+
+                        if (result is null && finalApplicableCandidates[0].LeastOverriddenMember.MethodKind != MethodKind.LocalFunction) {
+                            ReportMemberNotSupportedByDynamicDispatch(syntax, finalApplicableCandidates[0], diagnostics);
+                        }
+                    }
+
+                    if (result is null) {
+                        Debug.Assert(finalApplicableCandidates.Length > 0);
+
+                        if (resolution.IsExtensionMethodGroup) {
+                            // error CS1973: 'T' has no applicable method named 'M' but appears to have an
+                            // extension method by that name. Extension methods cannot be dynamically dispatched. Consider
+                            // casting the dynamic arguments or calling the extension method without the extension method
+                            // syntax.
+
+                            // We found an extension method, so the instance associated with the method group must have
+                            // existed and had a type.
+                            Debug.Assert(methodGroup.InstanceOpt != null && (object)methodGroup.InstanceOpt.Type != null);
+
+                            Error(diagnostics, ErrorCode.ERR_BadArgTypeDynamicExtension, syntax, methodGroup.InstanceOpt.Type, methodGroup.Name);
+                            result = CreateBadCall(syntax, methodGroup, methodGroup.ResultKind, analyzedArguments);
+                        } else {
+                            ReportDynamicInvocationWarnings(syntax, methodGroup, diagnostics, finalApplicableCandidates);
+
+                            result = BindDynamicInvocation(syntax, methodGroup, resolution.analyzedArguments, finalApplicableCandidates.SelectAsArray(r => r.Member), diagnostics, queryClause);
+                        }
+                    }
+                } else {
+                    result = BindInvocationExpressionContinued(
+                        syntax, expression, methodName, resolution.overloadResolutionResult, resolution.analyzedArguments,
+                        resolution.MethodGroup, delegateTypeOpt: null, diagnostics: diagnostics, queryClause: queryClause);
+                }
+            }
+        } else {
+            result = CreateBadCall(syntax, methodGroup, analyzedArguments);
+        }
+
+        resolution.Free();
+        return result;
+    }
+
+    private BoundCallExpression CreateBadCall(
+        SyntaxNode node,
+        BoundExpression expr,
+        AnalyzedArguments analyzedArguments) {
+        var returnType = new ExtendedErrorTypeSymbol(compilation, "", 0, null);
+        var methodContainer = expr.type ?? containingType;
+        var method = new ErrorMethodSymbol(methodContainer, returnType, "");
+
+        var args = analyzedArguments.arguments.ToImmutable();
+        var argRefKinds = analyzedArguments.refKinds.ToImmutable();
+
+        return new BoundCallExpression(expr, method, args, argRefKinds);
+    }
+
+    private void BindArgumentsAndNames(
+        ArgumentListSyntax argumentList,
+        BelteDiagnosticQueue diagnostics,
+        AnalyzedArguments result) {
+        if (argumentList is null)
+            return;
+
+        var hadError = false;
+
+        foreach (var argumentSyntax in argumentList.arguments)
+            BindArgumentAndName(result, diagnostics, ref hadError, argumentSyntax);
+    }
+
+    private void BindArgumentAndName(
+        AnalyzedArguments result,
+        BelteDiagnosticQueue diagnostics,
+        ref bool hadError,
+        ArgumentSyntax argumentSyntax) {
+        var refKind = argumentSyntax.refKeyword is null ? RefKind.None : RefKind.Ref;
+        var boundArgument = BindValue(
+            argumentSyntax.expression,
+            diagnostics,
+            refKind == RefKind.None ? BindValueKind.RValue : BindValueKind.RefOrOut
+        );
+
+        BindArgumentAndName(
+            result,
+            diagnostics,
+            argumentSyntax,
+            boundArgument,
+            argumentSyntax.identifier,
+            refKind
+        );
+    }
+
+    private void BindArgumentAndName(
+        AnalyzedArguments result,
+        BelteDiagnosticQueue diagnostics,
+        BelteSyntaxNode argumentSyntax,
+        BoundExpression boundArgumentExpression,
+        SyntaxToken identifier,
+        RefKind refKind) {
+        var hasRefKinds = result.refKinds.Any();
+
+        if (refKind != RefKind.None) {
+            if (!hasRefKinds) {
+                hasRefKinds = true;
+                var argCount = result.arguments.Count;
+
+                for (var i = 0; i < argCount; ++i)
+                    result.refKinds.Add(RefKind.None);
+            }
+        }
+
+        if (hasRefKinds)
+            result.refKinds.Add(refKind);
+
+        var hasNames = result.names.Any();
+
+        if (identifier is not null) {
+            if (!hasNames) {
+                var argCount = result.arguments.Count;
+
+                for (var i = 0; i < argCount; ++i)
+                    result.names.Add(null);
+            }
+
+            result.AddName(identifier);
+        } else if (hasNames) {
+            diagnostics.Push(Error.NamedBeforeUnnamed(argumentSyntax.location));
+            result.names.Add(null);
+        }
+
+        result.arguments.Add(boundArgumentExpression);
+    }
+
+    private static string GetName(ExpressionSyntax syntax) {
+        var nameSyntax = GetNameSyntax(syntax, out var nameString);
+
+        if (nameSyntax is not null)
+            return nameSyntax.GetUnqualifiedName().identifier.text;
+
+        return nameString;
     }
 
     private BoundExpression BindParenthesisExpression(

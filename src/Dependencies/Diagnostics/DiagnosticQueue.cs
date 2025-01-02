@@ -9,7 +9,7 @@ namespace Diagnostics;
 /// </summary>
 /// <typeparam name="T">The type of <see cref="Diagnostic" /> to store.</typeparam>
 public class DiagnosticQueue<T> where T : Diagnostic {
-    private readonly List<T> _diagnostics;
+    protected readonly List<T> _diagnostics;
 
     /// <summary>
     /// Creates an empty <see cref="DiagnosticQueue<T>" /> (no Diagnostics)

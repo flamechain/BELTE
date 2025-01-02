@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -8,6 +9,7 @@ namespace Buckle.Diagnostics;
 /// <summary>
 /// A <see cref="DiagnosticQueue<T>" /> containing <see cref="BelteDiagnostic" />s.
 /// </summary>
+[DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
 public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
     internal static readonly BelteDiagnosticQueue Discarded = new BelteDiagnosticQueue(pool: null);
 
@@ -104,5 +106,9 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
     internal void PushRangeAndFree(BelteDiagnosticQueue diagnostics) {
         PushRange(diagnostics);
         diagnostics.Free();
+    }
+
+    private string GetDebuggerDisplay() {
+        return "Count = " + (_diagnostics?.Count ?? 0);
     }
 }

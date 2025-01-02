@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Libraries;
 
@@ -50,7 +51,12 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundCallExpression Call(MethodSymbol method, params BoundExpression[] arguments) {
-        return new BoundCallExpression(new BoundEmptyExpression(), method, ImmutableArray.Create(arguments));
+        return new BoundCallExpression(
+            new BoundEmptyExpression(),
+            method,
+            ImmutableArray.Create(arguments),
+            ImmutableArray.CreateRange<RefKind>(Enumerable.Repeat(RefKind.None, arguments.Length))
+        );
     }
 
     internal static BoundCastExpression Cast(

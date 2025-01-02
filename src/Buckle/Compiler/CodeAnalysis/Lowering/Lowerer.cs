@@ -523,7 +523,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         var arguments = builder is null ? expression.arguments : builder.ToImmutableAndFree();
 
-        return base.RewriteCallExpression(new BoundCallExpression(expression.expression, method, arguments));
+        return base.RewriteCallExpression(
+            new BoundCallExpression(expression.expression, method, arguments, expression.argumentRefKinds)
+        );
     }
 
     private protected override BoundExpression RewriteCompoundAssignmentExpression(

@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -8,6 +9,12 @@ namespace Buckle.CodeAnalysis.Binding;
 /// succeeded.
 /// </summary>
 internal sealed class OverloadResolutionResult<T> where T : ISymbol {
+    private static readonly ObjectPool<OverloadResolutionResult<T>> Pool = CreatePool();
+
+    private MemberResolutionResult<T> _bestResult;
+
+    internal readonly ArrayBuilder<MemberResolutionResult<T>> resultsBuilder;
+
     private OverloadResolutionResult(T[] bestOverloads, ImmutableArray<BoundExpression> arguments, bool succeeded) {
         this.bestOverloads = bestOverloads;
         this.arguments = arguments;
@@ -45,9 +52,6 @@ internal sealed class OverloadResolutionResult<T> where T : ISymbol {
         return new OverloadResolutionResult<T>(bestOverloads, arguments, true);
     }
 
-    /// <summary>
-    /// If the <see cref="OverloadResolution" /> successfully resolved a single overload.
-    /// </summary>
     internal bool succeeded { get; }
 
     /// <summary>
@@ -64,4 +68,26 @@ internal sealed class OverloadResolutionResult<T> where T : ISymbol {
     /// Modified arguments (accounts for default parameters, etc.)
     /// </summary>
     internal ImmutableArray<BoundExpression> arguments { get; }
+
+
+    internal void Clear() {
+        _bestResult = default(MemberResolutionResult<TMember>);
+        _bestResultState = ThreeState.Unknown;
+        this.ResultsBuilder.Clear();
+    }
+
+    internal static OverloadResolutionResult<T> GetInstance() {
+        return Pool.Allocate();
+    }
+
+    internal void Free() {
+        Clear();
+        Pool.Free(this);
+    }
+
+    private static ObjectPool<OverloadResolutionResult<T>> CreatePool() {
+        ObjectPool<OverloadResolutionResult<T>> pool = null;
+        pool = new ObjectPool<OverloadResolutionResult<T>>(() => new OverloadResolutionResult<T>(), 10);
+        return pool;
+    }
 }

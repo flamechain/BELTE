@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
 
@@ -7,6 +8,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// <summary>
 /// A wrapper of either a <see cref="SyntaxNode" /> or <see cref="SyntaxToken" />.
 /// </summary>
+[DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
 public sealed class SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
     private readonly SyntaxNode _nodeOrParent;
     private readonly GreenNode _token;
@@ -260,5 +262,9 @@ public sealed class SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
 
     public override int GetHashCode() {
         return Hash.Combine(_nodeOrParent, Hash.Combine(_token, _tokenIndex));
+    }
+
+    private string GetDebuggerDisplay() {
+        return GetType().Name + " " + kind + " " + ToString();
     }
 }

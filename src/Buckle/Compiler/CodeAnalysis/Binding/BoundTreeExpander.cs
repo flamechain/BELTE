@@ -479,7 +479,8 @@ internal abstract class BoundTreeExpander {
         replacement = new BoundCallExpression(
             expressionReplacement,
             expression.method,
-            argumentsReplacement
+            argumentsReplacement,
+            expression.argumentRefKinds
         );
 
         return statements;

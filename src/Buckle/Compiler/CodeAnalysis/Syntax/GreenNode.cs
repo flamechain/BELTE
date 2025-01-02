@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using Diagnostics;
@@ -10,6 +11,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// <summary>
 /// Houses basic information for both SyntaxNodes and SyntaxTokens.
 /// </summary>
+[DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
 internal abstract partial class GreenNode {
     private protected NodeFlags _flags;
 
@@ -427,5 +429,9 @@ internal abstract partial class GreenNode {
         }
 
         return lastIndex;
+    }
+
+    private protected string GetDebuggerDisplay() {
+        return GetType().Name + " " + kind + " " + ToString();
     }
 }
