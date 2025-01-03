@@ -2599,8 +2599,6 @@ internal partial class Binder {
         BoundMethodGroup methodGroup,
         AnalyzedArguments analyzedArguments,
         BelteDiagnosticQueue diagnostics) {
-        BoundExpression result = null;
-
         var resolution = ResolveMethodGroup(
             methodGroup,
             expression,
@@ -2610,99 +2608,189 @@ internal partial class Binder {
 
         diagnostics.PushRange(resolution.diagnostics);
 
-        // TODO
-        result = CreateBadCall(syntax, methodGroup.receiver, analyzedArguments); // ! Temp code to compile
-        // if (resolution.hasAnyErrors) {
-        //     ImmutableArray<MethodSymbol> originalMethods;
-        //     LookupResultKind resultKind;
-        //     ImmutableArray<TypeOrConstant> templateArguments;
-        //     if (resolution.overloadResolutionResult != null) {
-        //         originalMethods = GetOriginalMethods(resolution.overloadResolutionResult);
-        //         resultKind = resolution.methodGroup.resultKind;
-        //         templateArguments = resolution.methodGroup.templateArguments.ToImmutable();
-        //     } else {
-        //         originalMethods = methodGroup.methods;
-        //         resultKind = methodGroup.resultKind;
-        //         templateArguments = methodGroup.templateArguments;
-        //     }
+        BoundExpression result;
+        if (resolution.hasAnyErrors) {
+            result = CreateBadCall(syntax, methodGroup.receiver, analyzedArguments);
+        } else if (!resolution.isEmpty) {
+            if (resolution.resultKind != LookupResultKind.Viable) {
+                if (resolution.methodGroup is not null) {
+                    BindInvocationExpressionContinued(
+                        syntax,
+                        expression,
+                        methodName,
+                        resolution.overloadResolutionResult,
+                        resolution.analyzedArguments,
+                        resolution.methodGroup,
+                        BelteDiagnosticQueue.Discarded
+                    );
+                }
 
-        //     result = CreateBadCall(syntax, methodGroup.receiver, analyzedArguments);
-        // } else if (!resolution.isEmpty) {
-        //     // We're checking resolution.ResultKind, rather than methodGroup.HasErrors
-        //     // to better handle the case where there's a problem with the receiver
-        //     // (e.g. inaccessible), but the method group resolved correctly (e.g. because
-        //     // it's actually an accessible static method on a base type).
-        //     // CONSIDER: could check for error types amongst method group type arguments.
-        //     if (resolution.resultKind != LookupResultKind.Viable) {
-        //         if (resolution.MethodGroup != null) {
-        //             // we want to force any unbound lambda arguments to cache an appropriate conversion if possible; see 9448.
-        //             result = BindInvocationExpressionContinued(
-        //                 syntax, expression, methodName, resolution.overloadResolutionResult, resolution.analyzedArguments,
-        //                 resolution.MethodGroup, delegateTypeOpt: null, diagnostics: BindingDiagnosticBag.Discarded, queryClause: queryClause);
-        //         }
-
-        //         // Since the resolution is non-empty and has no diagnostics, the LookupResultKind in its MethodGroup is uninteresting.
-        //         result = CreateBadCall(syntax, methodGroup, methodGroup.ResultKind, analyzedArguments);
-        //     } else {
-        //         // If overload resolution found one or more applicable methods and at least one argument
-        //         // was dynamic then treat this as a dynamic call.
-        //         if (resolution.analyzedArguments.HasDynamicArgument &&
-        //             resolution.overloadResolutionResult.hasAnyApplicableMember) {
-        //             // Note that the runtime binder may consider candidates that haven't passed compile-time final validation
-        //             // and an ambiguity error may be reported. Also additional checks are performed in runtime final validation
-        //             // that are not performed at compile-time.
-        //             // Only if the set of final applicable candidates is empty we know for sure the call will fail at runtime.
-        //             var finalApplicableCandidates = GetCandidatesPassingFinalValidation(syntax, resolution.overloadResolutionResult,
-        //                                                                                 methodGroup.ReceiverOpt,
-        //                                                                                 methodGroup.TypeArgumentsOpt,
-        //                                                                                 invokedAsExtensionMethod: resolution.IsExtensionMethodGroup,
-        //                                                                                 diagnostics);
-
-        //             if (finalApplicableCandidates.Length == 0) {
-        //                 result = CreateBadCall(syntax, methodGroup, methodGroup.ResultKind, analyzedArguments);
-        //             } else if (finalApplicableCandidates.Length == 1) {
-        //                 Debug.Assert(finalApplicableCandidates[0].IsApplicable);
-
-        //                 result = TryEarlyBindSingleCandidateInvocationWithDynamicArgument(syntax, expression, methodName, methodGroup, diagnostics, queryClause, resolution, finalApplicableCandidates[0]);
-
-        //                 if (result is null && finalApplicableCandidates[0].LeastOverriddenMember.MethodKind != MethodKind.LocalFunction) {
-        //                     ReportMemberNotSupportedByDynamicDispatch(syntax, finalApplicableCandidates[0], diagnostics);
-        //                 }
-        //             }
-
-        //             if (result is null) {
-        //                 Debug.Assert(finalApplicableCandidates.Length > 0);
-
-        //                 if (resolution.IsExtensionMethodGroup) {
-        //                     // error CS1973: 'T' has no applicable method named 'M' but appears to have an
-        //                     // extension method by that name. Extension methods cannot be dynamically dispatched. Consider
-        //                     // casting the dynamic arguments or calling the extension method without the extension method
-        //                     // syntax.
-
-        //                     // We found an extension method, so the instance associated with the method group must have
-        //                     // existed and had a type.
-        //                     Debug.Assert(methodGroup.InstanceOpt != null && (object)methodGroup.InstanceOpt.Type != null);
-
-        //                     Error(diagnostics, ErrorCode.ERR_BadArgTypeDynamicExtension, syntax, methodGroup.InstanceOpt.Type, methodGroup.Name);
-        //                     result = CreateBadCall(syntax, methodGroup, methodGroup.ResultKind, analyzedArguments);
-        //                 } else {
-        //                     ReportDynamicInvocationWarnings(syntax, methodGroup, diagnostics, finalApplicableCandidates);
-
-        //                     result = BindDynamicInvocation(syntax, methodGroup, resolution.analyzedArguments, finalApplicableCandidates.SelectAsArray(r => r.Member), diagnostics, queryClause);
-        //                 }
-        //             }
-        //         } else {
-        //             result = BindInvocationExpressionContinued(
-        //                 syntax, expression, methodName, resolution.overloadResolutionResult, resolution.analyzedArguments,
-        //                 resolution.MethodGroup, delegateTypeOpt: null, diagnostics: diagnostics, queryClause: queryClause);
-        //         }
-        //     }
-        // } else {
-        //     result = CreateBadCall(syntax, methodGroup, analyzedArguments);
-        // }
+                result = CreateBadCall(syntax, methodGroup.receiver, analyzedArguments);
+            } else {
+                result = BindInvocationExpressionContinued(
+                    syntax,
+                    expression,
+                    methodName,
+                    resolution.overloadResolutionResult,
+                    resolution.analyzedArguments,
+                    resolution.methodGroup,
+                    diagnostics
+                );
+            }
+        } else {
+            result = CreateBadCall(syntax, methodGroup, analyzedArguments);
+        }
 
         resolution.Free();
         return result;
+    }
+
+    private BoundCallExpression BindInvocationExpressionContinued(
+        SyntaxNode node,
+        SyntaxNode expression,
+        string methodName,
+        OverloadResolutionResult<MethodSymbol> result,
+        AnalyzedArguments analyzedArguments,
+        MethodGroup methodGroup,
+        BelteDiagnosticQueue diagnostics) {
+        if (!result.succeeded) {
+            if (analyzedArguments.hasErrors) {
+                // TODO should this do something
+                // foreach (var argument in analyzedArguments.arguments) {
+                //     switch (argument) {
+                //         case UnboundLambda unboundLambda:
+                //             var boundWithErrors = unboundLambda.BindForErrorRecovery();
+                //             diagnostics.AddRange(boundWithErrors.Diagnostics);
+                //             break;
+                //         case BoundUnconvertedObjectCreationExpression _:
+                //         case BoundTupleLiteral _:
+                //             // Tuple literals can contain unbound lambdas or switch expressions.
+                //             _ = BindToNaturalType(argument, diagnostics);
+                //             break;
+                //         case BoundUnconvertedSwitchExpression { Type: { } naturalType } switchExpr:
+                //             _ = ConvertSwitchExpression(switchExpr, naturalType, conversionIfTargetTyped: null, diagnostics);
+                //             break;
+                //         case BoundUnconvertedConditionalOperator { Type: { } naturalType } conditionalExpr:
+                //             _ = ConvertConditionalExpression(conditionalExpr, naturalType, conversionIfTargetTyped: null, diagnostics);
+                //             break;
+                //     }
+                // }
+            } else {
+                result.ReportDiagnostics(
+                    this,
+                    GetLocationForOverloadResolutionDiagnostic(node, expression),
+                    node,
+                    diagnostics,
+                    methodName,
+                    methodGroup.receiver,
+                    expression,
+                    analyzedArguments,
+                    methodGroup.methods.ToImmutable(),
+                    null
+                );
+            }
+
+            return CreateBadCall(node, methodGroup.receiver, analyzedArguments);
+        }
+
+        var methodResult = result.bestResult;
+        var returnType = methodResult.member.returnType;
+        var method = methodResult.member;
+        var receiver = methodGroup.receiver;
+
+        CheckAndCoerceArguments(node, methodResult, analyzedArguments, diagnostics, receiver, out var argsToParams);
+        BindDefaultArguments(
+            node,
+            method.parameters,
+            analyzedArguments.arguments,
+            analyzedArguments.refKinds,
+            analyzedArguments.names,
+            ref argsToParams,
+            out var defaultArguments,
+            true,
+            diagnostics
+        );
+
+        var gotError = MemberGroupFinalValidation(receiver, method, expression, diagnostics);
+
+        // TODO what is this error
+        // CheckImplicitThisCopyInReadOnlyMember(receiver, method, diagnostics);
+
+        // This will be the receiver of the BoundCall node that we create.
+        // For extension methods, there is no receiver because the receiver in source was actually the first argument.
+        // For instance methods, we may have synthesized an implicit this node.  We'll keep it for the emitter.
+        // For static methods, we may have synthesized a type expression.  It serves no purpose, so we'll drop it.
+        // TODO how to check for compiler generation?
+        if (!method.requiresInstanceReceiver && receiver is not null /*&& receiver.WasCompilerGenerated*/)
+            receiver = null;
+
+        var argNames = analyzedArguments.GetNames();
+        var argRefKinds = analyzedArguments.refKinds.ToImmutableOrNull();
+        var args = analyzedArguments.arguments.ToImmutable();
+
+        // TODO how to check for compiler generation?
+        if (!gotError && method.requiresInstanceReceiver && receiver is not null && receiver.kind == BoundNodeKind.ThisExpression /*&& receiver.WasCompilerGenerated*/) {
+            gotError = IsRefOrOutThisParameterCaptured(node, diagnostics);
+        }
+
+        return new BoundCallExpression(receiver, method, args, argRefKinds);
+    }
+
+    private bool MemberGroupFinalValidation(
+        BoundExpression receiver,
+        MethodSymbol methodSymbol,
+        SyntaxNode node,
+        BelteDiagnosticQueue diagnostics) {
+        // TODO
+        // if (!IsBadBaseAccess(node, receiver, methodSymbol, diagnostics)) {
+        //     CheckReceiverAndRuntimeSupportForSymbolAccess(node, receiver, methodSymbol, diagnostics);
+        // }
+
+        // if (MemberGroupFinalValidationAccessibilityChecks(receiver, methodSymbol, node, diagnostics, invokedAsExtensionMethod)) {
+        //     return true;
+        // }
+
+        // return !methodSymbol.CheckConstraints(new ConstraintsHelper.CheckConstraintsArgs(this.Compilation, this.Conversions, includeNullability: false, node.Location, diagnostics));
+        return false;
+    }
+
+    private void CheckAndCoerceArguments<TMember>(
+        SyntaxNode node,
+        MemberResolutionResult<TMember> methodResult,
+        AnalyzedArguments analyzedArguments,
+        BelteDiagnosticQueue diagnostics,
+        BoundExpression receiver,
+        out ImmutableArray<int> argsToParams)
+        where TMember : Symbol {
+        // TODO
+        argsToParams = default;
+    }
+
+    internal void BindDefaultArguments(
+        SyntaxNode node,
+        ImmutableArray<ParameterSymbol> parameters,
+        ArrayBuilder<BoundExpression> argumentsBuilder,
+        ArrayBuilder<RefKind>? argumentRefKindsBuilder,
+        ArrayBuilder<(string Name, TextLocation Location)?>? namesBuilder,
+        ref ImmutableArray<int> argsToParams,
+        out BitVector defaultArguments,
+        bool enableCallerInfo,
+        BelteDiagnosticQueue diagnostics) {
+        // TODO
+        defaultArguments = default;
+    }
+
+    private static TextLocation GetLocationForOverloadResolutionDiagnostic(SyntaxNode node, SyntaxNode expression) {
+        if (node != expression) {
+            switch (expression.kind) {
+                case SyntaxKind.QualifiedName:
+                    return ((QualifiedNameSyntax)expression).right.location;
+                case SyntaxKind.MemberAccessExpression:
+                    return ((MemberAccessExpressionSyntax)expression).name.location;
+            }
+        }
+
+        return expression.location;
     }
 
     private static ImmutableArray<MethodSymbol> GetOriginalMethods(

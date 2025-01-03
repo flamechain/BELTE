@@ -1,5 +1,8 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
+using Buckle.Diagnostics;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -52,6 +55,22 @@ internal sealed class OverloadResolutionResult<T> where T : Symbol {
         _bestResult = default;
         _bestResultState = ThreeState.Unknown;
         resultsBuilder.Clear();
+    }
+
+    internal void ReportDiagnostics<T>(
+        Binder binder,
+        TextLocation location,
+        SyntaxNode node,
+        BelteDiagnosticQueue diagnostics,
+        string name,
+        BoundExpression receiver,
+        SyntaxNode invokedExpression,
+        AnalyzedArguments arguments,
+        ImmutableArray<T> memberGroup,
+        NamedTypeSymbol typeContainingConstructor,
+        bool isMethodGroupConversion = false,
+        RefKind? returnRefKind = null) where T : Symbol {
+        // TODO errors
     }
 
     internal static OverloadResolutionResult<T> GetInstance() {
