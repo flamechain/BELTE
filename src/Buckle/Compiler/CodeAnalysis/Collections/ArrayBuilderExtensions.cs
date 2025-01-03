@@ -39,6 +39,30 @@ internal static class ArrayBuilderExtensions {
         return true;
     }
 
+    internal static ImmutableArray<TResult> SelectAsArray<TItem, TResult>(
+        this ArrayBuilder<TItem> items,
+        Func<TItem, TResult> map) {
+        switch (items.Count) {
+            case 0:
+                return [];
+            case 1:
+                return [map(items[0])];
+            case 2:
+                return [map(items[0]), map(items[1])];
+            case 3:
+                return [map(items[0]), map(items[1]), map(items[2])];
+            case 4:
+                return [map(items[0]), map(items[1]), map(items[2]), map(items[3])];
+            default:
+                var builder = ArrayBuilder<TResult>.GetInstance(items.Count);
+
+                foreach (var item in items)
+                    builder.Add(map(item));
+
+                return builder.ToImmutableAndFree();
+        }
+    }
+
     internal static ImmutableArray<U> ToDowncastedImmutableAndFree<T, U>(this ArrayBuilder<T> builder) where U : T {
         var result = builder.ToDowncastedImmutable<U>();
         builder.Free();

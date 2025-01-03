@@ -1078,6 +1078,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_AmbiguousBinaryOperator, location, message);
     }
 
+    internal static BelteDiagnostic ProgramLocalReferencedOutsideOfTopLevelStatement(TextLocation location, SimpleNameSyntax node) {
+        var message = $"cannot reference synthesized program local '{node}' outside of top level statements";
+        return CreateError(DiagnosticCode.ERR_ProgramLocalReferencedOutsideOfTopLevelStatement, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

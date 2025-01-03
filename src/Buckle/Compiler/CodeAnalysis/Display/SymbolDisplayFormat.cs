@@ -28,6 +28,14 @@ public sealed class SymbolDisplayFormat {
         includeKeywords: true
     );
 
+    public static readonly SymbolDisplayFormat DebuggerDisplay = new SymbolDisplayFormat(
+        qualificationStyle: SymbolDisplayQualificationStyle.None,
+        templateOptions: SymbolDisplayTemplateOptions.Everything,
+        memberOptions: SymbolDisplayMemberOptions.IncludeParameters,
+        parameterOptions: SymbolDisplayParameterOptions.Everything,
+        includeKeywords: true
+    );
+
     private SymbolDisplayFormat(
         SymbolDisplayQualificationStyle qualificationStyle,
         SymbolDisplayTemplateOptions templateOptions,

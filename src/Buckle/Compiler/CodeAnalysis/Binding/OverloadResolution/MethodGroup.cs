@@ -53,7 +53,7 @@ internal sealed class MethodGroup {
         LookupResultKind resultKind = LookupResultKind.Viable,
         BelteDiagnostic error = null) {
         PopulateHelper(receiverOpt, resultKind, error);
-        methods.AddRange(methods);
+        this.methods.AddRange(methods);
 
         if (!templateArguments.IsDefault)
             templateArguments.AddRange(templateArguments);

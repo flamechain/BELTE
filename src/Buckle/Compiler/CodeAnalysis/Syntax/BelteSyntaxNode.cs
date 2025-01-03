@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Threading;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -7,8 +6,6 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// <summary>
 /// Represents a <see cref="SyntaxNode" /> that is apart of the language syntax.
 /// </summary>
-// TODO fix this debugger display (might have to add something to the syntax generator)
-[DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
 public abstract class BelteSyntaxNode : SyntaxNode {
     /// <summary>
     /// Creates a <see cref="BelteSyntaxNode" />.

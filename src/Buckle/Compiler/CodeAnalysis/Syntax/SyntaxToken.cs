@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
 
@@ -156,7 +157,7 @@ public sealed class SyntaxToken {
         return node is not null ? node.ToString() : "";
     }
 
-    public void WriteTo(System.IO.TextWriter writer) {
+    public void WriteTo(TextWriter writer) {
         node?.WriteTo(writer);
     }
 

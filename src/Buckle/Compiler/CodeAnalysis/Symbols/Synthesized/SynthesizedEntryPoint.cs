@@ -112,6 +112,10 @@ internal sealed class SynthesizedEntryPoint : SynthesizedInstanceMethodSymbol {
     private SimpleProgramBinder CreateSimpleProgramBinder() {
         var compilation = declaringCompilation;
         var result = GetPreviousBinder() ?? new EndBinder(compilation, syntaxTree.text);
+
+        if (compilation.options.isScript)
+            result = result.WithAdditionalFlags(BinderFlags.IgnoreAccessibility);
+
         var globalNamespace = compilation.globalNamespaceInternal;
         result = new InContainerBinder(globalNamespace, result);
         result = new InContainerBinder(containingType, result);

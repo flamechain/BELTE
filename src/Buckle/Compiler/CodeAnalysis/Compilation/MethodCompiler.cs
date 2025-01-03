@@ -36,7 +36,7 @@ internal sealed class MethodCompiler {
         BelteDiagnosticQueue diagnostics,
         bool emitting) {
         var globalNamespace = compilation.globalNamespaceInternal;
-        var entryPoint = GetEntryPoint(globalNamespace, diagnostics);
+        var entryPoint = GetEntryPoint(compilation, globalNamespace, diagnostics);
 
         var methodCompiler = new MethodCompiler(compilation, diagnostics, entryPoint, emitting);
 
@@ -44,7 +44,10 @@ internal sealed class MethodCompiler {
         return methodCompiler.CreateBoundProgram();
     }
 
-    private static MethodSymbol GetEntryPoint(NamespaceSymbol globalNamespace, BelteDiagnosticQueue diagnostics) {
+    private static MethodSymbol GetEntryPoint(
+        Compilation compilation,
+        NamespaceSymbol globalNamespace,
+        BelteDiagnosticQueue diagnostics) {
         var builder = ArrayBuilder<MethodSymbol>.GetInstance();
         var globalsCount = 0;
         var programClasses = globalNamespace.GetMembers(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName);
@@ -65,7 +68,7 @@ internal sealed class MethodCompiler {
         var entryPointCandidates = builder.ToImmutableAndFree();
         MethodSymbol entryPoint = null;
 
-        if (entryPointCandidates.Length == 0) {
+        if (entryPointCandidates.Length == 0 && !compilation.options.isScript) {
             diagnostics.Push(Error.NoSuitableEntryPoint());
         } else if (entryPointCandidates.Length == 1) {
             entryPoint = entryPointCandidates[0];

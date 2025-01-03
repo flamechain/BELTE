@@ -424,7 +424,7 @@ public abstract partial class SyntaxNode {
         return false;
     }
 
-    private protected string GetDebuggerDisplay() {
+    private string GetDebuggerDisplay() {
         return GetType().Name + " " + kind + " " + ToString();
     }
 }

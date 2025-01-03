@@ -1573,7 +1573,9 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         BoundExpression expression = null;
         var hasTemplateArguments = node.arity > 0;
-        var templateArgumentList = node is TemplateNameSyntax t ? t.templateArgumentList : default;
+        var templateArgumentList = node is TemplateNameSyntax t ? t.templateArgumentList.arguments : default;
+        // TODO templates
+        var templateArguments = hasTemplateArguments ? /*BindTemplateArguments(templateArgumentList, diagnostics)*/ ImmutableArray<TypeOrConstant>.Empty : [];
 
         var lookupResult = LookupResult.GetInstance();
         var name = node.identifier.text;
@@ -1594,20 +1596,20 @@ internal partial class Binder {
 
             if (symbol is null) {
                 var receiver = SynthesizeMethodGroupReceiver(node, members);
-                // expression = ConstructBoundMemberGroupAndReportOmittedTypeArguments(
-                //     node,
-                //     typeArgumentList,
-                //     typeArgumentsWithAnnotations,
-                //     receiver,
-                //     name,
-                //     members,
-                //     lookupResult,
-                //     receiver != null ? BoundMethodGroupFlags.HasImplicitReceiver : BoundMethodGroupFlags.None,
-                //     isError,
-                //     diagnostics);
+                expression = ConstructBoundMemberGroupAndReportOmittedTypeArguments(
+                    node,
+                    templateArgumentList,
+                    templateArguments,
+                    receiver,
+                    name,
+                    members,
+                    lookupResult,
+                    receiver is not null ? BoundMethodGroupFlags.HasImplicitReceiver : BoundMethodGroupFlags.None,
+                    isError,
+                    diagnostics
+                );
 
-                // ReportSimpleProgramLocalReferencedOutsideOfTopLevelStatement(node, members[0], diagnostics);
-                // TODO error template
+                ReportSimpleProgramLocalReferencedOutsideOfTopLevelStatement(node, members[0], diagnostics);
             } else {
                 var isNamedType = symbol.kind is SymbolKind.NamedType or SymbolKind.ErrorType;
 
@@ -1634,6 +1636,54 @@ internal partial class Binder {
 
         lookupResult.Free();
         return expression;
+    }
+
+    private bool ReportSimpleProgramLocalReferencedOutsideOfTopLevelStatement(
+        SimpleNameSyntax node,
+        Symbol symbol,
+        BelteDiagnosticQueue diagnostics) {
+        if (symbol.containingSymbol is SynthesizedProgram && containingMember is not SynthesizedEntryPoint) {
+            diagnostics.Push(Error.ProgramLocalReferencedOutsideOfTopLevelStatement(node.location, node));
+            return true;
+        }
+
+        return false;
+    }
+
+    private BoundMethodGroup ConstructBoundMemberGroupAndReportOmittedTypeArguments(
+        SyntaxNode syntax,
+        SeparatedSyntaxList<ArgumentSyntax> templateArgumentsSyntax,
+        ImmutableArray<TypeOrConstant> templateArguments,
+        BoundExpression receiver,
+        string plainName,
+        ArrayBuilder<Symbol> members,
+        LookupResult lookupResult,
+        BoundMethodGroupFlags methodGroupFlags,
+        bool hasErrors,
+        BelteDiagnosticQueue diagnostics) {
+        // TODO templates
+        // if (!hasErrors && lookupResult.isMultiViable && typeArgumentsSyntax.Any(SyntaxKind.OmittedTypeArgument)) {
+        //     // Note: lookup won't have reported this, since the arity was correct.
+        //     // CONSIDER: the text of this error message makes sense, but we might want to add a separate code.
+        //     Error(diagnostics, ErrorCode.ERR_BadArity, syntax, plainName, MessageID.IDS_MethodGroup.Localize(), typeArgumentsSyntax.Count);
+        //     hasErrors = true;
+        // }
+
+        switch (members[0].kind) {
+            case SymbolKind.Method:
+                return new BoundMethodGroup(
+                    plainName,
+                    members.SelectAsArray(s => (MethodSymbol)s),
+                    templateArguments,
+                    lookupResult.singleSymbolOrDefault,
+                    lookupResult.error,
+                    methodGroupFlags,
+                    receiver,
+                    lookupResult.kind
+                );
+            default:
+                throw ExceptionUtilities.UnexpectedValue(members[0].kind);
+        }
     }
 
     private BoundExpression SynthesizeMethodGroupReceiver(BelteSyntaxNode syntax, ArrayBuilder<Symbol> members) {
@@ -2172,6 +2222,7 @@ internal partial class Binder {
 
         foreach (var symbol in result.symbols) {
             var kind = symbol.kind;
+
             if (methodGroup.Count > 0) {
                 var existingKind = methodGroup[0].kind;
 
@@ -2186,11 +2237,10 @@ internal partial class Binder {
                 }
             }
 
-            if (kind == SymbolKind.Method) {
+            if (kind == SymbolKind.Method)
                 methodGroup.Add(symbol);
-            } else {
+            else
                 other = symbol;
-            }
         }
 
         if ((methodGroup.Count > 0) && methodGroup[0].kind == SymbolKind.Method) {
@@ -3323,7 +3373,7 @@ internal partial class Binder {
             MergeHidingLookupResults(result, temp, basesBeingResolved);
             var tempHidesMethod = temp.isMultiViable && temp.symbols[0].kind != SymbolKind.Method;
 
-            if (result.isMultiViable && (tempHidesMethod || temp.symbols[0].kind != SymbolKind.Method))
+            if (result.isMultiViable && (tempHidesMethod || result.symbols[0].kind != SymbolKind.Method))
                 break;
 
             if (basesBeingResolved is not null && basesBeingResolved.ContainsReference(type.originalDefinition)) {

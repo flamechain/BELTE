@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
@@ -63,7 +65,14 @@ internal sealed class Evaluator {
     /// <returns>Result of <see cref="BoundProgram" /> (if applicable).</returns>
     internal object Evaluate(ValueWrapper<bool> abort, out bool hasValue) {
         var entryPoint = _program.entryPoint;
+
+        if (entryPoint is null) {
+            hasValue = false;
+            return null;
+        }
+
         var entryPointBody = _program.methodBodies[entryPoint];
+        EnterClassScope(new EvaluatorObject([], entryPoint.containingType));
         var result = EvaluateStatement(entryPointBody, abort, out _);
         hasValue = _hasValue;
         return Value(result);
@@ -252,6 +261,27 @@ internal sealed class Evaluator {
         }
     }
 
+    private void EnterClassScope(EvaluatorObject @class) {
+        var classLocalBuffer = new Dictionary<Symbol, EvaluatorObject>();
+
+        foreach (var member in @class.members) {
+            if (member.Key is FieldSymbol f) {
+                // If the symbol is already present it could be outdated and should be replaced
+                // If it isn't outdated no harm in replacing it
+                classLocalBuffer.Remove(f);
+                classLocalBuffer.Add(f, member.Value);
+            }
+        }
+
+        _enclosingTypes.Push(@class);
+        _locals.Push(classLocalBuffer);
+    }
+
+    private void ExitClassScope() {
+        _enclosingTypes.Pop();
+        _locals.Pop();
+    }
+
     #endregion
 
     #region Statements
@@ -367,6 +397,7 @@ internal sealed class Evaluator {
             BoundNodeKind.IsExpression => EvaluateIsExpression((BoundIsExpression)expression, abort),
             BoundNodeKind.IsntExpression => EvaluateIsntExpression((BoundIsntExpression)expression, abort),
             BoundNodeKind.ConditionalExpression => EvaluateConditionalExpression((BoundConditionalExpression)expression, abort),
+            BoundNodeKind.CallExpression => EvaluateCallExpression((BoundCallExpression)expression, abort),
             _ => throw new BelteInternalException($"EvaluateExpression: unexpected node '{expression.kind}'"),
         };
     }
@@ -378,6 +409,100 @@ internal sealed class Evaluator {
 
         var type = CorLibrary.GetSpecialType(constantValue.specialType);
         return new EvaluatorObject(constantValue.value, type);
+    }
+
+    private EvaluatorObject EvaluateCallExpression(BoundCallExpression expression, ValueWrapper<bool> abort) {
+        if (CheckStandardMap(
+            expression.method,
+            expression.arguments,
+            abort,
+            out var result,
+            out var printed,
+            out var io)) {
+            lastOutputWasPrint = printed;
+            containsIO = io;
+
+            if (result is EvaluatorObject e)
+                return e;
+
+            return new EvaluatorObject(result, expression.method.returnType);
+        }
+
+        return InvokeMethod(expression.method, expression.arguments, abort, expression.receiver);
+    }
+
+    private EvaluatorObject InvokeMethod(
+        MethodSymbol method,
+        ImmutableArray<BoundExpression> arguments,
+        ValueWrapper<bool> abort,
+        BoundExpression receiver) {
+        var receiverObject = default(EvaluatorObject);
+
+        if (receiver is not null && receiver is not BoundEmptyExpression) {
+            receiverObject = EvaluateExpression(receiver, abort);
+            var dereferencedReceiver = Dereference(receiverObject);
+
+            if (dereferencedReceiver.members is null)
+                throw new NullReferenceException();
+        }
+
+        if (method.isAbstract || method.isVirtual) {
+            var type = Dereference(receiverObject).type;
+            var newMethod = type
+                .GetMembers()
+                .Where(s => s is MethodSymbol m && m == method && m.isOverride)
+                .First() as MethodSymbol;
+
+            if (newMethod is not null)
+                method = newMethod;
+        }
+
+        var locals = new Dictionary<Symbol, EvaluatorObject>();
+        // AddTemplatesToLocals(method.templateParameters, method.templateArguments, locals, abort);
+
+        for (var i = 0; i < arguments.Length; i++) {
+            var parameter = method.parameters[i];
+            var value = EvaluateExpression(arguments[i], abort);
+
+            while (parameter.refKind != RefKind.None && value.isReference)
+                value = Get(value.reference);
+
+            locals.Add(parameter, Copy(value));
+        }
+
+        _locals.Push(locals);
+
+        _program.TryGetMethodBodyIncludingParents(method, out var statement);
+        // var templateConstantDepth = _templateConstantDepth;
+        var enteredScope = false;
+
+        // !
+        if (receiverObject is not null /*&& (receiver.isReference || expression is BoundObjectCreationExpression)*/) {
+            // On an expression such as 'myInstance.Method()', we need to enter the 'myInstance' class scope
+            // in case 'Method' uses 'this'
+            // If what we get here is not a reference, it is a static accession and the needed scoped members have
+            // already been pushed by 'EvaluateType'.
+            receiverObject = Dereference(receiverObject);
+
+            if (receiverObject.members is not null) {
+                EnterClassScope(receiverObject);
+                enteredScope = true;
+            }
+        }
+
+        var result = EvaluateStatement(statement, abort, out _);
+
+        // while (_templateConstantDepth > templateConstantDepth) {
+        //     _templateConstantDepth--;
+        //     _locals.Pop();
+        // }
+
+        _locals.Pop();
+
+        if (enteredScope)
+            ExitClassScope();
+
+        return result;
     }
 
     private EvaluatorObject EvaluateDataContainerExpression(BoundDataContainerExpression expression) {
@@ -687,4 +812,18 @@ internal sealed class Evaluator {
     }
 
     #endregion
+
+    private bool CheckStandardMap(
+        MethodSymbol method,
+        ImmutableArray<BoundExpression> arguments,
+        ValueWrapper<bool> abort,
+        out object result,
+        out bool printed,
+        out bool io) {
+        // TODO
+        printed = false;
+        io = false;
+        result = null;
+        return false;
+    }
 }

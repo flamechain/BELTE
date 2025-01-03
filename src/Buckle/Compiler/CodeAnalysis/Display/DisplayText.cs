@@ -247,6 +247,9 @@ public sealed class DisplayText {
             case BoundNodeKind.TemplateParameterEqualsValue:
                 DisplayTemplateParameterEqualsValue(text, (BoundTemplateParameterEqualsValue)node);
                 break;
+            case BoundNodeKind.MethodGroup:
+                DisplayMethodGroup(text, (BoundMethodGroup)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -364,6 +367,16 @@ public sealed class DisplayText {
 
     private static void DisplayTypeExpression(DisplayText text, BoundTypeExpression node) {
         SymbolDisplay.DisplayType(text, node.type);
+    }
+
+    private static void DisplayMethodGroup(DisplayText text, BoundMethodGroup node) {
+        text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
+        text.Write(CreateSpace());
+        SymbolDisplay.AppendToDisplayText(text, node.methods[0], SymbolDisplayFormat.DebuggerDisplay);
+        text.Write(CreateSpace());
+        text.Write(CreateLiteral(node.methods.Length.ToString()));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
     }
 
     private static void DisplayBreakStatement(DisplayText text) {

@@ -1,3 +1,4 @@
+using System.IO;
 using Buckle.Utilities;
 using Diagnostics;
 
@@ -237,5 +238,19 @@ internal partial class SyntaxToken : BelteSyntaxNode {
     /// </summary>
     internal virtual SyntaxToken TokenWithTrailingTrivia(GreenNode trivia) {
         return new SyntaxToken(kind, text, value, GetLeadingTrivia(), trivia, GetDiagnostics());
+    }
+
+    private protected override void WriteTokenTo(TextWriter writer, bool leading, bool trailing) {
+        if (leading) {
+            var trivia = GetLeadingTrivia();
+            trivia?.WriteTo(writer, true, true);
+        }
+
+        writer.Write(text);
+
+        if (trailing) {
+            var trivia = GetTrailingTrivia();
+            trivia?.WriteTo(writer, true, true);
+        }
     }
 }

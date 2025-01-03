@@ -190,6 +190,7 @@ public enum DiagnosticCode : ushort {
     ERR_CannotConvertImplicitlyNullable = 179,
     WRN_NeverGivenType = 180,
     ERR_AmbiguousBinaryOperator = 181,
+    ERR_ProgramLocalReferencedOutsideOfTopLevelStatement = 182,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,
