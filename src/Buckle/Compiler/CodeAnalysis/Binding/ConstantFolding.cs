@@ -21,6 +21,8 @@ internal static class ConstantFolding {
         if (opKind == BinaryOperatorKind.Error)
             return null;
 
+        opKind &= BinaryOperatorKind.OpMask;
+
         // With and/or operators allow one side to be null
         if (opKind == BinaryOperatorKind.ConditionalAnd) {
             if ((leftConstant is not null && leftConstant.value is not null && !(bool)leftConstant.value) ||
@@ -46,10 +48,13 @@ internal static class ConstantFolding {
         var rightValue = rightConstant.value;
         var specialType = type.specialType;
 
+        if (opKind is BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual)
+            return new ConstantValue(Equals(leftValue, rightValue));
+
         leftValue = LiteralUtilities.Cast(leftValue, type);
         rightValue = LiteralUtilities.Cast(rightValue, type);
 
-        switch (opKind & BinaryOperatorKind.OpMask) {
+        switch (opKind) {
             case BinaryOperatorKind.Addition:
                 if (specialType == SpecialType.Int)
                     return new ConstantValue((int)leftValue + (int)rightValue, specialType);
