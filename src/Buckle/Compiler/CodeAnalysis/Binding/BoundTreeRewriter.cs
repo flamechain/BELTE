@@ -17,7 +17,6 @@ internal abstract class BoundTreeRewriter {
     /// </returns>
     internal virtual BoundStatement RewriteStatement(BoundStatement statement) {
         return statement.kind switch {
-            BoundKind.NopStatement => RewriteNopStatement((BoundNopStatement)statement),
             BoundKind.BlockStatement => RewriteBlockStatement((BoundBlockStatement)statement),
             BoundKind.LocalDeclarationStatement
                 => RewriteLocalDeclarationStatement((BoundLocalDeclarationStatement)statement),

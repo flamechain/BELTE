@@ -2,7 +2,7 @@ using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
-internal sealed partial class Conversion {
+internal readonly partial struct Conversion {
     internal static class EasyOut {
         private static readonly byte[,] CastKindMap;
 

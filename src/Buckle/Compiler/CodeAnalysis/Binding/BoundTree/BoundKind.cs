@@ -51,6 +51,7 @@ internal enum BoundKind : byte {
     ReturnStatement,
     BreakStatement,
     ContinueStatement,
+    NopStatement,
 
     DataContainerDeclaration,
     FieldEqualsValue,

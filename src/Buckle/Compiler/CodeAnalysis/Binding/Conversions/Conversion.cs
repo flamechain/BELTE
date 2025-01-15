@@ -6,7 +6,7 @@ namespace Buckle.CodeAnalysis.Binding;
 /// <summary>
 /// A cast from any <see cref="BoundType" /> to any <see cref="BoundType" /> (can be the same).
 /// </summary>
-internal sealed partial class Conversion {
+internal readonly partial struct Conversion {
     internal static readonly Conversion None = new Conversion(ConversionKind.None);
     internal static readonly Conversion Identity = new Conversion(ConversionKind.Identity);
     internal static readonly Conversion Implicit = new Conversion(ConversionKind.Implicit);

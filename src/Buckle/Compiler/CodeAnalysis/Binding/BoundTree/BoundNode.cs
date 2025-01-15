@@ -15,11 +15,20 @@ internal abstract class BoundNode {
         this.syntax = syntax;
     }
 
+    private protected BoundNode(BoundKind kind, SyntaxNode syntax) {
+        this.kind = kind;
+        this.syntax = syntax;
+    }
+
     internal BoundKind kind { get; }
 
     internal bool hasErrors { get; }
 
     internal SyntaxNode syntax { get; }
+
+    internal bool HasErrors() {
+        return hasErrors;
+    }
 
     public override string ToString() {
         return DisplayText.DisplayNode(this).ToString();

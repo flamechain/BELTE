@@ -126,7 +126,8 @@ internal sealed class SourceWriter {
     }
 
     private void WriteLine() {
-        WriteLine("");
+        _writer.WriteLine();
+        _needIndent = true;
     }
 
     private void WriteLine(string msg) {

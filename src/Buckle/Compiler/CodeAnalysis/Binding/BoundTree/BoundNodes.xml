@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Tree Root="BoundNode">
+  <ValueType Name="ConversionKind"/>
+  <ValueType Name="Conversion"/>
+  <ValueType Name="UnaryOperatorKind"/>
+  <ValueType Name="BinaryOperatorKind"/>
+  <ValueType Name="LookupResultKind"/>
+  <ValueType Name="RefKind"/>
+  <AbstractNode Name="BoundInitializer" Base="BoundNode"/>
+  <AbstractNode Name="BoundEqualsValue" Base="BoundInitializer">
+    <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
+    <Field Name="value" Type="BoundExpression"/>
+  </AbstractNode>
+  <Node Name="BoundFieldEqualsValue" Base="BoundEqualsValue">
+    <Field Name="field" Type="FieldSymbol"/>
+  </Node>
+  <Node Name="BoundParameterEqualsValue" Base="BoundEqualsValue">
+    <Field Name="parameter" Type="ParameterSymbol"/>
+  </Node>
+  <Node Name="BoundTemplateParameterEqualsValue" Base="BoundEqualsValue">
+    <Field Name="parameter" Type="TemplateParameterSymbol"/>
+  </Node>
+  <AbstractNode Name="BoundExpression" Base="BoundNode">
+    <Field Name="type" Type="TypeSymbol"/>
+  </AbstractNode>
+  <AbstractNode Name="BoundStatement" Base="BoundNode"/>
+  <Node Name="BoundValuePlaceholder" Base="BoundExpression"/>
+  <Node Name="BoundErrorExpression" Base="BoundExpression">
+    <Field Name="resultKind" Type="LookupResultKind"/>
+    <Field Name="symbols" Type="ImmutableArray&lt;Symbol&gt;"/>
+    <Field Name="childBoundNodes" Type="ImmutableArray&lt;BoundExpression&gt;"/>
+  </Node>
+  <Node Name="BoundErrorStatement" Base="BoundStatement">
+    <Field Name="childBoundNodes" Type="ImmutableArray&lt;BoundNode&gt;"/>
+  </Node>
+  <Node Name="BoundTypeExpression" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true"/>
+    <Field Name="typeWithAnnotations" Type="TypeWithAnnotations"/>
+  </Node>
+
+</Tree>

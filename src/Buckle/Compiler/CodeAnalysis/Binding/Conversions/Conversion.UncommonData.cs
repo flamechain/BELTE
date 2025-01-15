@@ -1,7 +1,7 @@
 
 namespace Buckle.CodeAnalysis.Binding;
 
-internal sealed partial class Conversion {
+internal readonly partial struct Conversion {
     private abstract class UncommonData {
     }
 }
