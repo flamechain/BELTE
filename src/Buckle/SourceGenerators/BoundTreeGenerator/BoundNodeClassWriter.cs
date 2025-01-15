@@ -55,8 +55,8 @@ internal sealed partial class BoundNodeClassWriter {
 
         WriteBoundKindEnum();
         WriteNodes();
-        // WriteVisitorT();
-        // WriteVisitor();
+        WriteVisitor();
+        WriteRewriter();
     }
 
     private void WriteFileHeader() {
@@ -64,6 +64,7 @@ internal sealed partial class BoundNodeClassWriter {
         WriteLine();
         WriteUsing("System.Collections.Immutable");
         WriteUsing("System.Diagnostics");
+        WriteUsing("System.Runtime.CompilerServices");
         WriteUsing("Buckle.CodeAnalysis.Symbols");
         WriteUsing("Buckle.CodeAnalysis.Syntax");
         WriteLine();
@@ -115,9 +116,24 @@ internal sealed partial class BoundNodeClassWriter {
         _indentLevel--;
     }
 
+    private static bool SkipInVisitor(Field f) {
+        return string.Compare(f.SkipInVisitor, "true", true) == 0
+            || VisitFieldOnlyInNullabilityRewriter(f);
+    }
+
+    private static bool VisitFieldOnlyInNullabilityRewriter(Field f) {
+        return string.Compare(f.SkipInVisitor, "ExceptNullabilityRewriter", true) == 0;
+    }
+
     private void WriteUsing(string namespaceName) {
         WriteLine($"using {namespaceName};");
     }
+
+    private static bool TypeIsTypeSymbol(Field field) => field.Type.TrimEnd('?') == "TypeSymbol";
+
+    private static bool TypeIsSymbol(Field field) => TypeIsSymbol(field.Type);
+
+    private static bool TypeIsSymbol(string type) => type.TrimEnd('?').EndsWith("Symbol");
 
     private string StripBound(string name) {
         if (name.StartsWith("Bound", StringComparison.Ordinal))
@@ -144,6 +160,10 @@ internal sealed partial class BoundNodeClassWriter {
 
     private void UnParen() {
         Write(")");
+    }
+
+    private IEnumerable<Field> AllTypeFields(TreeType node) {
+        return AllFields(node).Where(TypeIsTypeSymbol);
     }
 
     private void SeparatedList<T>(string separator, IEnumerable<T> items, Func<T, string> func) {
@@ -366,12 +386,67 @@ internal sealed partial class BoundNodeClassWriter {
             WriteLine();
         }
 
-        // if (node is Node) {
-        //     WriteAccept(node.Name);
-        //     WriteUpdateMethod(node as Node);
-        // }
+        if (node is Node) {
+            WriteAccept(node.Name);
+            WriteUpdate(node as Node);
+        }
 
         CloseBlock();
+    }
+
+    private void WriteAccept(string name) {
+        WriteLine("[DebuggerStepThrough]");
+        WriteLine($"internal override BoundNode Accept(BoundTreeVisitor visitor) => visitor.Visit{StripBound(name)}(this);");
+    }
+
+    private void WriteUpdate(Node node) {
+        if (!AllFields(node).Any())
+            return;
+
+        var emitNew = (!Fields(node).Any()) && BaseType(node) is Node;
+
+        WriteLine();
+        Write($"internal{(emitNew ? " new" : "")} {node.Name} Update");
+        Paren();
+        Comma(AllSpecifiableFields(node), field => string.Format("{0} {1}", GetField(node, field.Name).Type, ToCamelCase(field.Name)));
+        UnParen();
+        OpenBlock();
+
+        if (AllSpecifiableFields(node).Any()) {
+            Write("if ");
+            Paren();
+            Or(AllSpecifiableFields(node), NotEquals);
+            UnParen();
+            OpenBlock();
+            Write($"return new {node.Name}");
+            var fields = new[] { "this.syntax" }.Concat(AllSpecifiableFields(node).Select(f => ToCamelCase(f.Name))).Concat(["this.HasErrors()"]);
+            ParenList(fields);
+            WriteLine(";");
+            CloseBlock();
+        }
+
+        WriteLine();
+        WriteLine("return this;");
+        CloseBlock();
+
+        string NotEquals(Field field) {
+            var parameterName = ToCamelCase(field.Name);
+            var fieldName = field.Name;
+
+            if (TypeIsTypeSymbol(field))
+                return $"!TypeSymbol.Equals({parameterName}, this.{fieldName}, TypeCompareKind.ConsiderEverything)";
+
+            if (TypeIsSymbol(field))
+                return $"!Symbols.SymbolEqualityComparer.ConsiderEverything.Equals({parameterName}, this.{fieldName})";
+
+            if (IsValueType(field.Type) && field.Type[^1] == '?')
+                return $"!{parameterName}.Equals(this.{fieldName})";
+
+            if (GetTemplateType(field.Type) == "OneOrMany")
+                return $"!{parameterName}.SequenceEqual({fieldName})";
+
+            return $"{parameterName} != this.{fieldName}";
+        }
     }
 
     private void WriteClassHeader(TreeType node) {
@@ -507,5 +582,101 @@ internal sealed partial class BoundNodeClassWriter {
         } else {
             WriteLine($"internal {(IsNew(field) ? "new " : "")}{field.Type} {field.Name} {{ get; }}");
         }
+    }
+
+    private void WriteVisitor() {
+        WriteLine();
+        Write("internal abstract partial class BoundTreeVisitor<A, R>");
+        OpenBlock();
+        WriteLine("[MethodImpl(MethodImplOptions.NoInlining), DebuggerStepThrough]");
+        Write("internal R VisitInternal(BoundNode node, A arg)");
+        OpenBlock();
+
+        WriteLine("switch (node.kind)");
+        OpenBlock();
+
+        foreach (var node in _tree.types.OfType<Node>()) {
+            WriteLine($"case BoundKind.{StripBound(node.Name)}:");
+            Indent();
+            WriteLine($"return Visit{StripBound(node.Name)}(({node.Name})node, arg);");
+            Unindent();
+        }
+
+        CloseBlock();
+        WriteLine();
+        WriteLine("return default(R)!;");
+        CloseBlock();
+        CloseBlock();
+
+        WriteLine();
+        Write("internal abstract partial class BoundTreeVisitor<A, R>");
+        OpenBlock();
+
+        foreach (var node in _tree.types.OfType<Node>())
+            WriteLine($"internal virtual R Visit{StripBound(node.Name)}({node.Name} node, A arg) => this.DefaultVisit(node, arg);");
+
+        CloseBlock();
+
+        WriteLine();
+        Write("internal abstract partial class BoundTreeVisitor");
+        OpenBlock();
+
+        foreach (var node in _tree.types.OfType<Node>())
+            WriteLine($"internal virtual BoundNode Visit{StripBound(node.Name)}({node.Name} node) => this.DefaultVisit(node);");
+
+        CloseBlock();
+    }
+
+    private void WriteRewriter() {
+        WriteLine();
+        Write("internal abstract partial class BoundTreeRewriter : BoundTreeVisitor");
+        OpenBlock();
+
+        foreach (var node in _tree.types.OfType<Node>()) {
+            if (!AllNodeOrNodeListFields(node).Any() && !AllTypeFields(node).Any()) {
+                WriteLine($"{GetVisitFunctionDeclaration(node.Name, isOverride: true)} => node;");
+                continue;
+            }
+
+            Write(GetVisitFunctionDeclaration(node.Name, isOverride: true));
+            OpenBlock();
+            var hadField = false;
+
+            foreach (var field in AllNodeOrNodeListFields(node)) {
+                hadField = true;
+                WriteNodeVisitCall(field);
+            }
+
+            foreach (var field in AllTypeFields(node)) {
+                hadField = true;
+                WriteLine($"TypeSymbol {ToCamelCase(field.Name)} = this.VisitType(node.{field.Name});");
+            }
+
+            if (hadField) {
+                Write("return node.Update");
+                ParenList(AllSpecifiableFields(node), field => IsDerivedOrListOfDerived("BoundNode", field.Type) || TypeIsTypeSymbol(field) ? ToCamelCase(field.Name) : string.Format("node.{0}", field.Name));
+                WriteLine(";");
+            } else {
+                WriteLine("return node;");
+            }
+
+            CloseBlock();
+            WriteLine();
+        }
+
+        CloseBlock();
+    }
+
+    private void WriteNodeVisitCall(Field field, bool forceVisit = false) {
+        if (SkipInVisitor(field) && !forceVisit)
+            WriteLine($"{field.Type} {ToCamelCase(field.Name)} = node.{field.Name};");
+        else if (IsNodeList(field.Type))
+            WriteLine($"{field.Type} {ToCamelCase(field.Name)} = this.VisitList(node.{field.Name});");
+        else
+            WriteLine($"{field.Type} {ToCamelCase(field.Name)} = ({field.Type})this.Visit(node.{field.Name});");
+    }
+
+    private string GetVisitFunctionDeclaration(string name, bool isOverride) {
+        return $"internal {(isOverride ? "override" : "virtual")} BoundNode Visit{StripBound(name)}({name} node)";
     }
 }

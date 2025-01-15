@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Syntax;
@@ -28,6 +29,10 @@ internal abstract class BoundNode {
 
     internal bool HasErrors() {
         return hasErrors;
+    }
+
+    internal virtual BoundNode Accept(BoundTreeVisitor visitor) {
+        throw new NotImplementedException();
     }
 
     public override string ToString() {
