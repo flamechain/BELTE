@@ -1,22 +1,23 @@
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Bound from a <see cref="Syntax.TryStatementSyntax" />.
-/// <see cref="Syntax.CatchClauseSyntax" /> and <see cref="Syntax.FinallyClauseSyntax" /> are bound into just their
-/// bodies.
+/// Bound from a <see cref="TryStatementSyntax" />.
+/// <see cref="CatchClauseSyntax" /> and <see cref="FinallyClauseSyntax" /> are bound into just their bodies.
 /// </summary>
 internal sealed class BoundTryStatement : BoundStatement {
     internal BoundTryStatement(
+        SyntaxNode syntax,
         BoundBlockStatement body,
         BoundBlockStatement catchBody,
-        BoundBlockStatement finallyBody) {
+        BoundBlockStatement finallyBody,
+        bool hasErrors = false)
+        : base(BoundKind.TryStatement, syntax, hasErrors) {
         this.body = body;
         this.catchBody = catchBody;
         this.finallyBody = finallyBody;
     }
-
-    internal override BoundNodeKind kind => BoundNodeKind.TryStatement;
 
     internal BoundBlockStatement body { get; }
 

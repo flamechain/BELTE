@@ -1,4 +1,5 @@
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -10,13 +11,17 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </code>
 /// </summary>
 internal sealed class BoundConditionalGotoStatement : BoundStatement {
-    internal BoundConditionalGotoStatement(LabelSymbol label, BoundExpression condition, bool jumpIfTrue = true) {
+    internal BoundConditionalGotoStatement(
+        SyntaxNode syntax,
+        LabelSymbol label,
+        BoundExpression condition,
+        bool jumpIfTrue,
+        bool hasErrors = false)
+        : base(BoundKind.ConditionalGotoStatement, syntax, hasErrors) {
         this.label = label;
         this.condition = condition;
         this.jumpIfTrue = jumpIfTrue;
     }
-
-    internal override BoundNodeKind kind => BoundNodeKind.ConditionalGotoStatement;
 
     internal LabelSymbol label { get; }
 

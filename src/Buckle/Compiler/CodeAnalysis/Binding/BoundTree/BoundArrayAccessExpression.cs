@@ -1,26 +1,26 @@
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Bound from a <see cref="Syntax.IndexExpressionSyntax" />.
+/// Bound from a <see cref="IndexExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundArrayAccessExpression : BoundExpression {
     internal BoundArrayAccessExpression(
+        SyntaxNode syntax,
         BoundExpression receiver,
         BoundExpression index,
-        TypeSymbol type) {
+        TypeSymbol type,
+        ConstantValue constantValue,
+        bool hasErrors = false)
+        : base(BoundKind.ArrayAccessExpression, syntax, type, hasErrors) {
         this.receiver = receiver;
         this.index = index;
-        this.type = type;
-        constantValue = ConstantFolding.FoldIndex(receiver, index, type);
+        this.constantValue = constantValue;
     }
 
-    internal override BoundNodeKind kind => BoundNodeKind.ArrayAccessExpression;
-
     internal override ConstantValue constantValue { get; }
-
-    internal override TypeSymbol type { get; }
 
     internal BoundExpression receiver { get; }
 

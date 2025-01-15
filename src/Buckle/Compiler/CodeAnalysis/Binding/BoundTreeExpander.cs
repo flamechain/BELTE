@@ -19,23 +19,23 @@ internal abstract class BoundTreeExpander {
 
     private protected virtual List<BoundStatement> ExpandStatement(BoundStatement statement) {
         return statement.kind switch {
-            BoundNodeKind.NopStatement => ExpandNopStatement((BoundNopStatement)statement),
-            BoundNodeKind.BlockStatement => ExpandBlockStatement((BoundBlockStatement)statement),
-            BoundNodeKind.LocalDeclarationStatement
+            BoundKind.NopStatement => ExpandNopStatement((BoundNopStatement)statement),
+            BoundKind.BlockStatement => ExpandBlockStatement((BoundBlockStatement)statement),
+            BoundKind.LocalDeclarationStatement
                 => ExpandLocalDeclarationStatement((BoundLocalDeclarationStatement)statement),
-            BoundNodeKind.IfStatement => ExpandIfStatement((BoundIfStatement)statement),
-            BoundNodeKind.WhileStatement => ExpandWhileStatement((BoundWhileStatement)statement),
-            BoundNodeKind.ForStatement => ExpandForStatement((BoundForStatement)statement),
-            BoundNodeKind.ExpressionStatement => ExpandExpressionStatement((BoundExpressionStatement)statement),
-            BoundNodeKind.LabelStatement => ExpandLabelStatement((BoundLabelStatement)statement),
-            BoundNodeKind.GotoStatement => ExpandGotoStatement((BoundGotoStatement)statement),
-            BoundNodeKind.ConditionalGotoStatement
+            BoundKind.IfStatement => ExpandIfStatement((BoundIfStatement)statement),
+            BoundKind.WhileStatement => ExpandWhileStatement((BoundWhileStatement)statement),
+            BoundKind.ForStatement => ExpandForStatement((BoundForStatement)statement),
+            BoundKind.ExpressionStatement => ExpandExpressionStatement((BoundExpressionStatement)statement),
+            BoundKind.LabelStatement => ExpandLabelStatement((BoundLabelStatement)statement),
+            BoundKind.GotoStatement => ExpandGotoStatement((BoundGotoStatement)statement),
+            BoundKind.ConditionalGotoStatement
                 => ExpandConditionalGotoStatement((BoundConditionalGotoStatement)statement),
-            BoundNodeKind.DoWhileStatement => ExpandDoWhileStatement((BoundDoWhileStatement)statement),
-            BoundNodeKind.ReturnStatement => ExpandReturnStatement((BoundReturnStatement)statement),
-            BoundNodeKind.TryStatement => ExpandTryStatement((BoundTryStatement)statement),
-            BoundNodeKind.BreakStatement => ExpandBreakStatement((BoundBreakStatement)statement),
-            BoundNodeKind.ContinueStatement => ExpandContinueStatement((BoundContinueStatement)statement),
+            BoundKind.DoWhileStatement => ExpandDoWhileStatement((BoundDoWhileStatement)statement),
+            BoundKind.ReturnStatement => ExpandReturnStatement((BoundReturnStatement)statement),
+            BoundKind.TryStatement => ExpandTryStatement((BoundTryStatement)statement),
+            BoundKind.BreakStatement => ExpandBreakStatement((BoundBreakStatement)statement),
+            BoundKind.ContinueStatement => ExpandContinueStatement((BoundContinueStatement)statement),
             _ => throw new BelteInternalException($"ExpandStatement: unexpected expression type '{statement.kind}'"),
         };
     }
@@ -180,69 +180,69 @@ internal abstract class BoundTreeExpander {
         BoundExpression expression,
         out BoundExpression replacement) {
         switch (expression.kind) {
-            case BoundNodeKind.LiteralExpression:
+            case BoundKind.LiteralExpression:
                 return ExpandLiteralExpression((BoundLiteralExpression)expression, out replacement);
-            case BoundNodeKind.InitializerListExpression:
+            case BoundKind.InitializerListExpression:
                 return ExpandInitializerListExpression((BoundInitializerListExpression)expression, out replacement);
-            case BoundNodeKind.InitializerDictionaryExpression:
+            case BoundKind.InitializerDictionaryExpression:
                 return ExpandInitializerDictionaryExpression(
                     (BoundInitializerDictionaryExpression)expression, out replacement
                 );
-            case BoundNodeKind.DataContainerExpression:
+            case BoundKind.DataContainerExpression:
                 return ExpandDataContainerExpression((BoundDataContainerExpression)expression, out replacement);
-            case BoundNodeKind.AssignmentExpression:
+            case BoundKind.AssignmentExpression:
                 return ExpandAssignmentExpression((BoundAssignmentExpression)expression, out replacement);
-            case BoundNodeKind.UnaryExpression:
+            case BoundKind.UnaryExpression:
                 return ExpandUnaryExpression((BoundUnaryExpression)expression, out replacement);
-            case BoundNodeKind.BinaryExpression:
+            case BoundKind.BinaryExpression:
                 return ExpandBinaryExpression((BoundBinaryExpression)expression, out replacement);
-            case BoundNodeKind.AsExpression:
+            case BoundKind.AsExpression:
                 return ExpandAsExpression((BoundAsExpression)expression, out replacement);
-            case BoundNodeKind.IsExpression:
+            case BoundKind.IsExpression:
                 return ExpandIsExpression((BoundIsExpression)expression, out replacement);
-            case BoundNodeKind.IsntExpression:
+            case BoundKind.IsntExpression:
                 return ExpandIsntExpression((BoundIsntExpression)expression, out replacement);
-            case BoundNodeKind.NullCoalescingExpression:
+            case BoundKind.NullCoalescingExpression:
                 return ExpandNullCoalescingExpression((BoundNullCoalescingExpression)expression, out replacement);
-            case BoundNodeKind.NullAssertExpression:
+            case BoundKind.NullAssertExpression:
                 return ExpandNullAssertExpression((BoundNullAssertExpression)expression, out replacement);
-            case BoundNodeKind.EmptyExpression:
+            case BoundKind.EmptyExpression:
                 return ExpandEmptyExpression((BoundEmptyExpression)expression, out replacement);
-            case BoundNodeKind.ErrorExpression:
+            case BoundKind.ErrorExpression:
                 return ExpandErrorExpression((BoundErrorExpression)expression, out replacement);
-            case BoundNodeKind.CallExpression:
+            case BoundKind.CallExpression:
                 return ExpandCallExpression((BoundCallExpression)expression, out replacement);
-            case BoundNodeKind.CastExpression:
+            case BoundKind.CastExpression:
                 return ExpandCastExpression((BoundCastExpression)expression, out replacement);
-            case BoundNodeKind.ArrayAccessExpression:
+            case BoundKind.ArrayAccessExpression:
                 return ExpandArrayAccessExpression((BoundArrayAccessExpression)expression, out replacement);
-            case BoundNodeKind.CompoundAssignmentExpression:
+            case BoundKind.CompoundAssignmentExpression:
                 return ExpandCompoundAssignmentExpression(
                     (BoundCompoundAssignmentExpression)expression, out replacement
                 );
-            case BoundNodeKind.ReferenceExpression:
+            case BoundKind.ReferenceExpression:
                 return ExpandReferenceExpression((BoundReferenceExpression)expression, out replacement);
-            case BoundNodeKind.TypeOfExpression:
+            case BoundKind.TypeOfExpression:
                 return ExpandTypeOfExpression((BoundTypeOfExpression)expression, out replacement);
-            case BoundNodeKind.ConditionalExpression:
+            case BoundKind.ConditionalExpression:
                 return ExpandConditionalExpression((BoundConditionalExpression)expression, out replacement);
-            case BoundNodeKind.ObjectCreationExpression:
+            case BoundKind.ObjectCreationExpression:
                 return ExpandObjectCreationExpression((BoundObjectCreationExpression)expression, out replacement);
-            case BoundNodeKind.ArrayCreationExpression:
+            case BoundKind.ArrayCreationExpression:
                 return ExpandArrayCreationExpression((BoundArrayCreationExpression)expression, out replacement);
-            case BoundNodeKind.FieldAccessExpression:
+            case BoundKind.FieldAccessExpression:
                 return ExpandFieldAccessExpression((BoundFieldAccessExpression)expression, out replacement);
-            case BoundNodeKind.ConditionalAccessExpression:
+            case BoundKind.ConditionalAccessExpression:
                 return ExpandConditionalAccessExpression((BoundConditionalAccessExpression)expression, out replacement);
-            case BoundNodeKind.ThisExpression:
+            case BoundKind.ThisExpression:
                 return ExpandThisExpression((BoundThisExpression)expression, out replacement);
-            case BoundNodeKind.BaseExpression:
+            case BoundKind.BaseExpression:
                 return ExpandBaseExpression((BoundBaseExpression)expression, out replacement);
-            case BoundNodeKind.ThrowExpression:
+            case BoundKind.ThrowExpression:
                 return ExpandThrowExpression((BoundThrowExpression)expression, out replacement);
-            case BoundNodeKind.TypeExpression:
+            case BoundKind.TypeExpression:
                 return ExpandTypeExpression((BoundTypeExpression)expression, out replacement);
-            case BoundNodeKind.ParameterExpression:
+            case BoundKind.ParameterExpression:
                 return ExpandParameterExpression((BoundParameterExpression)expression, out replacement);
             default:
                 throw new BelteInternalException($"ExpandExpression: unexpected expression type '{expression.kind}'");

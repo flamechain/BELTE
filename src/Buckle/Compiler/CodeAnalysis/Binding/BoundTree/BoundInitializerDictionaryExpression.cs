@@ -1,23 +1,22 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Bound from a <see cref="Syntax.InitializerDictionaryExpressionSyntax" />.
+/// Bound from a <see cref="InitializerDictionaryExpressionSyntax" />.
 /// Doesn't survive compilation.
 /// </summary>
 internal sealed class BoundInitializerDictionaryExpression : BoundExpression {
     internal BoundInitializerDictionaryExpression(
+        SyntaxNode syntax,
         ImmutableArray<(BoundExpression, BoundExpression)> items,
-        TypeSymbol type) {
+        TypeSymbol type,
+        bool hasErrors = false)
+        : base(BoundKind.InitializerDictionaryExpression, syntax, type, hasErrors) {
         this.items = items;
-        this.type = type;
     }
-
-    internal override BoundNodeKind kind => BoundNodeKind.InitializerDictionaryExpression;
-
-    internal override TypeSymbol type { get; }
 
     internal override ConstantValue constantValue { get; }
 

@@ -1,21 +1,24 @@
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Bound from a <see cref="Syntax.AssignmentExpressionSyntax" />.
+/// Bound from a <see cref="AssignmentExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundAssignmentExpression : BoundExpression {
-    internal BoundAssignmentExpression(BoundExpression left, BoundExpression right, bool isRef, TypeSymbol type) {
+    internal BoundAssignmentExpression(
+        SyntaxNode syntax,
+        BoundExpression left,
+        BoundExpression right,
+        bool isRef,
+        TypeSymbol type,
+        bool hasErrors = false)
+        : base(BoundKind.AssignmentExpression, syntax, type, hasErrors) {
         this.left = left;
         this.right = right;
-        this.type = type;
         this.isRef = isRef;
     }
-
-    internal override BoundNodeKind kind => BoundNodeKind.AssignmentExpression;
-
-    internal override TypeSymbol type { get; }
 
     internal BoundExpression left { get; }
 

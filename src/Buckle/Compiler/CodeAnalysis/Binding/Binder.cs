@@ -918,7 +918,7 @@ internal partial class Binder {
         }
 
         if (ConstantValue.IsNull(operand.constantValue) ||
-            operand.kind == BoundNodeKind.MethodGroup ||
+            operand.kind == BoundKind.MethodGroup ||
             operand.type.IsVoidType()) {
             diagnostics.Push(Warning.AlwaysValue(node.location, isIsntOperator));
             return new BoundLiteralExpression(new ConstantValue(isIsntOperator, SpecialType.Bool), resultType);
@@ -961,7 +961,7 @@ internal partial class Binder {
         var isLeftNullable = optLeftType is not null && optLeftType.IsNullableType();
         var optLeftType0 = isLeftNullable ? optLeftType.GetNullableUnderlyingType() : optLeftType; // "A0"
 
-        if (leftOperand.kind == BoundNodeKind.MethodGroup)
+        if (leftOperand.kind == BoundKind.MethodGroup)
             return new BoundNullCoalescingExpression(leftOperand, rightOperand, CreateErrorType());
 
         if (isLeftNullable) {
@@ -1160,11 +1160,11 @@ internal partial class Binder {
         var result = BindExpression(current, diagnostics);
 
         if (node.operatorToken.kind == SyntaxKind.MinusToken && current.kind == SyntaxKind.ParenthesizedExpression) {
-            if (result.kind == BoundNodeKind.TypeExpression
+            if (result.kind == BoundKind.TypeExpression
                 && !(((ParenthesisExpressionSyntax)current).expression.kind == SyntaxKind.ParenthesizedExpression)) {
                 // TODO what is this error
                 // Error(diagnostics, ErrorCode.ERR_PossibleBadNegCast, node);
-            } else if (result.kind == BoundNodeKind.ErrorExpression) {
+            } else if (result.kind == BoundKind.ErrorExpression) {
                 var parenthesizedExpression = (ParenthesisExpressionSyntax)current;
 
                 if (parenthesizedExpression.expression.kind == SyntaxKind.IdentifierName
@@ -1957,7 +1957,7 @@ internal partial class Binder {
             BoundExpression result;
 
             switch (boundLeft.kind) {
-                case BoundNodeKind.TypeExpression:
+                case BoundKind.TypeExpression:
                     if (leftType.typeKind == TypeKind.TemplateParameter) {
                         LookupMembersWithFallback(
                             lookupResult,
@@ -2352,12 +2352,12 @@ internal partial class Binder {
     }
 
     private static bool IsInstanceReceiver(BoundExpression receiver) {
-        return receiver is not null && receiver.kind == BoundNodeKind.TypeExpression;
+        return receiver is not null && receiver.kind == BoundKind.TypeExpression;
     }
 
     private BoundExpression MakeMemberAccessValue(BoundExpression expression, BelteDiagnosticQueue diagnostics) {
         switch (expression.kind) {
-            case BoundNodeKind.MethodGroup: {
+            case BoundKind.MethodGroup: {
                     /*
                         var methodGroup = (BoundMethodGroup)expression;
                         var resolution = ResolveMethodGroup(methodGroup, null);
@@ -2451,7 +2451,7 @@ internal partial class Binder {
             AnalyzedArguments analyzedArguments,
             BelteDiagnosticQueue diagnostics) {
             boundExpression = CheckValue(boundExpression, BindValueKind.RValueOrMethodGroup, diagnostics);
-            var name = boundExpression.kind == BoundNodeKind.MethodGroup ? GetName(node.expression) : null;
+            var name = boundExpression.kind == BoundKind.MethodGroup ? GetName(node.expression) : null;
             BindArgumentsAndNames(node.argumentList, diagnostics, analyzedArguments);
             return BindCallExpression(node, node.expression, name, boundExpression, analyzedArguments, diagnostics);
         }
@@ -2479,7 +2479,7 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         BoundExpression result;
 
-        if (boundExpression.kind == BoundNodeKind.MethodGroup) {
+        if (boundExpression.kind == BoundKind.MethodGroup) {
             result = BindMethodGroupInvocation(
                 node,
                 expression,
@@ -2729,7 +2729,7 @@ internal partial class Binder {
         var args = analyzedArguments.arguments.ToImmutable();
 
         // TODO how to check for compiler generation?
-        if (!gotError && method.requiresInstanceReceiver && receiver is not null && receiver.kind == BoundNodeKind.ThisExpression /*&& receiver.WasCompilerGenerated*/) {
+        if (!gotError && method.requiresInstanceReceiver && receiver is not null && receiver.kind == BoundKind.ThisExpression /*&& receiver.WasCompilerGenerated*/) {
             gotError = IsRefOrOutThisParameterCaptured(node, diagnostics);
         }
 
@@ -2918,7 +2918,7 @@ internal partial class Binder {
         TextLocation location,
         BelteDiagnosticQueue diagnostics) {
         switch (expression.kind) {
-            case BoundNodeKind.TypeExpression:
+            case BoundKind.TypeExpression:
                 diagnostics.Push(
                     Error.CannotUseType(location, ((BoundTypeExpression)expression).type)
                 );
@@ -4576,12 +4576,12 @@ symIsHidden:;
         }
 
         switch (operand.kind) {
-            case BoundNodeKind.ErrorExpression:
+            case BoundKind.ErrorExpression:
                 return;
-            case BoundNodeKind.MethodGroup:
+            case BoundKind.MethodGroup:
                 diagnostics.Push(Error.MethodGroupCannotBeUsedAsValue(syntax.location, (BoundMethodGroup)operand));
                 return;
-            case BoundNodeKind.LiteralExpression:
+            case BoundKind.LiteralExpression:
                 if (ConstantValue.IsNull(operand.constantValue)) {
                     if (targetType.isPrimitiveType) {
                         // TODO what is this error
@@ -4591,7 +4591,7 @@ symIsHidden:;
                 }
 
                 break;
-            case BoundNodeKind.ConditionalExpression: {
+            case BoundKind.ConditionalExpression: {
                     var conditionalOperator = (BoundConditionalExpression)operand;
                     var reportedError = false;
                     TryConversion(conditionalOperator.center, ref reportedError);

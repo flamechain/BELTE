@@ -1,23 +1,25 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Bound from a <see cref="Syntax.BlockStatementSyntax" />.
+/// Bound from a <see cref="BlockStatementSyntax" />.
 /// Contains the local scope.
 /// </summary>
 internal sealed class BoundBlockStatement : BoundStatement {
     internal BoundBlockStatement(
+        SyntaxNode syntax,
         ImmutableArray<BoundStatement> statements,
         ImmutableArray<DataContainerSymbol> locals,
-        ImmutableArray<LocalFunctionSymbol> localFunctions) {
+        ImmutableArray<LocalFunctionSymbol> localFunctions,
+        bool hasErrors = false)
+        : base(BoundKind.BlockStatement, syntax, hasErrors) {
         this.statements = statements;
         this.locals = locals;
         this.localFunctions = localFunctions;
     }
-
-    internal override BoundNodeKind kind => BoundNodeKind.BlockStatement;
 
     internal ImmutableArray<BoundStatement> statements { get; }
 

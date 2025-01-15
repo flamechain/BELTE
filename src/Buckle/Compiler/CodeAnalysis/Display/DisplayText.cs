@@ -103,151 +103,151 @@ public sealed class DisplayText {
         }
 
         switch (node.kind) {
-            case BoundNodeKind.NopStatement:
+            case BoundKind.NopStatement:
                 DisplayNopStatement(text);
                 break;
-            case BoundNodeKind.BlockStatement:
+            case BoundKind.BlockStatement:
                 DisplayBlockStatement(text, (BoundBlockStatement)node);
                 break;
-            case BoundNodeKind.ExpressionStatement:
+            case BoundKind.ExpressionStatement:
                 DisplayExpressionStatement(text, (BoundExpressionStatement)node);
                 break;
-            case BoundNodeKind.LocalDeclarationStatement:
+            case BoundKind.LocalDeclarationStatement:
                 DisplayLocalDeclarationStatement(text, (BoundLocalDeclarationStatement)node);
                 break;
-            case BoundNodeKind.IfStatement:
+            case BoundKind.IfStatement:
                 DisplayIfStatement(text, (BoundIfStatement)node);
                 break;
-            case BoundNodeKind.WhileStatement:
+            case BoundKind.WhileStatement:
                 DisplayWhileStatement(text, (BoundWhileStatement)node);
                 break;
-            case BoundNodeKind.ForStatement:
+            case BoundKind.ForStatement:
                 DisplayForStatement(text, (BoundForStatement)node);
                 break;
-            case BoundNodeKind.GotoStatement:
+            case BoundKind.GotoStatement:
                 DisplayGotoStatement(text, (BoundGotoStatement)node);
                 break;
-            case BoundNodeKind.LabelStatement:
+            case BoundKind.LabelStatement:
                 DisplayLabelStatement(text, (BoundLabelStatement)node);
                 break;
-            case BoundNodeKind.ConditionalGotoStatement:
+            case BoundKind.ConditionalGotoStatement:
                 DisplayConditionalGotoStatement(text, (BoundConditionalGotoStatement)node);
                 break;
-            case BoundNodeKind.DoWhileStatement:
+            case BoundKind.DoWhileStatement:
                 DisplayDoWhileStatement(text, (BoundDoWhileStatement)node);
                 break;
-            case BoundNodeKind.ReturnStatement:
+            case BoundKind.ReturnStatement:
                 DisplayReturnStatement(text, (BoundReturnStatement)node);
                 break;
-            case BoundNodeKind.TryStatement:
+            case BoundKind.TryStatement:
                 DisplayTryStatement(text, (BoundTryStatement)node);
                 break;
-            case BoundNodeKind.TypeExpression:
+            case BoundKind.TypeExpression:
                 DisplayTypeExpression(text, (BoundTypeExpression)node);
                 break;
-            case BoundNodeKind.BreakStatement:
+            case BoundKind.BreakStatement:
                 DisplayBreakStatement(text);
                 break;
-            case BoundNodeKind.ContinueStatement:
+            case BoundKind.ContinueStatement:
                 DisplayContinueStatement(text);
                 break;
-            case BoundNodeKind.GlobalStatement:
+            case BoundKind.GlobalStatement:
                 DisplayGlobalStatement(text, (BoundGlobalStatement)node);
                 break;
-            case BoundNodeKind.ArrayAccessExpression:
+            case BoundKind.ArrayAccessExpression:
                 DisplayArrayAccessExpression(text, (BoundArrayAccessExpression)node);
                 break;
-            case BoundNodeKind.ReferenceExpression:
+            case BoundKind.ReferenceExpression:
                 DisplayReferenceExpression(text, (BoundReferenceExpression)node);
                 break;
-            case BoundNodeKind.UnaryExpression:
+            case BoundKind.UnaryExpression:
                 DisplayUnaryExpression(text, (BoundUnaryExpression)node);
                 break;
-            case BoundNodeKind.InitializerListExpression:
+            case BoundKind.InitializerListExpression:
                 DisplayInitializerListExpression(text, (BoundInitializerListExpression)node);
                 break;
-            case BoundNodeKind.BinaryExpression:
+            case BoundKind.BinaryExpression:
                 DisplayBinaryExpression(text, (BoundBinaryExpression)node);
                 break;
-            case BoundNodeKind.DataContainerExpression:
+            case BoundKind.DataContainerExpression:
                 DisplayDataContainerExpression(text, (BoundDataContainerExpression)node);
                 break;
-            case BoundNodeKind.AssignmentExpression:
+            case BoundKind.AssignmentExpression:
                 DisplayAssignmentExpression(text, (BoundAssignmentExpression)node);
                 break;
-            case BoundNodeKind.CompoundAssignmentExpression:
+            case BoundKind.CompoundAssignmentExpression:
                 DisplayCompoundAssignmentExpression(text, (BoundCompoundAssignmentExpression)node);
                 break;
-            case BoundNodeKind.EmptyExpression:
+            case BoundKind.EmptyExpression:
                 DisplayEmptyExpression(text);
                 break;
-            case BoundNodeKind.ErrorExpression:
+            case BoundKind.ErrorExpression:
                 DisplayErrorExpression(text, (BoundErrorExpression)node);
                 break;
-            case BoundNodeKind.CallExpression:
+            case BoundKind.CallExpression:
                 DisplayCallExpression(text, (BoundCallExpression)node);
                 break;
-            case BoundNodeKind.CastExpression:
+            case BoundKind.CastExpression:
                 DisplayCastExpression(text, (BoundCastExpression)node);
                 break;
-            case BoundNodeKind.TypeOfExpression:
+            case BoundKind.TypeOfExpression:
                 DisplayTypeOfExpression(text, (BoundTypeOfExpression)node);
                 break;
-            case BoundNodeKind.ObjectCreationExpression:
+            case BoundKind.ObjectCreationExpression:
                 DisplayObjectCreationExpression(text, (BoundObjectCreationExpression)node);
                 break;
-            case BoundNodeKind.ArrayCreationExpression:
+            case BoundKind.ArrayCreationExpression:
                 DisplayArrayCreationExpression(text, (BoundArrayCreationExpression)node);
                 break;
-            case BoundNodeKind.FieldAccessExpression:
+            case BoundKind.FieldAccessExpression:
                 DisplayFieldAccessExpression(text, (BoundFieldAccessExpression)node);
                 break;
-            case BoundNodeKind.ConditionalAccessExpression:
+            case BoundKind.ConditionalAccessExpression:
                 DisplayConditionalAccessExpression(text, (BoundConditionalAccessExpression)node);
                 break;
-            case BoundNodeKind.ThisExpression:
+            case BoundKind.ThisExpression:
                 DisplayThisExpression(text);
                 break;
-            case BoundNodeKind.BaseExpression:
+            case BoundKind.BaseExpression:
                 DisplayBaseExpression(text);
                 break;
-            case BoundNodeKind.ThrowExpression:
+            case BoundKind.ThrowExpression:
                 DisplayThrowExpression(text, (BoundThrowExpression)node);
                 break;
-            case BoundNodeKind.AsExpression:
+            case BoundKind.AsExpression:
                 DisplayAsExpression(text, (BoundAsExpression)node);
                 break;
-            case BoundNodeKind.IsExpression:
+            case BoundKind.IsExpression:
                 DisplayIsExpression(text, (BoundIsExpression)node);
                 break;
-            case BoundNodeKind.IsntExpression:
+            case BoundKind.IsntExpression:
                 DisplayIsntExpression(text, (BoundIsntExpression)node);
                 break;
-            case BoundNodeKind.NullCoalescingExpression:
+            case BoundKind.NullCoalescingExpression:
                 DisplayNullCoalescingExpression(text, (BoundNullCoalescingExpression)node);
                 break;
-            case BoundNodeKind.NullAssertExpression:
+            case BoundKind.NullAssertExpression:
                 DisplayNullAssertExpression(text, (BoundNullAssertExpression)node);
                 break;
-            case BoundNodeKind.ConditionalExpression:
+            case BoundKind.ConditionalExpression:
                 DisplayConditionalExpression(text, (BoundConditionalExpression)node);
                 break;
-            case BoundNodeKind.DataContainerDeclaration:
+            case BoundKind.DataContainerDeclaration:
                 DisplayDataContainerDeclaration(text, (BoundDataContainerDeclaration)node);
                 break;
-            case BoundNodeKind.FieldEqualsValue:
+            case BoundKind.FieldEqualsValue:
                 DisplayFieldEqualsValue(text, (BoundFieldEqualsValue)node);
                 break;
-            case BoundNodeKind.ParameterExpression:
+            case BoundKind.ParameterExpression:
                 DisplayParameterExpression(text, (BoundParameterExpression)node);
                 break;
-            case BoundNodeKind.ParameterEqualsValue:
+            case BoundKind.ParameterEqualsValue:
                 DisplayParameterEqualsValue(text, (BoundParameterEqualsValue)node);
                 break;
-            case BoundNodeKind.TemplateParameterEqualsValue:
+            case BoundKind.TemplateParameterEqualsValue:
                 DisplayTemplateParameterEqualsValue(text, (BoundTemplateParameterEqualsValue)node);
                 break;
-            case BoundNodeKind.MethodGroup:
+            case BoundKind.MethodGroup:
                 DisplayMethodGroup(text, (BoundMethodGroup)node);
                 break;
             default:

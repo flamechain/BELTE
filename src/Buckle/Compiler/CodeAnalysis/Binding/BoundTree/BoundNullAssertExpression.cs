@@ -7,15 +7,16 @@ namespace Buckle.CodeAnalysis.Binding;
 /// Bound from a <see cref="UnaryExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundNullAssertExpression : BoundExpression {
-    internal BoundNullAssertExpression(BoundExpression operand, TypeSymbol type) {
+    internal BoundNullAssertExpression(
+        SyntaxNode syntax,
+        BoundExpression operand,
+        TypeSymbol type,
+        ConstantValue constantValue,
+        bool hasErrors = false)
+        : base(BoundKind.NullAssertExpression, syntax, type, hasErrors) {
         this.operand = operand;
-        this.type = type;
-        constantValue = ConstantFolding.FoldNullAssert(operand);
+        this.constantValue = constantValue;
     }
-
-    internal override BoundNodeKind kind => BoundNodeKind.NullAssertExpression;
-
-    internal override TypeSymbol type { get; }
 
     internal override ConstantValue constantValue { get; }
 

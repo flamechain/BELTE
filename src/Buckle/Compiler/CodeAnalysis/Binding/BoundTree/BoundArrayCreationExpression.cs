@@ -1,20 +1,21 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Bound from a <see cref="Syntax.ObjectCreationExpressionSyntax" />.
+/// Bound from a <see cref="ObjectCreationExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundArrayCreationExpression : BoundExpression {
-    internal BoundArrayCreationExpression(TypeSymbol type, ImmutableArray<BoundExpression> sizes) {
-        this.type = type;
+    internal BoundArrayCreationExpression(
+        SyntaxNode syntax,
+        ImmutableArray<BoundExpression> sizes,
+        TypeSymbol type,
+        bool hasErrors = false)
+        : base(BoundKind.ArrayCreationExpression, syntax, type, hasErrors) {
         this.sizes = sizes;
     }
-
-    internal override BoundNodeKind kind => BoundNodeKind.ArrayCreationExpression;
-
-    internal override TypeSymbol type { get; }
 
     internal ImmutableArray<BoundExpression> sizes { get; }
 }

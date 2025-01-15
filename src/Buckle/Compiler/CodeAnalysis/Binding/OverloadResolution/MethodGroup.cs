@@ -30,7 +30,7 @@ internal sealed class MethodGroup {
             if (receiver is null)
                 return null;
 
-            if (receiver.kind == BoundNodeKind.TypeExpression)
+            if (receiver.kind == BoundKind.TypeExpression)
                 return null;
 
             return receiver;

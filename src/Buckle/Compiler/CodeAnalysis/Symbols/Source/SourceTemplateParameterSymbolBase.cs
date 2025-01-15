@@ -181,7 +181,7 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
         if (convertedExpression is null)
             return null;
 
-        if (convertedExpression.constantValue is null && convertedExpression.kind == BoundNodeKind.CastExpression &&
+        if (convertedExpression.constantValue is null && convertedExpression.kind == BoundKind.CastExpression &&
             ((BoundCastExpression)convertedExpression).conversion.kind != ConversionKind.DefaultLiteral) {
             if (underlyingType.isNullable) {
                 convertedExpression = binder.GenerateConversionForAssignment(

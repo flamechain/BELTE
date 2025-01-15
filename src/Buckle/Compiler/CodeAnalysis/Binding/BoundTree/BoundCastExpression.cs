@@ -1,27 +1,26 @@
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Bound from a <see cref="Syntax.CastExpressionSyntax" />.
+/// Bound from a <see cref="CastExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundCastExpression : BoundExpression {
     internal BoundCastExpression(
-        TypeSymbol type,
+        SyntaxNode syntax,
         BoundExpression operand,
         Conversion conversion,
-        ConstantValue constantValue) {
-        this.type = type;
+        TypeSymbol type,
+        ConstantValue constantValue,
+        bool hasErrors = false)
+        : base(BoundKind.CastExpression, syntax, type, hasErrors) {
         this.operand = operand;
         this.constantValue = constantValue;
         this.conversion = conversion;
     }
 
-    internal override BoundNodeKind kind => BoundNodeKind.CastExpression;
-
     internal override ConstantValue constantValue { get; }
-
-    internal override TypeSymbol type { get; }
 
     internal BoundExpression operand { get; }
 

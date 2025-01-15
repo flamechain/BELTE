@@ -1,21 +1,22 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Bound from a <see cref="Syntax.AssignmentExpressionSyntax" /> or <see cref="Syntax.ParameterSyntax" />.
+/// Bound from a <see cref="AssignmentExpressionSyntax" /> or <see cref="ParameterSyntax" />.
 /// </summary>
 internal sealed class BoundParameterEqualsValue : BoundEqualsValue {
     internal BoundParameterEqualsValue(
+        SyntaxNode syntax,
         ParameterSymbol parameter,
         ImmutableArray<DataContainerSymbol> locals,
-        BoundExpression value)
-        : base(locals, value) {
+        BoundExpression value,
+        bool hasErrors = false)
+        : base(BoundKind.ParameterEqualsValue, syntax, locals, value, hasErrors) {
         this.parameter = parameter;
     }
-
-    internal override BoundNodeKind kind => BoundNodeKind.ParameterEqualsValue;
 
     internal ParameterSymbol parameter { get; }
 }

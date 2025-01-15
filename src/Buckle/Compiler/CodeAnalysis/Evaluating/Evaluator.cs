@@ -311,15 +311,15 @@ internal sealed class Evaluator {
                 var s = block.statements[index];
 
                 switch (s.kind) {
-                    case BoundNodeKind.ExpressionStatement:
+                    case BoundKind.ExpressionStatement:
                         EvaluateExpressionStatement((BoundExpressionStatement)s, abort);
                         index++;
                         break;
-                    case BoundNodeKind.LocalDeclarationStatement:
+                    case BoundKind.LocalDeclarationStatement:
                         EvaluateLocalDeclarationStatement((BoundLocalDeclarationStatement)s, abort);
                         index++;
                         break;
-                    case BoundNodeKind.ReturnStatement:
+                    case BoundKind.ReturnStatement:
                         var returnStatement = (BoundReturnStatement)s;
                         _lastValue = returnStatement.expression is null
                             ? EvaluatorObject.Null
@@ -383,21 +383,21 @@ internal sealed class Evaluator {
             return EvaluateConstant(expression.constantValue);
 
         return expression.kind switch {
-            BoundNodeKind.EmptyExpression => EvaluatorObject.Null,
-            BoundNodeKind.ThisExpression => EvaluateThisExpression(),
-            BoundNodeKind.BaseExpression => EvaluateBaseExpression(),
-            BoundNodeKind.CastExpression => EvaluateCastExpression((BoundCastExpression)expression, abort),
-            BoundNodeKind.DataContainerExpression => EvaluateDataContainerExpression((BoundDataContainerExpression)expression),
-            BoundNodeKind.ParameterExpression => EvaluateParameterExpression((BoundParameterExpression)expression),
-            BoundNodeKind.FieldAccessExpression => EvaluateFieldAccessExpression((BoundFieldAccessExpression)expression, abort),
-            BoundNodeKind.AssignmentExpression => EvaluateAssignmentExpression((BoundAssignmentExpression)expression, abort),
-            BoundNodeKind.BinaryExpression => EvaluateBinaryExpression((BoundBinaryExpression)expression, abort),
-            BoundNodeKind.NullAssertExpression => EvaluateNullAssertExpression((BoundNullAssertExpression)expression, abort),
-            BoundNodeKind.AsExpression => EvaluateAsExpression((BoundAsExpression)expression, abort),
-            BoundNodeKind.IsExpression => EvaluateIsExpression((BoundIsExpression)expression, abort),
-            BoundNodeKind.IsntExpression => EvaluateIsntExpression((BoundIsntExpression)expression, abort),
-            BoundNodeKind.ConditionalExpression => EvaluateConditionalExpression((BoundConditionalExpression)expression, abort),
-            BoundNodeKind.CallExpression => EvaluateCallExpression((BoundCallExpression)expression, abort),
+            BoundKind.EmptyExpression => EvaluatorObject.Null,
+            BoundKind.ThisExpression => EvaluateThisExpression(),
+            BoundKind.BaseExpression => EvaluateBaseExpression(),
+            BoundKind.CastExpression => EvaluateCastExpression((BoundCastExpression)expression, abort),
+            BoundKind.DataContainerExpression => EvaluateDataContainerExpression((BoundDataContainerExpression)expression),
+            BoundKind.ParameterExpression => EvaluateParameterExpression((BoundParameterExpression)expression),
+            BoundKind.FieldAccessExpression => EvaluateFieldAccessExpression((BoundFieldAccessExpression)expression, abort),
+            BoundKind.AssignmentExpression => EvaluateAssignmentExpression((BoundAssignmentExpression)expression, abort),
+            BoundKind.BinaryExpression => EvaluateBinaryExpression((BoundBinaryExpression)expression, abort),
+            BoundKind.NullAssertExpression => EvaluateNullAssertExpression((BoundNullAssertExpression)expression, abort),
+            BoundKind.AsExpression => EvaluateAsExpression((BoundAsExpression)expression, abort),
+            BoundKind.IsExpression => EvaluateIsExpression((BoundIsExpression)expression, abort),
+            BoundKind.IsntExpression => EvaluateIsntExpression((BoundIsntExpression)expression, abort),
+            BoundKind.ConditionalExpression => EvaluateConditionalExpression((BoundConditionalExpression)expression, abort),
+            BoundKind.CallExpression => EvaluateCallExpression((BoundCallExpression)expression, abort),
             _ => throw new BelteInternalException($"EvaluateExpression: unexpected node '{expression.kind}'"),
         };
     }

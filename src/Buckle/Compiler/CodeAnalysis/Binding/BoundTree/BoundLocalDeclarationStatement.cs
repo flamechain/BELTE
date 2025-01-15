@@ -1,15 +1,18 @@
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Bound from a <see cref="Syntax.LocalDeclarationStatementSyntax" />.
+/// Bound from a <see cref="LocalDeclarationStatementSyntax" />.
 /// </summary>
 internal sealed class BoundLocalDeclarationStatement : BoundStatement {
-    internal BoundLocalDeclarationStatement(BoundDataContainerDeclaration declaration) {
+    internal BoundLocalDeclarationStatement(
+        SyntaxNode syntax,
+        BoundDataContainerDeclaration declaration,
+        bool hasErrors = false)
+        : base(BoundKind.LocalDeclarationStatement, syntax, hasErrors) {
         this.declaration = declaration;
     }
-
-    internal override BoundNodeKind kind => BoundNodeKind.LocalDeclarationStatement;
 
     internal BoundDataContainerDeclaration declaration { get; }
 }

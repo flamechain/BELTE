@@ -1,14 +1,25 @@
 using System.Diagnostics;
 using Buckle.CodeAnalysis.Display;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Bound node, gets created from a <see cref="Syntax.SyntaxNode" />.
+/// Bound node, gets created from a <see cref="SyntaxNode" />.
 /// </summary>
 [DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
 internal abstract class BoundNode {
-    internal abstract BoundNodeKind kind { get; }
+    private protected BoundNode(BoundKind kind, SyntaxNode syntax, bool hasErrors) {
+        this.kind = kind;
+        this.hasErrors = hasErrors;
+        this.syntax = syntax;
+    }
+
+    internal BoundKind kind { get; }
+
+    internal bool hasErrors { get; }
+
+    internal SyntaxNode syntax { get; }
 
     public override string ToString() {
         return DisplayText.DisplayNode(this).ToString();

@@ -1,25 +1,24 @@
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Bound from a <see cref="Syntax.MemberAccessExpressionSyntax" />.
+/// Bound from a <see cref="MemberAccessExpressionSyntax" />.
 /// Doesn't survive lowering.
 /// </summary>
 internal sealed class BoundConditionalAccessExpression : BoundExpression {
     internal BoundConditionalAccessExpression(
-        TypeSymbol type,
+        SyntaxNode syntax,
         BoundExpression receiver,
-        BoundExpression accessExpression) {
-        this.type = type;
+        BoundExpression accessExpression,
+        TypeSymbol type,
+        bool hasErrors = false)
+        : base(BoundKind.ConditionalAccessExpression, syntax, type, hasErrors) {
         this.receiver = receiver;
         this.accessExpression = accessExpression;
         constantValue = accessExpression.constantValue;
     }
-
-    internal override BoundNodeKind kind => BoundNodeKind.ConditionalAccessExpression;
-
-    internal override TypeSymbol type { get; }
 
     internal override ConstantValue constantValue { get; }
 

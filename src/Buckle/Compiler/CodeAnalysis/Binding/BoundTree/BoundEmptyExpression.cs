@@ -1,15 +1,11 @@
-using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Bound from a <see cref="Syntax.EmptyExpressionSyntax" />.
+/// Bound from a <see cref="EmptyExpressionSyntax" />.
 /// Converted to NOP statements when emitting.
 /// </summary>
 internal sealed class BoundEmptyExpression : BoundExpression {
-    internal BoundEmptyExpression() { }
-
-    internal override BoundNodeKind kind => BoundNodeKind.EmptyExpression;
-
-    internal override TypeSymbol type => null;
+    internal BoundEmptyExpression(SyntaxNode syntax) : base(BoundKind.EmptyExpression, syntax, null, false) { }
 }

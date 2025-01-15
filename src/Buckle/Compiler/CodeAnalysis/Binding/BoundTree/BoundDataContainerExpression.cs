@@ -1,20 +1,22 @@
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Bound from a <see cref="Syntax.NameSyntax" />.
+/// Bound from a <see cref="NameSyntax" />.
 /// </summary>
 internal sealed class BoundDataContainerExpression : BoundExpression {
-    internal BoundDataContainerExpression(DataContainerSymbol dataContainer, ConstantValue constantValue = null) {
+    internal BoundDataContainerExpression(
+        SyntaxNode syntax,
+        DataContainerSymbol dataContainer,
+        TypeSymbol type,
+        ConstantValue constantValue = null,
+        bool hasErrors = false)
+        : base(BoundKind.DataContainerDeclaration, syntax, type, hasErrors) {
         this.dataContainer = dataContainer;
         this.constantValue = constantValue;
-        type = dataContainer.type;
     }
-
-    internal override BoundNodeKind kind => BoundNodeKind.DataContainerExpression;
-
-    internal override TypeSymbol type { get; }
 
     internal override ConstantValue constantValue { get; }
 

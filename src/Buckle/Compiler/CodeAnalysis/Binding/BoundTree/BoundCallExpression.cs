@@ -1,27 +1,27 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Bound from a <see cref="Syntax.CallExpressionSyntax" />.
+/// Bound from a <see cref="CallExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundCallExpression : BoundExpression {
     internal BoundCallExpression(
+        SyntaxNode syntax,
         BoundExpression receiver,
         MethodSymbol method,
         ImmutableArray<BoundExpression> arguments,
-        ImmutableArray<RefKind> argumentRefKinds) {
+        ImmutableArray<RefKind> argumentRefKinds,
+        TypeSymbol type,
+        bool hasErrors = false)
+        : base(BoundKind.CallExpression, syntax, type, hasErrors) {
         this.receiver = receiver;
         this.method = method;
         this.arguments = arguments;
         this.argumentRefKinds = argumentRefKinds;
-        type = method.returnType;
     }
-
-    internal override BoundNodeKind kind => BoundNodeKind.CallExpression;
-
-    internal override TypeSymbol type { get; }
 
     internal BoundExpression receiver { get; }
 

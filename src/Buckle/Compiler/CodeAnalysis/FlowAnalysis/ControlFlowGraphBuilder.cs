@@ -43,14 +43,14 @@ internal sealed partial class ControlFlowGraphBuilder {
                 var isLastStatement = statement == current.statements.Last();
 
                 switch (statement.kind) {
-                    case BoundNodeKind.GotoStatement:
+                    case BoundKind.GotoStatement:
                         var gs = (BoundGotoStatement)statement;
                         var toBlock = _blockFromLabel[gs.label];
 
                         Connect(current, toBlock);
 
                         break;
-                    case BoundNodeKind.ConditionalGotoStatement:
+                    case BoundKind.ConditionalGotoStatement:
                         var cgs = (BoundConditionalGotoStatement)statement;
                         var thenBlock = _blockFromLabel[cgs.label];
                         var elseBlock = next;
@@ -62,16 +62,16 @@ internal sealed partial class ControlFlowGraphBuilder {
                         Connect(current, elseBlock, elseCondition);
 
                         break;
-                    case BoundNodeKind.ReturnStatement:
-                    case BoundNodeKind.ExpressionStatement
+                    case BoundKind.ReturnStatement:
+                    case BoundKind.ExpressionStatement
                         when (statement as BoundExpressionStatement).expression is BoundThrowExpression:
                         Connect(current, _end);
                         break;
-                    case BoundNodeKind.NopStatement:
-                    case BoundNodeKind.ExpressionStatement:
-                    case BoundNodeKind.LocalDeclarationStatement:
-                    case BoundNodeKind.TryStatement:
-                    case BoundNodeKind.LabelStatement:
+                    case BoundKind.NopStatement:
+                    case BoundKind.ExpressionStatement:
+                    case BoundKind.LocalDeclarationStatement:
+                    case BoundKind.TryStatement:
+                    case BoundKind.LabelStatement:
                         if (isLastStatement)
                             Connect(current, next);
 

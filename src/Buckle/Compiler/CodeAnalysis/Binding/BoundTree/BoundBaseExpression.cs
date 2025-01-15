@@ -1,16 +1,12 @@
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Bound from a <see cref="Syntax.BaseExpressionSyntax" />.
+/// Bound from a <see cref="BaseExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundBaseExpression : BoundExpression {
-    internal BoundBaseExpression(TypeSymbol type) {
-        this.type = type;
-    }
-
-    internal override BoundNodeKind kind => BoundNodeKind.BaseExpression;
-
-    internal override TypeSymbol type { get; }
+    internal BoundBaseExpression(SyntaxNode syntax, TypeSymbol type, bool hasErrors = false)
+        : base(BoundKind.BaseExpression, syntax, type, hasErrors) { }
 }

@@ -100,7 +100,7 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
         if (hasErrors)
             return null;
 
-        if (convertedExpression.constantValue is null && convertedExpression.kind == BoundNodeKind.CastExpression &&
+        if (convertedExpression.constantValue is null && convertedExpression.kind == BoundKind.CastExpression &&
             ((BoundCastExpression)convertedExpression).conversion.kind != ConversionKind.DefaultLiteral) {
             if (type.IsNullableType()) {
                 convertedExpression = binder.GenerateConversionForAssignment(

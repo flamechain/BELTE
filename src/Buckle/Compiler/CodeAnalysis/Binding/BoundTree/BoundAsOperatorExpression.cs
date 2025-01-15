@@ -7,15 +7,16 @@ namespace Buckle.CodeAnalysis.Binding;
 /// Bound from a <see cref="BinaryExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundAsExpression : BoundExpression {
-    internal BoundAsExpression(BoundExpression left, BoundExpression right, TypeSymbol type) {
+    internal BoundAsExpression(
+        SyntaxNode syntax,
+        BoundExpression left,
+        BoundExpression right,
+        TypeSymbol type,
+        bool hasErrors = false)
+        : base(BoundKind.AsExpression, syntax, type, hasErrors) {
         this.left = left;
         this.right = right;
-        this.type = type;
     }
-
-    internal override BoundNodeKind kind => BoundNodeKind.AsExpression;
-
-    internal override TypeSymbol type { get; }
 
     internal BoundExpression left { get; }
 

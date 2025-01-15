@@ -7,16 +7,18 @@ namespace Buckle.CodeAnalysis.Binding;
 /// Bound from a <see cref="BinaryExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundNullCoalescingExpression : BoundExpression {
-    internal BoundNullCoalescingExpression(BoundExpression left, BoundExpression right, TypeSymbol type) {
+    internal BoundNullCoalescingExpression(
+        SyntaxNode syntax,
+        BoundExpression left,
+        BoundExpression right,
+        TypeSymbol type,
+        ConstantValue constantValue,
+        bool hasErrors = false)
+        : base(BoundKind.NullCoalescingExpression, syntax, type, hasErrors) {
         this.left = left;
         this.right = right;
-        this.type = type;
-        constantValue = ConstantFolding.FoldNullCoalescing(left, right, type);
+        this.constantValue = constantValue;
     }
-
-    internal override BoundNodeKind kind => BoundNodeKind.NullCoalescingExpression;
-
-    internal override TypeSymbol type { get; }
 
     internal override ConstantValue constantValue { get; }
 

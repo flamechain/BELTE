@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -8,14 +9,15 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal sealed class BoundConstructorMethodBody : BoundMethodBodyBase {
     internal BoundConstructorMethodBody(
+        SyntaxNode syntax,
         ImmutableArray<DataContainerSymbol> locals,
         BoundStatement initializer,
-        BoundBlockStatement body) : base(body) {
+        BoundBlockStatement body,
+        bool hasErrors = false)
+        : base(BoundKind.ConstructorMethodBody, syntax, body, hasErrors) {
         this.locals = locals;
         this.initializer = initializer;
     }
-
-    internal override BoundNodeKind kind => BoundNodeKind.ConstructorMethodBody;
 
     internal ImmutableArray<DataContainerSymbol> locals { get; }
 

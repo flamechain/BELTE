@@ -1,23 +1,24 @@
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Bound from a <see cref="Syntax.DoWhileStatementSyntax" />.
+/// Bound from a <see cref="DoWhileStatementSyntax" />.
 /// Doesn't survive lowering.
 /// </summary>
 internal sealed class BoundDoWhileStatement : BoundLoopStatement {
     internal BoundDoWhileStatement(
+        SyntaxNode syntax,
         BoundStatement body,
         BoundExpression condition,
         SynthesizedLabelSymbol breakLabel,
-        SynthesizedLabelSymbol continueLabel)
-        : base(breakLabel, continueLabel) {
+        SynthesizedLabelSymbol continueLabel,
+        bool hasErrors = false)
+        : base(BoundKind.DoWhileStatement, syntax, breakLabel, continueLabel, hasErrors) {
         this.body = body;
         this.condition = condition;
     }
-
-    internal override BoundNodeKind kind => BoundNodeKind.DoWhileStatement;
 
     internal BoundStatement body { get; }
 

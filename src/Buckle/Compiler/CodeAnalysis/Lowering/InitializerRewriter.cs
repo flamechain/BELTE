@@ -17,7 +17,7 @@ internal static class InitializerRewriter {
 
         BoundStatement RewriteInitializer(BoundInitializer initializer) {
             return initializer.kind switch {
-                BoundNodeKind.FieldEqualsValue => RewriteFieldInitializer(initializer as BoundFieldEqualsValue),
+                BoundKind.FieldEqualsValue => RewriteFieldInitializer(initializer as BoundFieldEqualsValue),
                 _ => throw ExceptionUtilities.UnexpectedValue(initializer.kind),
             };
         }

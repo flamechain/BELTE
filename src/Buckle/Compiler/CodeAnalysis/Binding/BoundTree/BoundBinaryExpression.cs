@@ -8,21 +8,19 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal sealed class BoundBinaryExpression : BoundExpression {
     internal BoundBinaryExpression(
+        SyntaxNode syntax,
         BoundExpression left,
         BoundExpression right,
         BinaryOperatorKind opKind,
         TypeSymbol type,
-        ConstantValue constantValue) {
+        ConstantValue constantValue,
+        bool hasErrors = false)
+        : base(BoundKind.BinaryExpression, syntax, type, hasErrors) {
         this.left = left;
         this.right = right;
         this.opKind = opKind;
-        this.type = type;
         this.constantValue = constantValue;
     }
-
-    internal override BoundNodeKind kind => BoundNodeKind.BinaryExpression;
-
-    internal override TypeSymbol type { get; }
 
     internal override ConstantValue constantValue { get; }
 

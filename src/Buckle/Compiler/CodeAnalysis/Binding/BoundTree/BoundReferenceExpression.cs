@@ -1,19 +1,20 @@
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Bound from a <see cref="Syntax.ReferenceExpressionSyntax" />.
+/// Bound from a <see cref="ReferenceExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundReferenceExpression : BoundExpression {
-    internal BoundReferenceExpression(BoundExpression expression, TypeSymbol type) {
+    internal BoundReferenceExpression(
+        SyntaxNode syntax,
+        BoundExpression expression,
+        TypeSymbol type,
+        bool hasErrors = false)
+        : base(BoundKind.ReferenceExpression, syntax, type, hasErrors) {
         this.expression = expression;
-        this.type = type;
     }
-
-    internal override BoundNodeKind kind => BoundNodeKind.ReferenceExpression;
-
-    internal override TypeSymbol type { get; }
 
     internal BoundExpression expression { get; }
 }

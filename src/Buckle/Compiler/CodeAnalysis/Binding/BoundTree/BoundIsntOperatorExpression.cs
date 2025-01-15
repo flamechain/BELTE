@@ -7,16 +7,18 @@ namespace Buckle.CodeAnalysis.Binding;
 /// Bound from a <see cref="BinaryExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundIsntExpression : BoundExpression {
-    internal BoundIsntExpression(BoundExpression left, BoundExpression right, TypeSymbol type) {
+    internal BoundIsntExpression(
+        SyntaxNode syntax,
+        BoundExpression left,
+        BoundExpression right,
+        TypeSymbol type,
+        ConstantValue constantValue,
+        bool hasErrors = false)
+        : base(BoundKind.IsntExpression, syntax, type, hasErrors) {
         this.left = left;
         this.right = right;
-        this.type = type;
-        constantValue = ConstantFolding.FoldIsnt(left, right);
+        this.constantValue = constantValue;
     }
-
-    internal override BoundNodeKind kind => BoundNodeKind.IsntExpression;
-
-    internal override TypeSymbol type { get; }
 
     internal override ConstantValue constantValue { get; }
 

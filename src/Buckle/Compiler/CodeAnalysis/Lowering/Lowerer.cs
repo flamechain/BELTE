@@ -183,7 +183,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         */
         var continueLabel = statement.continueLabel;
         var breakLabel = statement.breakLabel;
-        var condition = statement.condition.kind == BoundNodeKind.EmptyExpression
+        var condition = statement.condition.kind == BoundKind.EmptyExpression
             ? Literal(true)
             : statement.condition;
 
@@ -589,8 +589,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
     }
 
     private static bool CanFallThrough(BoundStatement boundStatement) {
-        return boundStatement.kind != BoundNodeKind.ReturnStatement &&
-            boundStatement.kind != BoundNodeKind.GotoStatement;
+        return boundStatement.kind != BoundKind.ReturnStatement &&
+            boundStatement.kind != BoundKind.GotoStatement;
     }
 
     private SynthesizedLabelSymbol GenerateLabel() {

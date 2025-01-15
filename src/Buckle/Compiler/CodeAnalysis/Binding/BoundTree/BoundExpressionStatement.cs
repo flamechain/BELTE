@@ -1,15 +1,15 @@
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Bound from a <see cref="Syntax.ExpressionStatementSyntax" />.
+/// Bound from a <see cref="ExpressionStatementSyntax" />.
 /// </summary>
 internal sealed class BoundExpressionStatement : BoundStatement {
-    internal BoundExpressionStatement(BoundExpression expression) {
+    internal BoundExpressionStatement(SyntaxNode syntax, BoundExpression expression, bool hasErrors)
+        : base(BoundKind.ExpressionStatement, syntax, hasErrors) {
         this.expression = expression;
     }
-
-    internal override BoundNodeKind kind => BoundNodeKind.ExpressionStatement;
 
     internal BoundExpression expression { get; }
 }

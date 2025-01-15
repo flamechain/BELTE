@@ -1,24 +1,20 @@
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Bound from a <see cref="Syntax.LiteralExpressionSyntax" />.
+/// Bound from a <see cref="LiteralExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundLiteralExpression : BoundExpression {
-    internal BoundLiteralExpression(object value, TypeSymbol type) {
-        this.type = type;
-        constantValue = new ConstantValue(value);
+    internal BoundLiteralExpression(
+        SyntaxNode syntax,
+        ConstantValue constantValue,
+        TypeSymbol type,
+        bool hasErrors = false)
+        : base(BoundKind.LiteralExpression, syntax, type, hasErrors) {
+        this.constantValue = constantValue;
     }
-
-    internal BoundLiteralExpression(ConstantValue constant, TypeSymbol type) {
-        this.type = type;
-        constantValue = constant;
-    }
-
-    internal override BoundNodeKind kind => BoundNodeKind.LiteralExpression;
-
-    internal override TypeSymbol type { get; }
 
     internal override ConstantValue constantValue { get; }
 
