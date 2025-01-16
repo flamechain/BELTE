@@ -1,16 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Tree Root="BoundNode">
+  <!-- Known Types -->
   <ValueType Name="ConversionKind"/>
   <ValueType Name="Conversion"/>
   <ValueType Name="UnaryOperatorKind"/>
   <ValueType Name="BinaryOperatorKind"/>
   <ValueType Name="LookupResultKind"/>
   <ValueType Name="RefKind"/>
+  <!-- Abstract Types -->
   <AbstractNode Name="BoundInitializer" Base="BoundNode"/>
   <AbstractNode Name="BoundEqualsValue" Base="BoundInitializer">
     <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
     <Field Name="value" Type="BoundExpression"/>
   </AbstractNode>
+  <AbstractNode Name="BoundExpression" Base="BoundNode">
+    <Field Name="type" Type="TypeSymbol"/>
+  </AbstractNode>
+  <AbstractNode Name="BoundStatement" Base="BoundNode"/>
+  <AbstractNode Name="BoundMethodBodyBase" Base="BoundNode">
+    <Field Name="body" Type="BoundBlockStatement"/>
+  </AbstractNode>
+  <AbstractNode Name="BoundLoopStatement" Base="BoundStatement">
+    <Field Name="breakLabel" Type="SynthesizedLabelSymbol"/>
+    <Field Name="continueLabel" Type="SynthesizedLabelSymbol"/>
+  </AbstractNode>
+  <Node Name="BoundGlobalStatement" Base="BoundInitializer">
+    <Field Name="statement" Type="BoundStatement"/>
+  </Node>
   <Node Name="BoundFieldEqualsValue" Base="BoundEqualsValue">
     <Field Name="field" Type="FieldSymbol"/>
   </Node>
@@ -20,27 +36,210 @@
   <Node Name="BoundTemplateParameterEqualsValue" Base="BoundEqualsValue">
     <Field Name="parameter" Type="TemplateParameterSymbol"/>
   </Node>
-  <AbstractNode Name="BoundExpression" Base="BoundNode">
-    <Field Name="type" Type="TypeSymbol"/>
-  </AbstractNode>
-  <AbstractNode Name="BoundStatement" Base="BoundNode"/>
+  <Node Name="BoundNonConstructorMethodBody" Base="BoundMethodBodyBase"/>
+  <Node Name="BoundConstructorMethodBody" Base="BoundMethodBodyBase">
+    <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
+    <Field Name="initializer" Type="BoundStatement"/>
+  </Node>
+  <!-- Declarations -->
+  <Node Name="BoundDataContainerDeclaration" Base="BoundNode">
+    <Field Name="dataContainer" Type="DataContainerSymbol"/>
+    <Field Name="initializer" Type="BoundExpression"/>
+  </Node>
+  <!-- Expressions -->
   <Node Name="BoundValuePlaceholder" Base="BoundExpression"/>
   <Node Name="BoundErrorExpression" Base="BoundExpression">
-    <Field Name="resultKind" Type="LookupResultKind"/>
+    <Field Name="resultKind" Type="LookupResultKind" PropertyOverrides="true"/>
     <Field Name="symbols" Type="ImmutableArray&lt;Symbol&gt;"/>
     <Field Name="childBoundNodes" Type="ImmutableArray&lt;BoundExpression&gt;"/>
   </Node>
-  <Node Name="BoundErrorStatement" Base="BoundStatement">
-    <Field Name="childBoundNodes" Type="ImmutableArray&lt;BoundNode&gt;"/>
-  </Node>
   <Node Name="BoundTypeExpression" Base="BoundExpression">
-    <Field Name="type" Type="TypeSymbol" Override="true"/>
     <Field Name="typeWithAnnotations" Type="TypeWithAnnotations"/>
   </Node>
-  <Node Name="BoundArrayAccessExpressoin" Base="BoundExpression">
-    <Field Name="type" Type="TypeSymbol" Override="true"/>
+  <Node Name="BoundArrayAccessExpression" Base="BoundExpression">
     <Field Name="receiver" Type="BoundExpression"/>
     <Field Name="index" Type="BoundExpression"/>
     <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundArrayCreationExpression" Base="BoundExpression">
+    <Field Name="sizes" Type="ImmutableArray&lt;BoundExpression&gt;"/>
+  </Node>
+  <Node Name="BoundAsOperator" Base="BoundExpression">
+    <Field Name="left" Type="BoundExpression"/>
+    <Field Name="right" Type="BoundExpression"/>
+    <Field Name="operandPlaceholder" Type="BoundValuePlaceholder" SkipInVisitor="true"/>
+    <Field Name="operandConversion" Type="BoundExpression" SkipInVisitor="true"/>
+  </Node>
+  <Node Name="BoundAssignmentOperator" Base="BoundExpression">
+    <Field Name="left" Type="BoundExpression"/>
+    <Field Name="right" Type="BoundExpression"/>
+    <Field Name="isRef" Type="bool"/>
+  </Node>
+  <Node Name="BoundBaseExpression" Base="BoundExpression"/>
+  <Node Name="BoundThisExpression" Base="BoundExpression"/>
+  <Node Name="BoundTypeOfExpression" Base="BoundExpression"/>
+  <Node Name="BoundEmptyExpression" Base="BoundExpression"/>
+  <Node Name="BoundBinaryOperator" Base="BoundExpression">
+    <Field Name="left" Type="BoundExpression"/>
+    <Field Name="right" Type="BoundExpression"/>
+    <Field Name="opKind" Type="BinaryOperatorKind"/>
+    <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundCallExpression" Base="BoundExpression">
+    <Field Name="receiver" Type="BoundExpression"/>
+    <Field Name="method" Type="MethodSymbol"/>
+    <Field Name="arguments" Type="ImmutableArray&lt;BoundExpression&gt;"/>
+    <Field Name="argumentRefKinds" Type="ImmutableArray&lt;RefKind&gt;"/>
+    <Field Name="defaultArguments" Type="BitVector"/>
+    <Field Name="resultKind" Type="LookupResultKind" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundCastExpression" Base="BoundExpression">
+    <Field Name="operand" Type="BoundExpression"/>
+    <Field Name="conversion" Type="Conversion"/>
+    <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundCompoundAssignmentOperator" Base="BoundExpression">
+    <Field Name="left" Type="BoundExpression"/>
+    <Field Name="right" Type="BoundExpression"/>
+    <Field Name="op" Type="BinaryOperatorSignature"/>
+    <Field Name="leftPlaceholder" Type="BoundValuePlaceholder" SkipInVisitor="true"/>
+    <Field Name="leftConversion" Type="BoundExpression" SkipInVisitor="true"/>
+    <Field Name="finalPlaceholder" Type="BoundValuePlaceholder" SkipInVisitor="true"/>
+    <Field Name="finalConversion" Type="BoundExpression" SkipInVisitor="true"/>
+    <Field Name="resultKind" Type="LookupResultKind" PropertyOverrides="true"/>
+    <Field Name="originalUserDefinedOperators" Type="ImmutableArray&lt;MethodSymbol&gt;"/>
+  </Node>
+  <Node Name="BoundConditionalAccessExpression" Base="BoundExpression">
+    <Field Name="receiver" Type="BoundExpression"/>
+    <Field Name="accessExpression" Type="BoundExpression"/>
+  </Node>
+  <Node Name="BoundConditionalOperator" Base="BoundExpression">
+    <Field Name="left" Type="BoundExpression"/>
+    <Field Name="center" Type="BoundExpression"/>
+    <Field Name="right" Type="BoundExpression"/>
+    <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundDataContainerExpression" Base="BoundExpression">
+    <Field Name="dataContainer" Type="DataContainerSymbol"/>
+    <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundFieldAccessExpression" Base="BoundExpression">
+    <Field Name="receiver" Type="BoundExpression"/>
+    <Field Name="field" Type="FieldSymbol"/>
+    <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundInitializerDictionaryExpression" Base="BoundExpression">
+    <Field Name="items" Type="ImmutableArray&lt;(BoundExpression, BoundExpression)&gt;"/>
+  </Node>
+  <Node Name="BoundInitializerList" Base="BoundExpression">
+    <Field Name="items" Type="ImmutableArray&lt;BoundExpression&gt;"/>
+  </Node>
+  <Node Name="BoundIsntOperator" Base="BoundExpression">
+    <Field Name="left" Type="BoundExpression"/>
+    <Field Name="right" Type="BoundExpression"/>
+    <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundIsOperator" Base="BoundExpression">
+    <Field Name="left" Type="BoundExpression"/>
+    <Field Name="right" Type="BoundExpression"/>
+    <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundLiteralExpression" Base="BoundExpression">
+    <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundMethodGroup" Base="BoundExpression">
+    <Field Name="name" Type="string"/>
+    <Field Name="methods" Type="ImmutableArray&lt;MethodSymbol&gt;"/>
+    <Field Name="templateArguments" Type="ImmutableArray&lt;TypeOrConstant&gt;"/>
+    <Field Name="lookupSymbol" Type="Symbol"/>
+    <Field Name="lookupError" Type="BelteDiagnostic"/>
+    <Field Name="flags" Type="BoundMethodGroupFlags"/>
+    <Field Name="receiver" Type="BoundExpression"/>
+    <Field Name="resultKind" Type="LookupResultKind" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundNullAssertExpression" Base="BoundExpression">
+    <Field Name="operand" Type="BoundExpression"/>
+    <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundNullCoalescingOperator" Base="BoundExpression">
+    <Field Name="left" Type="BoundExpression"/>
+    <Field Name="right" Type="BoundExpression"/>
+    <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundObjectCreationExpression" Base="BoundExpression">
+    <Field Name="constructor" Type="MethodSymbol"/>
+    <Field Name="arguments" Type="ImmutableArray&lt;BoundExpression&gt;"/>
+  </Node>
+  <Node Name="BoundParameterExpression" Base="BoundExpression">
+    <Field Name="parameter" Type="ParameterSymbol"/>
+    <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundReferenceExpression" Base="BoundExpression">
+    <Field Name="expression" Type="BoundExpression"/>
+  </Node>
+  <Node Name="BoundThrowExpression" Base="BoundExpression">
+    <Field Name="expression" Type="BoundExpression"/>
+  </Node>
+  <Node Name="BoundUnaryOperator" Base="BoundExpression">
+    <Field Name="operand" Type="BoundExpression"/>
+    <Field Name="opKind" Type="UnaryOperatorKind"/>
+    <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
+  </Node>
+  <!-- Statements -->
+  <Node Name="BoundErrorStatement" Base="BoundStatement">
+    <Field Name="childBoundNodes" Type="ImmutableArray&lt;BoundNode&gt;"/>
+  </Node>
+  <Node Name="BoundBreakStatement" Base="BoundStatement"/>
+  <Node Name="BoundContinueStatement" Base="BoundStatement"/>
+  <Node Name="BoundBlockStatement" Base="BoundStatement">
+    <Field Name="statements" Type="ImmutableArray&lt;BoundStatement&gt;"/>
+    <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
+    <Field Name="localFunctions" Type="ImmutableArray&lt;LocalFunctionSymbol&gt;"/>
+  </Node>
+  <Node Name="BoundExpressionStatement" Base="BoundStatement">
+    <Field Name="expression" Type="BoundExpression"/>
+  </Node>
+  <Node Name="BoundConditionalGotoStatement" Base="BoundStatement">
+    <Field Name="label" Type="LabelSymbol"/>
+    <Field Name="condition" Type="BoundExpression"/>
+    <Field Name="jumpIfTrue" Type="bool"/>
+  </Node>
+  <Node Name="BoundDoWhileStatement" Base="BoundLoopStatement">
+    <Field Name="condition" Type="BoundExpression"/>
+    <Field Name="body" Type="BoundStatement"/>
+  </Node>
+  <Node Name="BoundForStatement" Base="BoundLoopStatement">
+    <Field Name="initializer" Type="BoundExpression"/>
+    <Field Name="condition" Type="BoundExpression"/>
+    <Field Name="step" Type="BoundExpression"/>
+    <Field Name="body" Type="BoundStatement"/>
+  </Node>
+  <Node Name="BoundGotoStatement" Base="BoundStatement">
+    <Field Name="label" Type="LabelSymbol"/>
+  </Node>
+  <Node Name="BoundIfStatement" Base="BoundStatement">
+    <Field Name="condition" Type="BoundExpression"/>
+    <Field Name="consequence" Type="BoundStatement"/>
+    <Field Name="alternative" Type="BoundStatement"/>
+  </Node>
+  <Node Name="BoundLabelStatement" Base="BoundStatement">
+    <Field Name="label" Type="LabelSymbol"/>
+  </Node>
+  <Node Name="BoundLocalDeclarationStatement" Base="BoundStatement">
+    <Field Name="declaration" Type="BoundDataContainerDeclaration"/>
+  </Node>
+  <Node Name="BoundNopStatement" Base="BoundStatement"/>
+  <Node Name="BoundReturnStatement" Base="BoundStatement">
+    <Field Name="refKind" Type="RefKind"/>
+    <Field Name="expression" Type="BoundExpression"/>
+  </Node>
+  <Node Name="BoundTryStatement" Base="BoundStatement">
+    <Field Name="body" Type="BoundExpression"/>
+    <Field Name="catchBody" Type="BoundExpression"/>
+    <Field Name="finallyBody" Type="BoundExpression"/>
+  </Node>
+  <Node Name="BoundWhileStatement" Base="BoundLoopStatement">
+    <Field Name="condition" Type="BoundExpression"/>
+    <Field Name="body" Type="BoundStatement"/>
   </Node>
 </Tree>

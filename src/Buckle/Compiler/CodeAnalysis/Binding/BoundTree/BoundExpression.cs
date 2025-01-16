@@ -1,22 +1,11 @@
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
 
-/// <summary>
-/// Bound from a <see cref="ExpressionSyntax" />.
-/// Many expressions have a possible constant value, used for <see cref="ConstantFolding" />.
-/// If folding is not possible, <see cref="constantValue" /> is null.
-/// </summary>
-internal abstract class BoundExpression : BoundNode {
-    private protected BoundExpression(BoundKind kind, SyntaxNode syntax, TypeSymbol type, bool hasErrors)
-        : base(kind, syntax, hasErrors) {
-        this.type = type;
-    }
-
-    internal TypeSymbol type { get; }
-
+internal abstract partial class BoundExpression : BoundNode {
     internal virtual ConstantValue constantValue => null;
+
+    internal virtual LookupResultKind resultKind => LookupResultKind.Viable;
 
     internal RefKind GetRefKind() {
         return kind switch {

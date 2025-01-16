@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 
@@ -6,13 +7,14 @@ namespace Buckle.CodeAnalysis.Binding;
 /// <summary>
 /// A cast from any <see cref="BoundType" /> to any <see cref="BoundType" /> (can be the same).
 /// </summary>
-internal readonly partial struct Conversion {
+internal readonly partial struct Conversion : IEquatable<Conversion> {
     internal static readonly Conversion None = new Conversion(ConversionKind.None);
     internal static readonly Conversion Identity = new Conversion(ConversionKind.Identity);
     internal static readonly Conversion Implicit = new Conversion(ConversionKind.Implicit);
     internal static readonly Conversion ImplicitConstant = new Conversion(ConversionKind.ImplicitConstant);
     internal static readonly Conversion ImplicitNullable = new Conversion(ConversionKind.ImplicitNullable);
     internal static readonly Conversion ImplicitReference = new Conversion(ConversionKind.ImplicitReference);
+    internal static readonly Conversion NullLiteral = new Conversion(ConversionKind.NullLiteral);
     internal static readonly Conversion AnyBoxing = new Conversion(ConversionKind.AnyBoxing);
     internal static readonly Conversion AnyBoxingImplicitNullable
         = new Conversion(ConversionKind.AnyBoxingImplicitNullable);
@@ -82,6 +84,26 @@ internal readonly partial struct Conversion {
     internal bool isBoxing => kind.IsBoxingCast();
 
     internal bool isUnboxing => kind.IsUnboxingCast();
+
+    public override bool Equals(object obj) {
+        return obj is Conversion conversion && Equals(conversion);
+    }
+
+    public bool Equals(Conversion other) {
+        return kind == other.kind /*&& this.method == other.method*/;
+    }
+    public override int GetHashCode() {
+        // return Hash.Combine(this.method, (int)this.Kind);
+        return (int)kind;
+    }
+
+    public static bool operator ==(Conversion left, Conversion right) {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(Conversion left, Conversion right) {
+        return !(left == right);
+    }
 
     /// <summary>
     /// Classify what type of <see cref="Conversion" /> is required to go from one type to the other.

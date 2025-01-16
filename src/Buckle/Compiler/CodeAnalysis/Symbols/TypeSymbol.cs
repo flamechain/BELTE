@@ -13,6 +13,10 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
     internal const string ImplicitTypeName = "<invalid-global-code>";
 
+    private static readonly Func<TypeSymbol, TemplateParameterSymbol, bool, bool> ContainsTemplateParameterPredicate =
+        (type, parameter, unused) => type.typeKind == TypeKind.TemplateParameter &&
+        (parameter is null || Equals(type, parameter, TypeCompareKind.ConsiderEverything));
+
     public override SymbolKind kind => SymbolKind.NamedType;
 
     public abstract TypeKind typeKind { get; }
@@ -120,6 +124,11 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
             canDigThroughNullable: true
         );
 
+        return result is not null;
+    }
+
+    internal bool ContainsTemplateParameter(TemplateParameterSymbol parameter = null) {
+        var result = VisitType(ContainsTemplateParameterPredicate, parameter);
         return result is not null;
     }
 

@@ -27,10 +27,6 @@ internal abstract class BoundNode {
 
     internal SyntaxNode syntax { get; }
 
-    internal bool HasErrors() {
-        return hasErrors;
-    }
-
     internal virtual BoundNode Accept(BoundTreeVisitor visitor) {
         throw new NotImplementedException();
     }
