@@ -20,15 +20,15 @@ internal sealed class Optimizer : BoundTreeRewriter {
     /// <returns>Optimized <param name="statement" />.</returns>
     internal static BoundStatement Optimize(BoundStatement statement, bool removeDeadCode) {
         var optimizer = new Optimizer();
-        var optimizedStatement = optimizer.RewriteStatement(statement);
+        var optimizedStatement = optimizer.Visit(statement);
 
         if (statement is BoundBlockStatement && removeDeadCode)
             return RemoveDeadCode(optimizedStatement as BoundBlockStatement);
         else
-            return optimizedStatement;
+            return (BoundStatement)optimizedStatement;
     }
 
-    private protected override BoundStatement RewriteConditionalGotoStatement(BoundConditionalGotoStatement statement) {
+    internal override BoundNode VisitConditionalGotoStatement(BoundConditionalGotoStatement statement) {
         /*
 
         goto <label> if <condition>
@@ -47,15 +47,15 @@ internal sealed class Optimizer : BoundTreeRewriter {
             condition = statement.jumpIfTrue ? condition : !condition;
 
             if (condition)
-                return RewriteStatement(Goto(statement.label));
+                return Visit(Goto(statement.syntax, statement.label));
             else
-                return RewriteStatement(Nop());
+                return Visit(Nop());
         }
 
-        return base.RewriteConditionalGotoStatement(statement);
+        return base.VisitConditionalGotoStatement(statement);
     }
 
-    private protected override BoundExpression RewriteConditionalExpression(BoundConditionalExpression expression) {
+    internal override BoundNode VisitConditionalOperator(BoundConditionalOperator expression) {
         /*
 
         <left> <op> <center> <op> <right>
@@ -70,15 +70,15 @@ internal sealed class Optimizer : BoundTreeRewriter {
 
         */
         if (ConstantValue.IsNotNull(expression.left.constantValue) && (bool)expression.left.constantValue.value)
-            return RewriteExpression(expression.center);
+            return Visit(expression.center);
 
         if (ConstantValue.IsNotNull(expression.left.constantValue) && !(bool)expression.left.constantValue.value)
-            return RewriteExpression(expression.right);
+            return Visit(expression.right);
 
-        return base.RewriteConditionalExpression(expression);
+        return base.VisitConditionalOperator(expression);
     }
 
-    private protected override BoundExpression RewriteAssignmentExpression(BoundAssignmentExpression expression) {
+    internal override BoundNode VisitAssignmentOperator(BoundAssignmentOperator expression) {
         /*
 
         <left> = <right>
@@ -100,12 +100,12 @@ internal sealed class Optimizer : BoundTreeRewriter {
             ld.dataContainer.Equals(rd.dataContainer);
 
         if (canSimplify)
-            return new BoundEmptyExpression();
+            return new BoundEmptyExpression(expression.syntax, expression.type);
 
-        return base.RewriteAssignmentExpression(expression);
+        return base.VisitAssignmentOperator(expression);
     }
 
-    private protected override BoundExpression RewriteArrayAccessExpression(BoundArrayAccessExpression expression) {
+    internal override BoundNode VisitArrayAccessExpression(BoundArrayAccessExpression expression) {
         /*
 
         <expression>[<index>]
@@ -115,14 +115,14 @@ internal sealed class Optimizer : BoundTreeRewriter {
         (<expression>[<index>])
 
         */
-        if (expression.index.constantValue is null || expression.receiver is not BoundInitializerListExpression i)
-            return base.RewriteArrayAccessExpression(expression);
+        if (expression.index.constantValue is null || expression.receiver is not BoundInitializerList i)
+            return base.VisitArrayAccessExpression(expression);
 
         var index = (int)expression.index.constantValue.value;
-        return RewriteExpression(i.items[index]);
+        return Visit(i.items[index]);
     }
 
-    private protected override BoundExpression RewriteCallExpression(BoundCallExpression expression) {
+    internal override BoundNode VisitCallExpression(BoundCallExpression expression) {
         /*
 
         <method>(<arguments>)
@@ -139,13 +139,17 @@ internal sealed class Optimizer : BoundTreeRewriter {
             var constantList = arguments[0].constantValue.value as ImmutableArray<ConstantValue>?;
 
             if (constantList.HasValue) {
-                return RewriteLiteralExpression(
-                    new BoundLiteralExpression(constantList.Value.Length, method.returnType)
+                return VisitLiteralExpression(
+                    new BoundLiteralExpression(
+                        expression.syntax,
+                        new ConstantValue(constantList.Value.Length),
+                        method.returnType
+                    )
                 );
             }
         }
 
-        return base.RewriteCallExpression(expression);
+        return base.VisitCallExpression(expression);
     }
 
     private static BoundBlockStatement RemoveDeadCode(BoundBlockStatement block) {
@@ -158,6 +162,6 @@ internal sealed class Optimizer : BoundTreeRewriter {
                 builder.RemoveAt(i);
         }
 
-        return new BoundBlockStatement(builder.ToImmutable(), block.locals, block.localFunctions);
+        return new BoundBlockStatement(block.syntax, builder.ToImmutable(), block.locals, block.localFunctions);
     }
 }

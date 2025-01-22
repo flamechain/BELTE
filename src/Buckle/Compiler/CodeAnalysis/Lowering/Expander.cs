@@ -23,7 +23,7 @@ internal sealed class Expander : BoundTreeExpander {
     }
 
     internal BoundStatement Expand(BoundStatement statement) {
-        return Simplify(ExpandStatement(statement));
+        return Simplify(statement.syntax, ExpandStatement(statement));
     }
 
     private protected override List<BoundStatement> ExpandLocalDeclarationStatement(
@@ -32,32 +32,41 @@ internal sealed class Expander : BoundTreeExpander {
         return base.ExpandLocalDeclarationStatement(statement);
     }
 
-    private protected override List<BoundStatement> ExpandCompoundAssignmentExpression(
-        BoundCompoundAssignmentExpression expression,
+    private protected override List<BoundStatement> ExpandCompoundAssignmentOperator(
+        BoundCompoundAssignmentOperator expression,
         out BoundExpression replacement) {
         _compoundAssignmentDepth++;
+        var syntax = expression.syntax;
 
         if (_compoundAssignmentDepth > 1) {
-            var statements = ExpandExpression(expression.left, out var leftReplacement);
-            statements.AddRange(ExpandExpression(expression.right, out var rightReplacement));
+            var statements = ExpandExpression(expression.left, out var newLeft);
+            statements.AddRange(ExpandExpression(expression.right, out var newRight));
 
             statements.Add(
                 new BoundExpressionStatement(
-                    new BoundCompoundAssignmentExpression(
-                        leftReplacement,
-                        rightReplacement,
-                        expression.opKind,
+                    syntax,
+                    new BoundCompoundAssignmentOperator(
+                        syntax,
+                        newLeft,
+                        newRight,
+                        expression.op,
+                        expression.leftPlaceholder,
+                        expression.leftConversion,
+                        expression.finalPlaceholder,
+                        expression.finalConversion,
+                        expression.resultKind,
+                        expression.originalUserDefinedOperators,
                         expression.type
                     )
                 )
             );
 
-            replacement = leftReplacement;
+            replacement = newLeft;
             _compoundAssignmentDepth--;
             return statements;
         }
 
-        var baseStatements = base.ExpandCompoundAssignmentExpression(expression, out replacement);
+        var baseStatements = base.ExpandCompoundAssignmentOperator(expression, out replacement);
         _compoundAssignmentDepth--;
         return baseStatements;
     }
@@ -65,15 +74,18 @@ internal sealed class Expander : BoundTreeExpander {
     private protected override List<BoundStatement> ExpandCallExpression(
         BoundCallExpression expression,
         out BoundExpression replacement) {
+        var syntax = expression.syntax;
+
         if (_operatorDepth > 0) {
             var statements = ExpandCallExpressionInternal(expression, out var callReplacement);
             var tempLocal = GenerateTempLocal(expression.type);
 
             statements.Add(new BoundLocalDeclarationStatement(
-                new BoundDataContainerDeclaration(tempLocal, callReplacement)
+                syntax,
+                new BoundDataContainerDeclaration(syntax, tempLocal, callReplacement)
             ));
 
-            replacement = new BoundDataContainerExpression(tempLocal);
+            replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
 
             return statements;
         }
@@ -113,133 +125,152 @@ internal sealed class Expander : BoundTreeExpander {
         return base.ExpandCallExpression(expression, out replacement);
     }
 
-    private protected override List<BoundStatement> ExpandBinaryExpression(
-        BoundBinaryExpression expression,
+    private protected override List<BoundStatement> ExpandBinaryOperator(
+        BoundBinaryOperator expression,
         out BoundExpression replacement) {
         _operatorDepth++;
+        var syntax = expression.syntax;
 
         if (_operatorDepth > 1) {
-            var statements = ExpandExpression(expression.left, out var leftReplacement);
-            statements.AddRange(ExpandExpression(expression.right, out var rightReplacement));
+            var statements = ExpandExpression(expression.left, out var newLeft);
+            statements.AddRange(ExpandExpression(expression.right, out var newRight));
 
             var tempLocal = GenerateTempLocal(expression.type);
 
             statements.Add(
-                new BoundLocalDeclarationStatement(new BoundDataContainerDeclaration(
+                new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(
+                    syntax,
                     tempLocal,
-                    new BoundBinaryExpression(
-                        leftReplacement,
-                        rightReplacement,
+                    new BoundBinaryOperator(
+                        syntax,
+                        newLeft,
+                        newRight,
                         expression.opKind,
-                        expression.type,
-                        expression.constantValue
-                    )
-                ))
-            );
-
-            replacement = new BoundDataContainerExpression(tempLocal);
-            _operatorDepth--;
-            return statements;
-        }
-
-        var baseStatements = base.ExpandBinaryExpression(expression, out replacement);
-        _operatorDepth--;
-        return baseStatements;
-    }
-
-    private protected override List<BoundStatement> ExpandConditionalExpression(
-        BoundConditionalExpression expression,
-        out BoundExpression replacement) {
-        _operatorDepth++;
-
-        if (_operatorDepth > 1) {
-            var statements = ExpandExpression(expression.left, out var leftReplacement);
-            statements.AddRange(ExpandExpression(expression.center, out var centerReplacement));
-            statements.AddRange(ExpandExpression(expression.right, out var rightReplacement));
-
-            var tempLocal = GenerateTempLocal(expression.type);
-
-            statements.Add(
-                new BoundLocalDeclarationStatement(new BoundDataContainerDeclaration(
-                    tempLocal,
-                    new BoundConditionalExpression(
-                        leftReplacement,
-                        centerReplacement,
-                        rightReplacement,
+                        expression.constantValue,
                         expression.type
                     )
                 ))
             );
 
-            replacement = new BoundDataContainerExpression(tempLocal);
+            replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
             _operatorDepth--;
             return statements;
         }
 
-        var baseStatements = base.ExpandConditionalExpression(expression, out replacement);
+        var baseStatements = base.ExpandBinaryOperator(expression, out replacement);
         _operatorDepth--;
         return baseStatements;
     }
 
-    private protected override List<BoundStatement> ExpandInitializerDictionaryExpression(
-        BoundInitializerDictionaryExpression expression,
+    private protected override List<BoundStatement> ExpandConditionalOperator(
+        BoundConditionalOperator expression,
+        out BoundExpression replacement) {
+        _operatorDepth++;
+        var syntax = expression.syntax;
+
+        if (_operatorDepth > 1) {
+            var statements = ExpandExpression(expression.left, out var newLeft);
+            statements.AddRange(ExpandExpression(expression.center, out var newCenter));
+            statements.AddRange(ExpandExpression(expression.right, out var newRight));
+
+            var tempLocal = GenerateTempLocal(expression.type);
+
+            statements.Add(
+                new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(
+                    syntax,
+                    tempLocal,
+                    new BoundConditionalOperator(
+                        syntax,
+                        newLeft,
+                        newCenter,
+                        newRight,
+                        null,
+                        expression.type
+                    )
+                ))
+            );
+
+            replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+            _operatorDepth--;
+            return statements;
+        }
+
+        var baseStatements = base.ExpandConditionalOperator(expression, out replacement);
+        _operatorDepth--;
+        return baseStatements;
+    }
+
+    private protected override List<BoundStatement> ExpandInitializerDictionary(
+        BoundInitializerDictionary expression,
         out BoundExpression replacement) {
         // TODO Add a way where if _operatorDepth == 0 a temp local isn't made if this is a variable initializer
+        var syntax = expression.syntax;
         var dictionaryType = expression.type as NamedTypeSymbol;
         var tempLocal = GenerateTempLocal(expression.type);
         var statements = new List<BoundStatement>() {
-            new BoundLocalDeclarationStatement(new BoundDataContainerDeclaration(
+            new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(
+                syntax,
                 tempLocal,
                 new BoundObjectCreationExpression(
-                    expression.type,
+                    syntax,
                     dictionaryType.constructors[0],
-                    []
+                    [],
+                    expression.type
                 )
             ))
         };
 
+        var method = dictionaryType.GetMembers("Add").Single() as MethodSymbol;
+
         foreach (var pair in expression.items) {
-            statements.Add(new BoundExpressionStatement(new BoundCallExpression(
-                new BoundDataContainerExpression(tempLocal),
-                dictionaryType.GetMembers("Add").Single() as MethodSymbol,
+            statements.Add(new BoundExpressionStatement(syntax, new BoundCallExpression(
+                syntax,
+                new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type),
+                method,
                 [pair.Item1, pair.Item2],
-                [RefKind.Ref, RefKind.Ref]
+                [RefKind.Ref, RefKind.Ref],
+                default,
+                LookupResultKind.Viable,
+                method.returnType
             )));
         }
 
-        replacement = new BoundDataContainerExpression(tempLocal);
+        replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
         return statements;
     }
 
     private protected override List<BoundStatement> ExpandConditionalAccessExpression(
         BoundConditionalAccessExpression expression,
         out BoundExpression replacement) {
+        var syntax = expression.syntax;
         var receiver = expression.receiver;
         var access = expression.accessExpression;
         var tempLocal = GenerateTempLocal(receiver.type);
         var statements = ExpandExpression(receiver, out var receiverReplacement);
 
-        statements.Add(new BoundLocalDeclarationStatement(
-            new BoundDataContainerDeclaration(tempLocal, receiverReplacement))
+        statements.Add(new BoundLocalDeclarationStatement(syntax,
+            new BoundDataContainerDeclaration(syntax, tempLocal, receiverReplacement))
         );
 
-        var receiverLocal = new BoundDataContainerExpression(tempLocal);
+        var receiverLocal = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
 
         BoundExpression newAccess;
 
         if (access is BoundFieldAccessExpression f) {
-            newAccess = new BoundFieldAccessExpression(receiverLocal, f.field, f.type, f.constantValue);
+            newAccess = new BoundFieldAccessExpression(syntax, receiverLocal, f.field, f.constantValue, f.type);
         } else if (access is BoundArrayAccessExpression a) {
             statements.AddRange(ExpandExpression(a.index, out var indexReplacement));
-            newAccess = new BoundArrayAccessExpression(receiverLocal, indexReplacement, a.type);
+            newAccess = new BoundArrayAccessExpression(syntax, receiverLocal, indexReplacement, null, a.type);
         } else {
             throw ExceptionUtilities.Unreachable();
         }
 
-        replacement = new BoundConditionalExpression(
-            HasValue(receiver),
+        replacement = new BoundConditionalOperator(
+            syntax,
+            HasValue(syntax, receiver),
             newAccess,
-            new BoundLiteralExpression(value: null, access.type),
+            new BoundLiteralExpression(syntax, new ConstantValue(null), access.type),
+            null,
             access.type
         );
 

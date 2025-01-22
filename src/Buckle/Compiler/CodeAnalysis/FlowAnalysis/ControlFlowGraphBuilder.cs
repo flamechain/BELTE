@@ -116,20 +116,21 @@ internal sealed partial class ControlFlowGraphBuilder {
     }
 
     private BoundExpression Negate(BoundExpression condition) {
+        var syntax = condition.syntax;
+
         if (ConstantValue.IsNull(condition.constantValue))
             return condition;
 
         var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
 
         if (condition is BoundLiteralExpression literal) {
-            var value = (bool)literal.value;
-
-            return new BoundLiteralExpression(!value, boolType);
+            var value = (bool)literal.constantValue.value;
+            return new BoundLiteralExpression(syntax, new ConstantValue(value), boolType);
         }
 
         var opKind = UnaryOperatorEasyOut.OpKind(UnaryOperatorKind.LogicalNegation, boolType);
 
-        return new BoundUnaryExpression(condition, opKind, boolType);
+        return new BoundUnaryOperator(syntax, condition, opKind, null, boolType);
     }
 
     private void Connect(BasicBlock from, BasicBlock to, BoundExpression condition = null) {
@@ -137,7 +138,7 @@ internal sealed partial class ControlFlowGraphBuilder {
             return;
 
         if (condition is BoundLiteralExpression l) {
-            var value = (bool)l.value;
+            var value = (bool)l.constantValue.value;
 
             if (value)
                 condition = null;

@@ -39,7 +39,7 @@
   <Node Name="BoundNonConstructorMethodBody" Base="BoundMethodBodyBase"/>
   <Node Name="BoundConstructorMethodBody" Base="BoundMethodBodyBase">
     <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
-    <Field Name="initializer" Type="BoundStatement"/>
+    <Field Name="initializer" Type="BoundStatement?"/>
   </Node>
   <!-- Declarations -->
   <Node Name="BoundDataContainerDeclaration" Base="BoundNode">
@@ -128,7 +128,7 @@
     <Field Name="field" Type="FieldSymbol"/>
     <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
   </Node>
-  <Node Name="BoundInitializerDictionaryExpression" Base="BoundExpression">
+  <Node Name="BoundInitializerDictionary" Base="BoundExpression">
     <Field Name="items" Type="ImmutableArray&lt;(BoundExpression, BoundExpression)&gt;"/>
   </Node>
   <Node Name="BoundInitializerList" Base="BoundExpression">
@@ -209,7 +209,7 @@
     <Field Name="body" Type="BoundStatement"/>
   </Node>
   <Node Name="BoundForStatement" Base="BoundLoopStatement">
-    <Field Name="initializer" Type="BoundExpression"/>
+    <Field Name="initializer" Type="BoundStatement"/>
     <Field Name="condition" Type="BoundExpression"/>
     <Field Name="step" Type="BoundExpression"/>
     <Field Name="body" Type="BoundStatement"/>
@@ -231,12 +231,12 @@
   <Node Name="BoundNopStatement" Base="BoundStatement"/>
   <Node Name="BoundReturnStatement" Base="BoundStatement">
     <Field Name="refKind" Type="RefKind"/>
-    <Field Name="expression" Type="BoundExpression"/>
+    <Field Name="expression" Type="BoundExpression?"/>
   </Node>
   <Node Name="BoundTryStatement" Base="BoundStatement">
-    <Field Name="body" Type="BoundExpression"/>
-    <Field Name="catchBody" Type="BoundExpression"/>
-    <Field Name="finallyBody" Type="BoundExpression"/>
+    <Field Name="body" Type="BoundStatement"/>
+    <Field Name="catchBody" Type="BoundStatement"/>
+    <Field Name="finallyBody" Type="BoundStatement"/>
   </Node>
   <Node Name="BoundWhileStatement" Base="BoundLoopStatement">
     <Field Name="condition" Type="BoundExpression"/>

@@ -390,13 +390,13 @@ internal sealed class Evaluator {
             BoundKind.DataContainerExpression => EvaluateDataContainerExpression((BoundDataContainerExpression)expression),
             BoundKind.ParameterExpression => EvaluateParameterExpression((BoundParameterExpression)expression),
             BoundKind.FieldAccessExpression => EvaluateFieldAccessExpression((BoundFieldAccessExpression)expression, abort),
-            BoundKind.AssignmentExpression => EvaluateAssignmentExpression((BoundAssignmentExpression)expression, abort),
-            BoundKind.BinaryExpression => EvaluateBinaryExpression((BoundBinaryExpression)expression, abort),
+            BoundKind.AssignmentOperator => EvaluateAssignmentOperator((BoundAssignmentOperator)expression, abort),
+            BoundKind.BinaryOperator => EvaluateBinaryOperator((BoundBinaryOperator)expression, abort),
             BoundKind.NullAssertExpression => EvaluateNullAssertExpression((BoundNullAssertExpression)expression, abort),
-            BoundKind.AsExpression => EvaluateAsExpression((BoundAsExpression)expression, abort),
-            BoundKind.IsExpression => EvaluateIsExpression((BoundIsExpression)expression, abort),
-            BoundKind.IsntExpression => EvaluateIsntExpression((BoundIsntExpression)expression, abort),
-            BoundKind.ConditionalExpression => EvaluateConditionalExpression((BoundConditionalExpression)expression, abort),
+            BoundKind.AsOperator => EvaluateAsOperator((BoundAsOperator)expression, abort),
+            BoundKind.IsOperator => EvaluateIsOperator((BoundIsOperator)expression, abort),
+            BoundKind.IsntOperator => EvaluateIsntOperator((BoundIsntOperator)expression, abort),
+            BoundKind.ConditionalOperator => EvaluateConditionalOperator((BoundConditionalOperator)expression, abort),
             BoundKind.CallExpression => EvaluateCallExpression((BoundCallExpression)expression, abort),
             _ => throw new BelteInternalException($"EvaluateExpression: unexpected node '{expression.kind}'"),
         };
@@ -509,8 +509,8 @@ internal sealed class Evaluator {
         return new EvaluatorObject(expression.dataContainer, expression.dataContainer.type);
     }
 
-    private EvaluatorObject EvaluateConditionalExpression(
-        BoundConditionalExpression expression,
+    private EvaluatorObject EvaluateConditionalOperator(
+        BoundConditionalOperator expression,
         ValueWrapper<bool> abort) {
         var left = EvaluateExpression(expression.left, abort);
         var leftValue = Value(left);
@@ -532,7 +532,7 @@ internal sealed class Evaluator {
         return Copy(value);
     }
 
-    private EvaluatorObject EvaluateAsExpression(BoundAsExpression expression, ValueWrapper<bool> abort) {
+    private EvaluatorObject EvaluateAsOperator(BoundAsOperator expression, ValueWrapper<bool> abort) {
         var left = EvaluateExpression(expression.left, abort);
         var leftValue = Value(left);
         var dereferenced = Dereference(left);
@@ -546,7 +546,7 @@ internal sealed class Evaluator {
         return EvaluatorObject.Null;
     }
 
-    private EvaluatorObject EvaluateIsExpression(BoundIsExpression expression, ValueWrapper<bool> abort) {
+    private EvaluatorObject EvaluateIsOperator(BoundIsOperator expression, ValueWrapper<bool> abort) {
         var left = EvaluateExpression(expression.left, abort);
         var right = expression.right;
         var leftValue = Value(left);
@@ -578,7 +578,7 @@ internal sealed class Evaluator {
             return new EvaluatorObject(false, expression.type);
     }
 
-    private EvaluatorObject EvaluateIsntExpression(BoundIsntExpression expression, ValueWrapper<bool> abort) {
+    private EvaluatorObject EvaluateIsntOperator(BoundIsntOperator expression, ValueWrapper<bool> abort) {
         var left = EvaluateExpression(expression.left, abort);
         var right = expression.right;
         var leftValue = Value(left);
@@ -610,7 +610,7 @@ internal sealed class Evaluator {
             return new EvaluatorObject(true, expression.type);
     }
 
-    private EvaluatorObject EvaluateBinaryExpression(BoundBinaryExpression expression, ValueWrapper<bool> abort) {
+    private EvaluatorObject EvaluateBinaryOperator(BoundBinaryOperator expression, ValueWrapper<bool> abort) {
         var left = EvaluateExpression(expression.left, abort);
         var leftValue = Value(left);
         var opKind = expression.opKind & BinaryOperatorKind.OpMask;
@@ -757,8 +757,8 @@ internal sealed class Evaluator {
         return new EvaluatorObject(result, expression.type);
     }
 
-    private EvaluatorObject EvaluateAssignmentExpression(
-        BoundAssignmentExpression expression,
+    private EvaluatorObject EvaluateAssignmentOperator(
+        BoundAssignmentOperator expression,
         ValueWrapper<bool> abort) {
         var left = EvaluateExpression(expression.left, abort);
         var right = EvaluateExpression(expression.right, abort);

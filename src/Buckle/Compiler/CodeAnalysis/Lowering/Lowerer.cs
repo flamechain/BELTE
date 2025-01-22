@@ -31,14 +31,14 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         var optimizedStatement = Optimizer.Optimize(statement, false);
         var expandedStatement = lowerer._expander.Expand(optimizedStatement);
-        var rewrittenStatement = lowerer.RewriteStatement(expandedStatement);
+        var rewrittenStatement = (BoundStatement)lowerer.Visit(expandedStatement);
         var block = Flatten(method, rewrittenStatement);
         var optimizedBlock = Optimizer.Optimize(block, true) as BoundBlockStatement;
 
         return optimizedBlock;
     }
 
-    private protected override BoundStatement RewriteIfStatement(BoundIfStatement statement) {
+    internal override BoundNode VisitIfStatement(BoundIfStatement statement) {
         /*
 
         if <condition>
@@ -67,40 +67,42 @@ internal sealed class Lowerer : BoundTreeRewriter {
         end:
 
         */
-        if (statement.elseStatement is null) {
+        var syntax = statement.syntax;
+
+        if (statement.alternative is null) {
             var endLabel = GenerateLabel();
 
-            return RewriteStatement(
-                Block(
-                    GotoIfNot(
+            return VisitBlockStatement(
+                Block(syntax,
+                    GotoIfNot(syntax,
                         @goto: endLabel,
                         @ifNot: statement.condition
                     ),
-                    statement.then,
-                    Label(endLabel)
+                    statement.consequence,
+                    Label(syntax, endLabel)
                 )
             );
         } else {
             var elseLabel = GenerateLabel();
             var endLabel = GenerateLabel();
 
-            return RewriteStatement(
-                Block(
-                    GotoIfNot(
+            return VisitBlockStatement(
+                Block(syntax,
+                    GotoIfNot(syntax,
                         @goto: elseLabel,
                         @ifNot: statement.condition
                     ),
-                    statement.then,
-                    Goto(endLabel),
-                    Label(elseLabel),
-                    statement.elseStatement,
-                    Label(endLabel)
+                    statement.consequence,
+                    Goto(syntax, endLabel),
+                    Label(syntax, elseLabel),
+                    statement.alternative,
+                    Label(syntax, endLabel)
                 )
             );
         }
     }
 
-    private protected override BoundStatement RewriteWhileStatement(BoundWhileStatement statement) {
+    internal override BoundNode VisitWhileStatement(BoundWhileStatement statement) {
         /*
 
         while <condition>
@@ -115,24 +117,25 @@ internal sealed class Lowerer : BoundTreeRewriter {
         break:
 
         */
+        var syntax = statement.syntax;
         var continueLabel = statement.continueLabel;
         var breakLabel = statement.breakLabel;
 
-        return RewriteStatement(
-            Block(
-                Label(continueLabel),
-                GotoIfNot(
+        return VisitBlockStatement(
+            Block(syntax,
+                Label(syntax, continueLabel),
+                GotoIfNot(syntax,
                     @goto: breakLabel,
                     @ifNot: statement.condition
                 ),
                 statement.body,
-                Goto(continueLabel),
-                Label(breakLabel)
+                Goto(syntax, continueLabel),
+                Label(syntax, breakLabel)
             )
         );
     }
 
-    private protected override BoundStatement RewriteDoWhileStatement(BoundDoWhileStatement statement) {
+    internal override BoundNode VisitDoWhileStatement(BoundDoWhileStatement statement) {
         /*
 
         do
@@ -147,23 +150,24 @@ internal sealed class Lowerer : BoundTreeRewriter {
         break:
 
         */
+        var syntax = statement.syntax;
         var continueLabel = statement.continueLabel;
         var breakLabel = statement.breakLabel;
 
-        return RewriteStatement(
-            Block(
-                Label(continueLabel),
+        return VisitBlockStatement(
+            Block(syntax,
+                Label(syntax, continueLabel),
                 statement.body,
-                GotoIf(
+                GotoIf(syntax,
                     @goto: continueLabel,
                     @if: statement.condition
                 ),
-                Label(breakLabel)
+                Label(syntax, breakLabel)
             )
         );
     }
 
-    private protected override BoundStatement RewriteForStatement(BoundForStatement statement) {
+    internal override BoundNode VisitForStatement(BoundForStatement statement) {
         /*
 
         for (<initializer> <condition>; <step>)
@@ -181,22 +185,23 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
 
         */
+        var syntax = statement.syntax;
         var continueLabel = statement.continueLabel;
         var breakLabel = statement.breakLabel;
         var condition = statement.condition.kind == BoundKind.EmptyExpression
-            ? Literal(true)
+            ? Literal(syntax, true)
             : statement.condition;
 
-        return RewriteStatement(
+        return Visit(
             _expander.Expand(
-                Block(
+                Block(syntax,
                     statement.initializer,
-                    While(
+                    While(syntax,
                         condition,
-                        Block(
+                        Block(syntax,
                             statement.body,
-                            Label(continueLabel),
-                            Statement(statement.step)
+                            Label(syntax, continueLabel),
+                            Statement(syntax, statement.step)
                         ),
                         breakLabel,
                         GenerateLabel()
@@ -206,7 +211,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         );
     }
 
-    private protected override BoundExpression RewriteBinaryExpression(BoundBinaryExpression expression) {
+    internal override BoundNode VisitBinaryOperator(BoundBinaryOperator expression) {
         /*
 
         <left> <op> <right>
@@ -228,13 +233,15 @@ internal sealed class Lowerer : BoundTreeRewriter {
         (<right> isnt null ? <left> <op> Value(<right>) : null)
 
         */
+        var syntax = expression.syntax;
+
         if (expression.opKind == BinaryOperatorKind.Power) {
             var powMethod = expression.left.type.IsNullableType() || expression.right.type.IsNullableType()
                 ? StandardLibrary.Math.GetMembers()[46]
                 : StandardLibrary.Math.GetMembers()[47];
 
-            return RewriteExpression(
-                Call(powMethod as MethodSymbol, [expression.left, expression.right])
+            return VisitCallExpression(
+                Call(syntax, powMethod as MethodSymbol, [expression.left, expression.right])
             );
         }
 
@@ -242,16 +249,16 @@ internal sealed class Lowerer : BoundTreeRewriter {
             expression.right.type.IsNullableType() &&
             expression.left.constantValue is null &&
             expression.right.constantValue is null) {
-            return RewriteExpression(
-                Conditional(
-                    @if: And(
-                        HasValue(expression.left),
-                        HasValue(expression.right)
+            return VisitConditionalOperator(
+                Conditional(syntax,
+                    @if: And(syntax,
+                        HasValue(syntax, expression.left),
+                        HasValue(syntax, expression.right)
                     ),
-                    @then: Binary(
-                        Value(expression.left, expression.left.type.GetNullableUnderlyingType()),
+                    @then: Binary(syntax,
+                        Value(syntax, expression.left, expression.left.type.GetNullableUnderlyingType()),
                         expression.opKind,
-                        Value(expression.right, expression.right.type.GetNullableUnderlyingType()),
+                        Value(syntax, expression.right, expression.right.type.GetNullableUnderlyingType()),
                         expression.type
                     ),
                     @else: Literal(null, expression.type),
@@ -261,42 +268,41 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
 
         if (expression.left.type.IsNullableType() && expression.left.constantValue is null) {
-            return RewriteExpression(
-                Conditional(
-                    @if: HasValue(expression.left),
-                    @then: Binary(
-                        Value(expression.left, expression.left.type.GetNullableUnderlyingType()),
+            return VisitConditionalOperator(
+                Conditional(syntax,
+                    @if: HasValue(syntax, expression.left),
+                    @then: Binary(syntax,
+                        Value(syntax, expression.left, expression.left.type.GetNullableUnderlyingType()),
                         expression.opKind,
                         expression.right,
                         expression.type
                     ),
-                    @else: Literal(null, expression.type),
+                    @else: Literal(syntax, null, expression.type),
                     expression.type
                 )
             );
         }
 
         if (expression.right.type.IsNullableType() && expression.right.constantValue is null) {
-            return RewriteExpression(
-                Conditional(
-                    @if: HasValue(expression.right),
-                    @then: Binary(
+            return VisitConditionalOperator(
+                Conditional(syntax,
+                    @if: HasValue(syntax, expression.right),
+                    @then: Binary(syntax,
                         expression.left,
                         expression.opKind,
-                        Value(expression.right, expression.right.type.GetNullableUnderlyingType()),
+                        Value(syntax, expression.right, expression.right.type.GetNullableUnderlyingType()),
                         expression.type
                     ),
-                    @else: Literal(null, expression.type),
+                    @else: Literal(syntax, null, expression.type),
                     expression.type
                 )
             );
         }
 
-        return base.RewriteBinaryExpression(expression);
+        return base.VisitBinaryOperator(expression);
     }
 
-    private protected override BoundExpression RewriteNullCoalescingExpression(
-        BoundNullCoalescingExpression expression) {
+    internal override BoundNode VisitNullCoalescingOperator(BoundNullCoalescingOperator expression) {
         /*
 
         <left> ?? <right>
@@ -306,17 +312,19 @@ internal sealed class Lowerer : BoundTreeRewriter {
         (HasValue(<left>) ? Value(<left>) : <right>)
 
         */
-        return RewriteExpression(
-            Conditional(
-                @if: HasValue(expression.left),
-                @then: Value(expression.left, expression.left.type),
+        var syntax = expression.syntax;
+
+        return VisitConditionalOperator(
+            Conditional(syntax,
+                @if: HasValue(syntax, expression.left),
+                @then: Value(syntax, expression.left, expression.left.type),
                 @else: expression.right,
                 expression.type
             )
         );
     }
 
-    private protected override BoundExpression RewriteUnaryExpression(BoundUnaryExpression expression) {
+    internal override BoundNode VisitUnaryOperator(BoundUnaryOperator expression) {
         /*
 
         <op> <operand>
@@ -354,53 +362,55 @@ internal sealed class Lowerer : BoundTreeRewriter {
         ((<operand> -= 1) + 1)
 
         */
+        var syntax = expression.syntax;
+
         if (expression.opKind == UnaryOperatorKind.UnaryPlus)
-            return RewriteExpression(expression.operand);
+            return Visit(expression.operand);
 
         if (expression.opKind == UnaryOperatorKind.PrefixIncrement)
-            return RewriteExpression(Increment(expression.operand));
+            return Visit(Increment(syntax, expression.operand));
         else if (expression.opKind == UnaryOperatorKind.PrefixDecrement)
-            return RewriteExpression(Decrement(expression.operand));
+            return Visit(Decrement(syntax, expression.operand));
 
         if (expression.opKind == UnaryOperatorKind.PostfixIncrement ||
             expression.opKind == UnaryOperatorKind.PostfixDecrement) {
             var assignment = expression.opKind == UnaryOperatorKind.PostfixIncrement
-                ? Increment(expression.operand)
-                : Decrement(expression.operand);
+                ? Increment(syntax, expression.operand)
+                : Decrement(syntax, expression.operand);
 
             // TODO Probably add a BoundIncrementExpression to handle isOwnStatement
             // Should ABSOLUTELY be using the expander for this kind of operation however, not undoing an increment
             // if (expression.isOwnStatement) {
-            //     return RewriteExpression(assignment);
+            //     return VisitExpression(assignment);
             // } else {
             //     var reversal = expression.op.opKind == UnaryOperatorKind.PostfixIncrement
             //         ? Subtract(assignment, Literal(1))
             //         : Add(assignment, Literal(1));
 
-            //     return RewriteExpression(reversal);
+            //     return VisitExpression(reversal);
             // }
-            return RewriteExpression(assignment);
+            return Visit(assignment);
         }
 
         if (expression.operand.type.IsNullableType()) {
-            return RewriteExpression(
-                Conditional(
-                    @if: HasValue(expression.operand),
-                    @then: Unary(
+            return VisitConditionalOperator(
+                Conditional(syntax,
+                    @if: HasValue(syntax, expression.operand),
+                    @then: Unary(syntax,
                         expression.opKind,
-                        Value(expression.operand, expression.operand.type.GetNullableUnderlyingType()),
+                        Value(syntax, expression.operand, expression.operand.type.GetNullableUnderlyingType()),
                         expression.type
                     ),
-                    @else: Literal(null, expression.type),
+                    @else: Literal(syntax, null, expression.type),
                     expression.type
                 )
             );
         }
 
-        return base.RewriteUnaryExpression(expression);
+        return base.VisitUnaryOperator(expression);
     }
 
-    private protected override BoundExpression RewriteCastExpression(BoundCastExpression expression) {
+    internal override BoundNode VisitCastExpression(BoundCastExpression expression) {
         /*
 
         (<type>)<expression>
@@ -418,18 +428,19 @@ internal sealed class Lowerer : BoundTreeRewriter {
         <expression>
 
         */
+        var syntax = expression.syntax;
         var operand = expression.operand;
         var type = expression.type;
         var operandType = operand.type;
 
         if (operandType.IsNullableType() && !type.IsNullableType()) {
             if (type.Equals(operandType))
-                return RewriteExpression(Value(operand, operandType.GetNullableUnderlyingType()));
+                return Visit(Value(syntax, operand, operandType.GetNullableUnderlyingType()));
 
-            return base.RewriteCastExpression(
-                Cast(
+            return base.VisitCastExpression(
+                Cast(syntax,
                     type,
-                    Value(operand, operandType.GetNullableUnderlyingType()),
+                    Value(syntax, operand, operandType.GetNullableUnderlyingType()),
                     Conversion.ExplicitNullable,
                     operand.constantValue
                 )
@@ -437,12 +448,12 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
 
         if (operandType.Equals(type))
-            return RewriteExpression(operand);
+            return Visit(operand);
 
-        return base.RewriteCastExpression(expression);
+        return base.VisitCastExpression(expression);
     }
 
-    private protected override BoundExpression RewriteCallExpression(BoundCallExpression expression) {
+    internal override BoundNode VisitCallExpression(BoundCallExpression expression) {
         /*
 
         <method>(<parameters>)
@@ -468,13 +479,14 @@ internal sealed class Lowerer : BoundTreeRewriter {
         Method operand rewritten to exclude TypeOf expression
 
         */
+        var syntax = expression.syntax;
         var method = expression.method;
         // var parameters = ArrayBuilder<ParameterSymbol>.GetInstance();
 
         if (method.name == "Value" && !expression.arguments[0].type.IsNullableType())
-            return RewriteExpression(expression.arguments[0]);
+            return Visit(expression.arguments[0]);
         else if (method.name == "HasValue" && !expression.arguments[0].type.IsNullableType())
-            return new BoundLiteralExpression(true, expression.type);
+            return Literal(syntax, true, expression.type);
 
         /*
         var parametersChanged = false;
@@ -503,7 +515,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         for (var i = 0; i < expression.arguments.Length; i++) {
             var oldArgument = expression.arguments[i];
-            var newArgument = RewriteExpression(oldArgument);
+            var newArgument = (BoundExpression)Visit(oldArgument);
 
             if (newArgument != oldArgument) {
                 if (builder is null) {
@@ -523,13 +535,21 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         var arguments = builder is null ? expression.arguments : builder.ToImmutableAndFree();
 
-        return base.RewriteCallExpression(
-            new BoundCallExpression(expression.receiver, method, arguments, expression.argumentRefKinds)
+        return base.VisitCallExpression(
+            new BoundCallExpression(
+                syntax,
+                expression.receiver,
+                method,
+                arguments,
+                expression.argumentRefKinds,
+                expression.defaultArguments,
+                expression.resultKind,
+                expression.type
+            )
         );
     }
 
-    private protected override BoundExpression RewriteCompoundAssignmentExpression(
-        BoundCompoundAssignmentExpression expression) {
+    internal override BoundNode VisitCompoundAssignmentOperator(BoundCompoundAssignmentOperator expression) {
         /*
 
         <left> <op>= <right>
@@ -539,12 +559,14 @@ internal sealed class Lowerer : BoundTreeRewriter {
         (<left> = <left> <op> <right>)
 
         */
-        return RewriteExpression(
-            Assignment(
+        var syntax = expression.syntax;
+
+        return VisitAssignmentOperator(
+            Assignment(syntax,
                 expression.left,
-                Binary(
+                Binary(syntax,
                     expression.left,
-                    expression.opKind,
+                    expression.op.kind,
                     expression.right,
                     expression.type
                 ),
@@ -555,6 +577,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
     }
 
     private static BoundBlockStatement Flatten(MethodSymbol method, BoundStatement statement) {
+        var syntax = statement.syntax;
         var statementsBuilder = ArrayBuilder<BoundStatement>.GetInstance();
         var localsBuilder = ArrayBuilder<DataContainerSymbol>.GetInstance();
         var functionsBuilder = ArrayBuilder<LocalFunctionSymbol>.GetInstance();
@@ -578,10 +601,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         if (method.returnsVoid) {
             if (statementsBuilder.Count == 0 || CanFallThrough(statementsBuilder.Last()))
-                statementsBuilder.Add(new BoundReturnStatement(RefKind.None, null));
+                statementsBuilder.Add(new BoundReturnStatement(syntax, RefKind.None, null));
         }
 
         return new BoundBlockStatement(
+            syntax,
             statementsBuilder.ToImmutableAndFree(),
             localsBuilder.ToImmutableAndFree(),
             functionsBuilder.ToImmutableAndFree()

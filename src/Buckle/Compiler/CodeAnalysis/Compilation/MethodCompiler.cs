@@ -204,8 +204,12 @@ internal sealed class MethodCompiler {
         var includeNonEmptyInitializers = includeInitializers &&
             !processedInitializers.boundInitializers.IsDefaultOrEmpty;
 
-        if (includeNonEmptyInitializers && processedInitializers.loweredInitializers is null)
-            analyzedInitializers = InitializerRewriter.RewriteConstructor(processedInitializers.boundInitializers);
+        if (includeNonEmptyInitializers && processedInitializers.loweredInitializers is null) {
+            analyzedInitializers = InitializerRewriter.RewriteConstructor(
+                processedInitializers.boundInitializers,
+                method
+            );
+        }
 
         var body = BindMethodBody(
             method,
@@ -234,7 +238,8 @@ internal sealed class MethodCompiler {
         bool includeInitializers,
         BoundBlockStatement initializersBody) {
         BoundBlockStatement body = null;
-        initializersBody ??= new BoundBlockStatement([], [], []);
+        var syntax = method.GetNonNullSyntaxNode();
+        initializersBody ??= new BoundBlockStatement(syntax, [], [], []);
         var builder = ArrayBuilder<BoundStatement>.GetInstance();
         BelteSyntaxNode syntaxNode = null;
 
@@ -268,7 +273,7 @@ internal sealed class MethodCompiler {
                         if (body is not null)
                             builder.Add(body);
 
-                        body = new BoundBlockStatement(builder.ToImmutableAndFree(), constructor.locals, []);
+                        body = new BoundBlockStatement(syntax, builder.ToImmutableAndFree(), constructor.locals, []);
                     }
 
                     return body;
@@ -283,8 +288,8 @@ internal sealed class MethodCompiler {
             }
         } else if (method is SynthesizedConstructorSymbol constructor) {
             var baseConstructorCall = Binder.GenerateBaseParameterlessConstructorInitializer(constructor, diagnostics);
-            var statement = new BoundExpressionStatement(baseConstructorCall);
-            body = new BoundBlockStatement([statement], [], []);
+            var statement = new BoundExpressionStatement(syntax, baseConstructorCall);
+            body = new BoundBlockStatement(syntax, [statement], [], []);
         } else if (method is SynthesizedEntryPoint entryPoint) {
             var bodyBinder = entryPoint.GetBodyBinder();
             var bodyBuilder = ArrayBuilder<BoundStatement>.GetInstance();
@@ -294,12 +299,12 @@ internal sealed class MethodCompiler {
                 var boundStatement = bodyBinder.BindStatement(statement.statement, diagnostics);
 
                 if (i == entryPoint.statements.Length - 1 && boundStatement is BoundExpressionStatement e)
-                    boundStatement = new BoundReturnStatement(RefKind.None, e.expression);
+                    boundStatement = new BoundReturnStatement(syntax, RefKind.None, e.expression);
 
                 bodyBuilder.Add(boundStatement);
             }
 
-            body = new BoundBlockStatement(bodyBuilder.ToImmutableAndFree(), [], []);
+            body = new BoundBlockStatement(syntax, bodyBuilder.ToImmutableAndFree(), [], []);
 
             // body = ((BoundNonConstructorMethodBody)methodBody).body;
         }
@@ -315,7 +320,7 @@ internal sealed class MethodCompiler {
         if (body is not null)
             builder.Add(body);
 
-        return new BoundBlockStatement(builder.ToImmutableAndFree(), [], []);
+        return new BoundBlockStatement(syntax, builder.ToImmutableAndFree(), [], []);
     }
 
     private static BoundStatement BindImplicitConstructorInitializerIfAny(
@@ -329,7 +334,7 @@ internal sealed class MethodCompiler {
 
             if (call is not null) {
                 ReportConstructorInitializerCycles(method, call, state, syntax, diagnostics);
-                return new BoundExpressionStatement(call);
+                return new BoundExpressionStatement(call.syntax, call);
             }
         }
 

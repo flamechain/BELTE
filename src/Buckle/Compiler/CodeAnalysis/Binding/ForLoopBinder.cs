@@ -43,12 +43,12 @@ internal sealed class ForLoopBinder : LoopBinder {
         var step = node.step;
 
         var incrementBinder = originalBinder.GetBinder(step);
-        increment = new BoundExpressionStatement(incrementBinder.BindExpression(step, diagnostics));
+        // increment = new BoundExpressionStatement(incrementBinder.BindExpression(step, diagnostics));
 
         var locals = incrementBinder.GetDeclaredLocalsForScope(step);
 
-        if (!locals.IsEmpty)
-            increment = new BoundBlockStatement([increment], locals, []);
+        if (!locals.IsEmpty) ;
+        // increment = new BoundBlockStatement([increment], locals, []);
 
         // var body = originalBinder.BindPossibleEmbeddedStatement(node.body, diagnostics);
 
