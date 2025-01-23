@@ -484,7 +484,7 @@ internal sealed partial class BoundNodeClassWriter {
         IEnumerable<string> fields = isConcrete ? ["SyntaxNode syntax"] : ["BoundKind kind", "SyntaxNode syntax"];
         fields = fields.Concat(from field in AllSpecifiableFields(node)
                                let mostSpecific = GetField(node, field.Name)
-                               select mostSpecific.Type + " " + ToCamelCase(field.Name));
+                               select StripNull(mostSpecific.Type) + " " + ToCamelCase(field.Name));
 
         ParenList(fields, x => x);
         WriteLine();
