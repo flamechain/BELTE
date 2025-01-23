@@ -8,37 +8,37 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A cast from any <see cref="BoundType" /> to any <see cref="BoundType" /> (can be the same).
 /// </summary>
 internal readonly partial struct Conversion : IEquatable<Conversion> {
-    internal static readonly Conversion None = new Conversion(ConversionKind.None);
-    internal static readonly Conversion Identity = new Conversion(ConversionKind.Identity);
-    internal static readonly Conversion Implicit = new Conversion(ConversionKind.Implicit);
-    internal static readonly Conversion ImplicitConstant = new Conversion(ConversionKind.ImplicitConstant);
-    internal static readonly Conversion ImplicitNullable = new Conversion(ConversionKind.ImplicitNullable);
-    internal static readonly Conversion ImplicitReference = new Conversion(ConversionKind.ImplicitReference);
-    internal static readonly Conversion NullLiteral = new Conversion(ConversionKind.NullLiteral);
-    internal static readonly Conversion AnyBoxing = new Conversion(ConversionKind.AnyBoxing);
-    internal static readonly Conversion AnyBoxingImplicitNullable
-        = new Conversion(ConversionKind.AnyBoxingImplicitNullable);
-    internal static readonly Conversion AnyBoxingExplicitNullable
-        = new Conversion(ConversionKind.AnyBoxingExplicitNullable);
-    internal static readonly Conversion Explicit = new Conversion(ConversionKind.Explicit);
-    internal static readonly Conversion ExplicitNullable = new Conversion(ConversionKind.ExplicitNullable);
-    internal static readonly Conversion ExplicitReference = new Conversion(ConversionKind.ExplicitReference);
-    internal static readonly Conversion AnyUnboxing = new Conversion(ConversionKind.AnyUnboxing);
-    internal static readonly Conversion AnyUnboxingImplicitNullable
-        = new Conversion(ConversionKind.AnyUnboxingImplicitNullable);
-    internal static readonly Conversion AnyUnboxingExplicitNullable
-        = new Conversion(ConversionKind.AnyUnboxingExplicitNullable);
-    internal static readonly Conversion ImplicitNullableWithIdentityUnderlying
-        = new Conversion(ConversionKind.ImplicitNullable, IdentityUnderlying);
-    internal static readonly Conversion ExplicitNullableWithIdentityUnderlying
-        = new Conversion(ConversionKind.ExplicitNullable, IdentityUnderlying);
-    internal static readonly Conversion ImplicitNullableWithImplicitConstantUnderlying
-        = new Conversion(ConversionKind.ImplicitNullable, ImplicitConstantUnderlying);
-    internal static readonly Conversion ExplicitNullableWithImplicitConstantUnderlying
-        = new Conversion(ConversionKind.ExplicitNullable, ImplicitConstantUnderlying);
+    internal static Conversion None => new Conversion(ConversionKind.None);
+    internal static Conversion Identity => new Conversion(ConversionKind.Identity);
+    internal static Conversion Implicit => new Conversion(ConversionKind.Implicit);
+    internal static Conversion ImplicitConstant => new Conversion(ConversionKind.ImplicitConstant);
+    internal static Conversion ImplicitNullable => new Conversion(ConversionKind.ImplicitNullable);
+    internal static Conversion ImplicitReference => new Conversion(ConversionKind.ImplicitReference);
+    internal static Conversion NullLiteral => new Conversion(ConversionKind.NullLiteral);
+    internal static Conversion AnyBoxing => new Conversion(ConversionKind.AnyBoxing);
+    internal static Conversion AnyBoxingImplicitNullable
+        => new Conversion(ConversionKind.AnyBoxingImplicitNullable);
+    internal static Conversion AnyBoxingExplicitNullable
+        => new Conversion(ConversionKind.AnyBoxingExplicitNullable);
+    internal static Conversion Explicit => new Conversion(ConversionKind.Explicit);
+    internal static Conversion ExplicitNullable => new Conversion(ConversionKind.ExplicitNullable);
+    internal static Conversion ExplicitReference => new Conversion(ConversionKind.ExplicitReference);
+    internal static Conversion AnyUnboxing => new Conversion(ConversionKind.AnyUnboxing);
+    internal static Conversion AnyUnboxingImplicitNullable
+        => new Conversion(ConversionKind.AnyUnboxingImplicitNullable);
+    internal static Conversion AnyUnboxingExplicitNullable
+        => new Conversion(ConversionKind.AnyUnboxingExplicitNullable);
+    internal static Conversion ImplicitNullableWithIdentityUnderlying
+        => new Conversion(ConversionKind.ImplicitNullable, IdentityUnderlying);
+    internal static Conversion ExplicitNullableWithIdentityUnderlying
+        => new Conversion(ConversionKind.ExplicitNullable, IdentityUnderlying);
+    internal static Conversion ImplicitNullableWithImplicitConstantUnderlying
+        => new Conversion(ConversionKind.ImplicitNullable, ImplicitConstantUnderlying);
+    internal static Conversion ExplicitNullableWithImplicitConstantUnderlying
+        => new Conversion(ConversionKind.ExplicitNullable, ImplicitConstantUnderlying);
 
-    internal static ImmutableArray<Conversion> IdentityUnderlying = [Identity];
-    internal static ImmutableArray<Conversion> ImplicitConstantUnderlying = [ImplicitConstant];
+    internal static ImmutableArray<Conversion> IdentityUnderlying => [Identity];
+    internal static ImmutableArray<Conversion> ImplicitConstantUnderlying => [ImplicitConstant];
 
     private readonly UncommonData _uncommonData;
 

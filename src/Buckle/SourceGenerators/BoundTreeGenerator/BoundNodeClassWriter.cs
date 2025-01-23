@@ -143,6 +143,13 @@ internal sealed partial class BoundNodeClassWriter {
         return name;
     }
 
+    private string StripNull(string type) {
+        if (type.EndsWith('?') && !IsValueType(type))
+            type = type.Substring(0, type.Length - 1);
+
+        return type;
+    }
+
     private void ParenList<T>(IEnumerable<T> items, Func<T, string> func) {
         Paren();
         Comma(items, func);
@@ -409,7 +416,7 @@ internal sealed partial class BoundNodeClassWriter {
         WriteLine();
         Write($"internal{(emitNew ? " new" : "")} {node.Name} Update");
         Paren();
-        Comma(AllSpecifiableFields(node), field => string.Format("{0} {1}", GetField(node, field.Name).Type, ToCamelCase(field.Name)));
+        Comma(AllSpecifiableFields(node), field => string.Format("{0} {1}", StripNull(GetField(node, field.Name).Type), ToCamelCase(field.Name)));
         UnParen();
         OpenBlock();
 
@@ -513,7 +520,7 @@ internal sealed partial class BoundNodeClassWriter {
 
         fields = fields.Concat(from field in AllSpecifiableFields(node)
                                let mostSpecific = GetField(node, field.Name)
-                               select mostSpecific.Type + " " + ToCamelCase(field.Name));
+                               select StripNull(mostSpecific.Type) + " " + ToCamelCase(field.Name));
 
         if (hasErrorsIsOptional)
             fields = fields.Concat(["bool hasErrors = false"]);
@@ -575,13 +582,13 @@ internal sealed partial class BoundNodeClassWriter {
 
     private void WriteField(TreeType node, Field field) {
         if (IsPropertyOverrides(field)) {
-            WriteLine($"internal override {(IsNew(field) ? "new " : "")}{field.Type} {field.Name} {{ get; }}");
+            WriteLine($"internal override {(IsNew(field) ? "new " : "")}{StripNull(field.Type)} {field.Name} {{ get; }}");
         } else if (field.Override) {
             // var suppression = FieldNullHandling(node, field.Name) is NullHandling.Allow or NullHandling.Always ? "" : "!";
             var suppression = "";
-            WriteLine($"internal new {field.Type} {field.Name} => base.{field.Name}{suppression};");
+            WriteLine($"internal new {StripNull(field.Type)} {field.Name} => base.{field.Name}{suppression};");
         } else {
-            WriteLine($"internal {(IsNew(field) ? "new " : "")}{field.Type} {field.Name} {{ get; }}");
+            WriteLine($"internal {(IsNew(field) ? "new " : "")}{StripNull(field.Type)} {field.Name} {{ get; }}");
         }
     }
 
@@ -655,7 +662,7 @@ internal sealed partial class BoundNodeClassWriter {
 
             if (hadField) {
                 Write("return node.Update");
-                ParenList(AllSpecifiableFields(node), field => IsDerivedOrListOfDerived("BoundNode", field.Type) || TypeIsTypeSymbol(field) ? ToCamelCase(field.Name) : string.Format("node.{0}", field.Name));
+                ParenList(AllSpecifiableFields(node), field => IsDerivedOrListOfDerived("BoundNode", StripNull(field.Type)) || TypeIsTypeSymbol(field) ? ToCamelCase(field.Name) : string.Format("node.{0}", field.Name));
                 WriteLine(";");
             } else {
                 WriteLine("return node;");
@@ -670,11 +677,11 @@ internal sealed partial class BoundNodeClassWriter {
 
     private void WriteNodeVisitCall(Field field, bool forceVisit = false) {
         if (SkipInVisitor(field) && !forceVisit)
-            WriteLine($"{field.Type} {ToCamelCase(field.Name)} = node.{field.Name};");
+            WriteLine($"{StripNull(field.Type)} {ToCamelCase(field.Name)} = node.{field.Name};");
         else if (IsNodeList(field.Type))
             WriteLine($"{field.Type} {ToCamelCase(field.Name)} = this.VisitList(node.{field.Name});");
         else
-            WriteLine($"{field.Type} {ToCamelCase(field.Name)} = ({field.Type})this.Visit(node.{field.Name});");
+            WriteLine($"{StripNull(field.Type)} {ToCamelCase(field.Name)} = ({StripNull(field.Type)})this.Visit(node.{field.Name});");
     }
 
     private string GetVisitFunctionDeclaration(string name, bool isOverride) {

@@ -14,7 +14,7 @@
     <Field Name="value" Type="BoundExpression"/>
   </AbstractNode>
   <AbstractNode Name="BoundExpression" Base="BoundNode">
-    <Field Name="type" Type="TypeSymbol"/>
+    <Field Name="type" Type="TypeSymbol?"/>
   </AbstractNode>
   <AbstractNode Name="BoundStatement" Base="BoundNode"/>
   <AbstractNode Name="BoundMethodBodyBase" Base="BoundNode">
@@ -86,10 +86,10 @@
     <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
   </Node>
   <Node Name="BoundCallExpression" Base="BoundExpression">
-    <Field Name="receiver" Type="BoundExpression"/>
+    <Field Name="receiver" Type="BoundExpression?"/>
     <Field Name="method" Type="MethodSymbol"/>
-    <Field Name="arguments" Type="ImmutableArray&lt;BoundExpression&gt;"/>
-    <Field Name="argumentRefKinds" Type="ImmutableArray&lt;RefKind&gt;"/>
+    <Field Name="arguments" Type="ImmutableArray&lt;BoundExpression&gt;" Null="allow"/>
+    <Field Name="argumentRefKinds" Type="ImmutableArray&lt;RefKind&gt;" Null="allow"/>
     <Field Name="defaultArguments" Type="BitVector"/>
     <Field Name="resultKind" Type="LookupResultKind" PropertyOverrides="true"/>
   </Node>
@@ -151,10 +151,10 @@
     <Field Name="name" Type="string"/>
     <Field Name="methods" Type="ImmutableArray&lt;MethodSymbol&gt;"/>
     <Field Name="templateArguments" Type="ImmutableArray&lt;TypeOrConstant&gt;"/>
-    <Field Name="lookupSymbol" Type="Symbol"/>
-    <Field Name="lookupError" Type="BelteDiagnostic"/>
-    <Field Name="flags" Type="BoundMethodGroupFlags"/>
-    <Field Name="receiver" Type="BoundExpression"/>
+    <Field Name="lookupSymbol" Type="Symbol?"/>
+    <Field Name="lookupError" Type="BelteDiagnostic?"/>
+    <Field Name="flags" Type="BoundMethodGroupFlags?"/>
+    <Field Name="receiver" Type="BoundExpression?"/>
     <Field Name="resultKind" Type="LookupResultKind" PropertyOverrides="true"/>
   </Node>
   <Node Name="BoundNullAssertExpression" Base="BoundExpression">
