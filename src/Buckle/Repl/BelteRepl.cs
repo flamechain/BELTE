@@ -554,6 +554,12 @@ public sealed partial class BelteRepl : Repl {
                 var programSymbol = symbol as INamedTypeSymbol;
                 var mainMethod = programSymbol.GetMembers()[0] as IMethodSymbol;
                 var locals = CompilationExtensions.GetMethodLocals(mainMethod);
+
+                foreach (var local in locals) {
+                    // TODO consider adding some extra text here to denote which submission each local is from
+                    displayText.Write(local.ToDisplaySegments(SymbolDisplayFormat.Everything));
+                    displayText.Write(CreateLine());
+                }
             } else {
                 displayText.Write(symbol.ToDisplaySegments(SymbolDisplayFormat.Everything));
                 displayText.Write(CreateLine());

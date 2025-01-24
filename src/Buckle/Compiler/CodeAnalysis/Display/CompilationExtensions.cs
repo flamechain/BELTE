@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -48,12 +49,13 @@ public static class CompilationExtensions {
     }
 
     public static ImmutableArray<IDataContainerSymbol> GetMethodLocals(IMethodSymbol method) {
-        if (method is not SourceMethodSymbol s)
+        // TODO need to skip every other
+        if (method is SourceMethodSymbol s)
+            return s.outerBinder.next.locals.Where((x, i) => i % 2 == 0).ToImmutableArray().CastArray<IDataContainerSymbol>();
+        else if (method is SynthesizedEntryPoint e)
+            return e.programBinder.locals.Where((x, i) => i % 2 == 0).ToImmutableArray().CastArray<IDataContainerSymbol>();
+        else
             return [];
-
-        // TODO, might need to reduce some protection
-        // var locals = s.programBinder;
-        return [];
     }
 
     internal static void EmitTree(ISymbol symbol, DisplayText text, BoundProgram program) {
