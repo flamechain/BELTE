@@ -899,18 +899,18 @@ internal partial class Binder {
     }
 
     private BoundErrorExpression ErrorExpression(SyntaxNode syntax, BoundExpression expression) {
-        return new BoundErrorExpression(syntax, LookupResultKind.Empty, [], [expression], CreateErrorType());
+        return new BoundErrorExpression(syntax, LookupResultKind.Empty, [], [expression], CreateErrorType(), true);
     }
 
     private BoundErrorExpression ErrorExpression(
         SyntaxNode syntax,
         LookupResultKind lookupResultKind,
         BoundExpression expression) {
-        return new BoundErrorExpression(syntax, lookupResultKind, [], [expression], CreateErrorType());
+        return new BoundErrorExpression(syntax, lookupResultKind, [], [expression], CreateErrorType(), true);
     }
 
     private BoundErrorExpression ErrorExpression(SyntaxNode syntax) {
-        return new BoundErrorExpression(syntax, LookupResultKind.Empty, [], [], CreateErrorType());
+        return new BoundErrorExpression(syntax, LookupResultKind.Empty, [], [], CreateErrorType(), true);
     }
 
     private BoundExpression BindBinaryExpression(BinaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
@@ -2249,7 +2249,7 @@ internal partial class Binder {
                 ? ((TemplateNameSyntax)right).templateArgumentList.arguments
                 : default;
 
-            var templateArguments = templateArgumentsSyntax.Count > 0
+            var templateArguments = templateArgumentsSyntax?.Count > 0
                 ? BindTemplateArguments(templateArgumentsSyntax, diagnostics)
                 : default;
 
@@ -2427,6 +2427,9 @@ internal partial class Binder {
         BoundExpression boundLeft,
         BelteDiagnostic lookupError,
         BelteDiagnosticQueue diagnostics) {
+        if (boundLeft.hasErrors)
+            return;
+
         if (lookupError is not null) {
             diagnostics.Push(lookupError);
         } else {
@@ -2882,7 +2885,9 @@ internal partial class Binder {
                 diagnostics
             );
         } else {
-            diagnostics.Push(Error.CannotCallNonMethod(expression.location, methodName));
+            if (!boundExpression.hasErrors)
+                diagnostics.Push(Error.CannotCallNonMethod(expression.location, methodName));
+
             result = CreateBadCall(node, boundExpression, LookupResultKind.NotInvocable, analyzedArguments);
         }
 
@@ -2902,10 +2907,9 @@ internal partial class Binder {
             var diagnostics = BelteDiagnosticQueue.GetInstance();
             diagnostics.PushRange(methodResolution.diagnostics);
 
-            // TODO The first two arguments shouldn't both be expression
             BindMemberAccessReportError(
-                expression,
-                expression,
+                node.memberAccessExpressionSyntax ?? node.nameSyntax,
+                node.nameSyntax,
                 node.name,
                 node.receiver,
                 node.lookupError,

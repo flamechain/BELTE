@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -44,6 +45,15 @@ public static class CompilationExtensions {
     public static void EmitTree(this Compilation compilation, ISymbol symbol, DisplayText text) {
         var program = compilation.boundProgram;
         EmitTree(symbol, text, program);
+    }
+
+    public static ImmutableArray<IDataContainerSymbol> GetMethodLocals(IMethodSymbol method) {
+        if (method is not SourceMethodSymbol s)
+            return [];
+
+        // TODO, might need to reduce some protection
+        // var locals = s.programBinder;
+        return [];
     }
 
     internal static void EmitTree(ISymbol symbol, DisplayText text, BoundProgram program) {

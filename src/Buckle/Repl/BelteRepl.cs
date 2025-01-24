@@ -550,8 +550,14 @@ public sealed partial class BelteRepl : Repl {
         var displayText = new DisplayText();
 
         foreach (var symbol in symbols) {
-            displayText.Write(symbol.ToDisplaySegments(SymbolDisplayFormat.Everything));
-            displayText.Write(CreateLine());
+            if (symbol.name == "<Program>$") {
+                var programSymbol = symbol as INamedTypeSymbol;
+                var mainMethod = programSymbol.GetMembers()[0] as IMethodSymbol;
+                var locals = CompilationExtensions.GetMethodLocals(mainMethod);
+            } else {
+                displayText.Write(symbol.ToDisplaySegments(SymbolDisplayFormat.Everything));
+                displayText.Write(CreateLine());
+            }
         }
 
         WriteDisplayText(displayText);
