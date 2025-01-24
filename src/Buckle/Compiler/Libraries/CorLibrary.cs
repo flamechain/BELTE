@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.Libraries;
@@ -56,8 +57,8 @@ internal sealed class CorLibrary {
     }
 
     internal static void GetAllBuiltInUnaryOperators(
-        BinaryOperatorKind kind,
-        ArrayBuilder<BinaryOperatorSignature> operators) {
+        UnaryOperatorKind kind,
+        ArrayBuilder<UnaryOperatorSignature> operators) {
         Instance.EnsureCorLibraryIsComplete();
         Instance.EnsureBuiltInUnaryOperators();
         Instance.GetUnaryOpertors(kind, operators);
@@ -121,41 +122,44 @@ internal sealed class CorLibrary {
 
     #region Operators
 
-    private void EnsureBuiltInSimpleOperators() {
+    private void EnsureBuiltInUnaryOperators() {
         if (_builtInUnaryOperators is null) {
             var allOperators = new ImmutableArray<UnaryOperatorSignature>[] {
-                    GetSignaturesFromUnaryOperatorKinds(new []
-                    {
-                        (int)UnaryOperatorKind.SBytePostfixIncrement,
-                        (int)UnaryOperatorKind.BytePostfixIncrement,
-                        (int)UnaryOperatorKind.ShortPostfixIncrement,
-                        (int)UnaryOperatorKind.UShortPostfixIncrement,
-                        (int)UnaryOperatorKind.IntPostfixIncrement,
-                        (int)UnaryOperatorKind.UIntPostfixIncrement,
-                        (int)UnaryOperatorKind.LongPostfixIncrement,
-                        (int)UnaryOperatorKind.ULongPostfixIncrement,
-                        (int)UnaryOperatorKind.NIntPostfixIncrement,
-                        (int)UnaryOperatorKind.NUIntPostfixIncrement,
-                        (int)UnaryOperatorKind.CharPostfixIncrement,
-                        (int)UnaryOperatorKind.FloatPostfixIncrement,
-                        (int)UnaryOperatorKind.DoublePostfixIncrement,
-                        (int)UnaryOperatorKind.DecimalPostfixIncrement,
-                        (int)UnaryOperatorKind.LiftedSBytePostfixIncrement,
-                        (int)UnaryOperatorKind.LiftedBytePostfixIncrement,
-                        (int)UnaryOperatorKind.LiftedShortPostfixIncrement,
-                        (int)UnaryOperatorKind.LiftedUShortPostfixIncrement,
-                        (int)UnaryOperatorKind.LiftedIntPostfixIncrement,
-                        (int)UnaryOperatorKind.LiftedUIntPostfixIncrement,
-                        (int)UnaryOperatorKind.LiftedLongPostfixIncrement,
-                        (int)UnaryOperatorKind.LiftedULongPostfixIncrement,
-                        (int)UnaryOperatorKind.LiftedNIntPostfixIncrement,
-                        (int)UnaryOperatorKind.LiftedNUIntPostfixIncrement,
-                        (int)UnaryOperatorKind.LiftedCharPostfixIncrement,
-                        (int)UnaryOperatorKind.LiftedFloatPostfixIncrement,
-                        (int)UnaryOperatorKind.LiftedDoublePostfixIncrement,
-                        (int)UnaryOperatorKind.LiftedDecimalPostfixIncrement,
-                    }),
+                GetSignaturesFromUnaryOperatorKinds([
+                    (int)UnaryOperatorKind.IntPostfixIncrement,
+                    (int)UnaryOperatorKind.DecimalPostfixIncrement,
+                ]),
+                GetSignaturesFromUnaryOperatorKinds([
+                    (int)UnaryOperatorKind.IntPrefixIncrement,
+                    (int)UnaryOperatorKind.DecimalPrefixIncrement,
+                ]),
+                GetSignaturesFromUnaryOperatorKinds([
+                    (int)UnaryOperatorKind.IntPostfixDecrement,
+                    (int)UnaryOperatorKind.DecimalPostfixDecrement,
+                ]),
+                GetSignaturesFromUnaryOperatorKinds([
+                    (int)UnaryOperatorKind.IntPrefixDecrement,
+                    (int)UnaryOperatorKind.DecimalPrefixDecrement,
+                ]),
+                GetSignaturesFromUnaryOperatorKinds([
+                    (int)UnaryOperatorKind.IntUnaryPlus,
+                    (int)UnaryOperatorKind.DecimalUnaryPlus,
+                ]),
+                GetSignaturesFromUnaryOperatorKinds([
+                    (int)UnaryOperatorKind.IntUnaryMinus,
+                    (int)UnaryOperatorKind.DecimalUnaryMinus,
+                ]),
+                GetSignaturesFromUnaryOperatorKinds([
+                    (int)UnaryOperatorKind.BoolLogicalNegation,
+                ]),
+                GetSignaturesFromUnaryOperatorKinds([
+                    (int)UnaryOperatorKind.IntBitwiseComplement,
+                ]),
+                [],
+                [],
             };
+
+            Interlocked.CompareExchange(ref _builtInUnaryOperators, allOperators, null);
         }
     }
 
@@ -302,29 +306,13 @@ internal sealed class CorLibrary {
     }
 
     internal UnaryOperatorSignature GetSignature(UnaryOperatorKind kind) {
-        TypeSymbol opType;
-        switch (kind.OperandTypes()) {
-            case UnaryOperatorKind.SByte: opType = _compilation.GetSpecialType(SpecialType.System_SByte); break;
-            case UnaryOperatorKind.Byte: opType = _compilation.GetSpecialType(SpecialType.System_Byte); break;
-            case UnaryOperatorKind.Short: opType = _compilation.GetSpecialType(SpecialType.System_Int16); break;
-            case UnaryOperatorKind.UShort: opType = _compilation.GetSpecialType(SpecialType.System_UInt16); break;
-            case UnaryOperatorKind.Int: opType = _compilation.GetSpecialType(SpecialType.System_Int32); break;
-            case UnaryOperatorKind.UInt: opType = _compilation.GetSpecialType(SpecialType.System_UInt32); break;
-            case UnaryOperatorKind.Long: opType = _compilation.GetSpecialType(SpecialType.System_Int64); break;
-            case UnaryOperatorKind.ULong: opType = _compilation.GetSpecialType(SpecialType.System_UInt64); break;
-            case UnaryOperatorKind.NInt: opType = _compilation.CreateNativeIntegerTypeSymbol(signed: true); break;
-            case UnaryOperatorKind.NUInt: opType = _compilation.CreateNativeIntegerTypeSymbol(signed: false); break;
-            case UnaryOperatorKind.Char: opType = _compilation.GetSpecialType(SpecialType.System_Char); break;
-            case UnaryOperatorKind.Float: opType = _compilation.GetSpecialType(SpecialType.System_Single); break;
-            case UnaryOperatorKind.Double: opType = _compilation.GetSpecialType(SpecialType.System_Double); break;
-            case UnaryOperatorKind.Decimal: opType = _compilation.GetSpecialType(SpecialType.System_Decimal); break;
-            case UnaryOperatorKind.Bool: opType = _compilation.GetSpecialType(SpecialType.System_Boolean); break;
-            default: throw ExceptionUtilities.UnexpectedValue(kind.OperandTypes());
-        }
-
-        if (kind.IsLifted()) {
-            opType = _compilation.GetOrCreateNullableType(opType);
-        }
+        var opType = kind.OperandTypes() switch {
+            UnaryOperatorKind.Int => GetNullableTypeCore(SpecialType.Int),
+            UnaryOperatorKind.Char => GetNullableTypeCore(SpecialType.Char),
+            UnaryOperatorKind.Decimal => GetNullableTypeCore(SpecialType.Decimal),
+            UnaryOperatorKind.Bool => GetNullableTypeCore(SpecialType.Bool),
+            _ => throw ExceptionUtilities.UnexpectedValue(kind.OperandTypes()),
+        };
 
         return new UnaryOperatorSignature(kind, opType, opType);
     }
@@ -360,6 +348,11 @@ internal sealed class CorLibrary {
 
     private void GetBinaryOpertors(BinaryOperatorKind kind, ArrayBuilder<BinaryOperatorSignature> operators) {
         foreach (var op in _builtInBinaryOperators[kind.IsConditional() ? 1 : 0][kind.OperatorIndex()])
+            operators.Add(op);
+    }
+
+    private void GetUnaryOpertors(UnaryOperatorKind kind, ArrayBuilder<UnaryOperatorSignature> operators) {
+        foreach (var op in _builtInUnaryOperators[kind.OperatorIndex()])
             operators.Add(op);
     }
 

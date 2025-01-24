@@ -1083,6 +1083,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ProgramLocalReferencedOutsideOfTopLevelStatement, location, message);
     }
 
+    internal static BelteDiagnostic ValueCannotBeNull(TextLocation location, TypeSymbol type) {
+        var message = $"cannot convert null to '{type}' because it is a non-nullable type";
+        return CreateError(DiagnosticCode.ERR_ProgramLocalReferencedOutsideOfTopLevelStatement, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

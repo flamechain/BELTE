@@ -8,6 +8,10 @@ internal static class UnaryOperatorKindExtensions {
         return ((int)kind.Operator() >> 8) - 16;
     }
 
+    internal static UnaryOperatorKind OperandTypes(this UnaryOperatorKind kind) {
+        return kind & UnaryOperatorKind.TypeMask;
+    }
+
     internal static UnaryOperatorKind Operator(this UnaryOperatorKind kind) {
         return kind & UnaryOperatorKind.OpMask;
     }

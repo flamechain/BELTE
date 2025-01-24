@@ -4,6 +4,7 @@ namespace Buckle.CodeAnalysis.Binding;
 
 [Flags]
 internal enum UnaryOperatorKind : int {
+    // TODO Consider using lifted operators to distinguish null
     Error = 0x00000000,
 
     TypeMask = 0x000000FF,

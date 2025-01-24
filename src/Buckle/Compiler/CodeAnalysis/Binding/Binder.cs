@@ -863,7 +863,7 @@ internal partial class Binder {
             SyntaxKind.CallExpression => BindCallExpression((CallExpressionSyntax)node, diagnostics),
             SyntaxKind.QualifiedName => BindQualifiedName((QualifiedNameSyntax)node, diagnostics),
             SyntaxKind.ReferenceType => BindReferenceType((ReferenceTypeSyntax)node, diagnostics),
-            SyntaxKind.NonNullableType => ErrorExpression(null), // TODO Confirm this is not reachable without err
+            SyntaxKind.NonNullableType => ErrorExpression(node), // TODO Confirm this is not reachable without err
             SyntaxKind.ParenthesizedExpression => BindParenthesisExpression((ParenthesisExpressionSyntax)node, diagnostics),
             SyntaxKind.MemberAccessExpression => BindMemberAccess((MemberAccessExpressionSyntax)node, called, indexed, diagnostics),
             SyntaxKind.IdentifierName or SyntaxKind.TemplateName => BindIdentifier((SimpleNameSyntax)node, called, indexed, diagnostics),
@@ -4962,7 +4962,7 @@ symIsHidden:;
         out Conversion conversion,
         SyntaxNode syntax,
         ConversionForAssignmentFlags flags = ConversionForAssignmentFlags.None) {
-        if (expression is BoundErrorExpression)
+        if (expression.hasErrors)
             diagnostics = BelteDiagnosticQueue.Discarded;
 
         conversion = (flags & ConversionForAssignmentFlags.IncrementAssignment) == 0
@@ -5011,9 +5011,8 @@ symIsHidden:;
                 return;
             case BoundKind.LiteralExpression:
                 if (ConstantValue.IsNull(operand.constantValue)) {
-                    if (targetType.isPrimitiveType) {
-                        // TODO what is this error
-                        // diagnostics.Push(Error.ValueCannotBeNull(syntax.location, targetType));
+                    if (!targetType.IsNullableType()) {
+                        diagnostics.Push(Error.ValueCannotBeNull(syntax.location, targetType));
                         return;
                     }
                 }

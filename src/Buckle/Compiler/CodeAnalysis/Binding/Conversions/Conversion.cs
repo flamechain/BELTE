@@ -109,6 +109,11 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
     /// Classify what type of <see cref="Conversion" /> is required to go from one type to the other.
     /// </summary>
     internal static Conversion Classify(TypeSymbol source, TypeSymbol target) {
+        if (source.IsNullableType() && !target.IsNullableType()) {
+            var underlyingConversion = Classify(source.StrippedType(), target);
+            return new Conversion(ConversionKind.ExplicitNullable, [underlyingConversion]);
+        }
+
         if (source.typeKind == TypeKind.Primitive && target.typeKind == TypeKind.Primitive)
             return new Conversion(EasyOut.Classify(source, target));
 
