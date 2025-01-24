@@ -88,10 +88,6 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
         }
     }
 
-    internal bool IsNullableType() {
-        return originalDefinition.specialType == SpecialType.Nullable;
-    }
-
     internal bool IsErrorType() {
         return kind == SymbolKind.ErrorType;
     }
@@ -236,7 +232,7 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
     }
 
     internal TypeSymbol StrippedType() {
-        return IsNullableType() ? GetNullableUnderlyingType() : this;
+        return this.IsNullableType() ? GetNullableUnderlyingType() : this;
     }
 
     internal bool InheritsFromIgnoringConstruction(NamedTypeSymbol baseType) {

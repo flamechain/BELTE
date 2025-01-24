@@ -1430,6 +1430,15 @@ internal partial class Binder {
         BoundExpression left,
         BoundExpression right) {
         var kind = SyntaxKindToBinaryOperatorKind(node.operatorToken.kind);
+        var leftNull = left.IsLiteralNull();
+        var rightNull = right.IsLiteralNull();
+        var isEquality = kind == BinaryOperatorKind.Equal || kind == BinaryOperatorKind.NotEqual;
+
+        if (isEquality && (leftNull || rightNull)) {
+            var type = CorLibrary.GetSpecialType(SpecialType.Nullable)
+                .Construct([new TypeOrConstant(CorLibrary.GetSpecialType(SpecialType.Bool), false)]);
+            return new BoundLiteralExpression(node, new ConstantValue(null, SpecialType.Bool), type);
+        }
 
         var foundOperator = BindSimpleBinaryOperatorParts(
             node,

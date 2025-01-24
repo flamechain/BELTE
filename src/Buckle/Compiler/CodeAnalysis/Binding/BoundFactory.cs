@@ -174,7 +174,7 @@ internal static partial class BoundFactory {
         return new BoundIsntOperator(
             syntax,
             expression,
-            Literal(null, expression.type),
+            Literal(syntax, null, expression.type),
             null,
             CorLibrary.GetSpecialType(SpecialType.Bool)
         );

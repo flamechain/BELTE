@@ -261,7 +261,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                         Value(syntax, expression.right, expression.right.type.GetNullableUnderlyingType()),
                         expression.type
                     ),
-                    @else: Literal(null, expression.type),
+                    @else: Literal(syntax, null, expression.type),
                     expression.type
                 )
             );
@@ -447,7 +447,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             );
         }
 
-        if (operandType.Equals(type))
+        if (operandType?.Equals(type) ?? false)
             return Visit(operand);
 
         return base.VisitCastExpression(expression);

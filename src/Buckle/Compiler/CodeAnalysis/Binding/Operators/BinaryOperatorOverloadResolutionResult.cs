@@ -38,17 +38,26 @@ internal sealed class BinaryOperatorOverloadResolutionResult {
     internal BinaryOperatorAnalysisResult best {
         get {
             BinaryOperatorAnalysisResult best = default;
+            var bestScore = int.MaxValue;
+            var bestCount = 1;
 
             foreach (var result in results) {
                 if (result.isValid) {
-                    if (best.isValid)
-                        return default;
+                    var resultScore = (result.leftConversion.isImplicit ? 1 : 0) +
+                        (result.rightConversion.isImplicit ? 1 : 0);
 
+                    if (best.isValid && bestScore == resultScore)
+                        bestCount++;
+
+                    if (bestScore <= resultScore)
+                        continue;
+
+                    bestCount = 1;
                     best = result;
                 }
             }
 
-            return best;
+            return bestCount == 1 ? best : default;
         }
     }
 

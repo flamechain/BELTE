@@ -23,4 +23,8 @@ internal static class TypeSymbolExtensions {
 
         return type.IsNullableType();
     }
+
+    internal static bool IsNullableType(this TypeSymbol type) {
+        return type?.originalDefinition.specialType == SpecialType.Nullable;
+    }
 }
