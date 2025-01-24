@@ -25,7 +25,9 @@ internal sealed class Conversions {
     internal Conversion ClassifyConversionFromExpression(BoundExpression sourceExpression, TypeSymbol target) {
         if (sourceExpression.IsLiteralNull()) {
             if (target.IsNullableType())
-                return Conversion.Identity;
+                return Conversion.NullLiteral;
+            else if (target.isObjectType)
+                return Conversion.ImplicitReference;
             else
                 return Conversion.None;
         }

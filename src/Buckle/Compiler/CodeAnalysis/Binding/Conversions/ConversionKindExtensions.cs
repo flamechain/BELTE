@@ -9,6 +9,7 @@ internal static class ConversionKindExtensions {
         switch (self) {
             case ConversionKind.Identity:
             case ConversionKind.Implicit:
+            case ConversionKind.NullLiteral:
             case ConversionKind.ImplicitNullable:
             case ConversionKind.ImplicitReference:
             case ConversionKind.AnyBoxing:

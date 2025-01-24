@@ -1431,9 +1431,6 @@ internal partial class Binder {
         BoundExpression right) {
         var kind = SyntaxKindToBinaryOperatorKind(node.operatorToken.kind);
 
-        var leftType = left.type;
-        var rightType = right.type;
-
         var foundOperator = BindSimpleBinaryOperatorParts(
             node,
             diagnostics,
