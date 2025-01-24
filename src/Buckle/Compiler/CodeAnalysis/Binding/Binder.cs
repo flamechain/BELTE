@@ -1435,8 +1435,7 @@ internal partial class Binder {
         var isEquality = kind == BinaryOperatorKind.Equal || kind == BinaryOperatorKind.NotEqual;
 
         if (isEquality && (leftNull || rightNull)) {
-            var type = CorLibrary.GetSpecialType(SpecialType.Nullable)
-                .Construct([new TypeOrConstant(CorLibrary.GetSpecialType(SpecialType.Bool), false)]);
+            var type = CorLibrary.GetNullableType(SpecialType.Bool);
             return new BoundLiteralExpression(node, new ConstantValue(null, SpecialType.Bool), type);
         }
 

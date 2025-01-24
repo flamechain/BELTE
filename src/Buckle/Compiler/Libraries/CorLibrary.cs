@@ -32,6 +32,11 @@ internal sealed class CorLibrary {
         return Instance.GetSpecialTypeCore(specialType);
     }
 
+    internal static NamedTypeSymbol GetNullableType(SpecialType specialType) {
+        Instance.EnsureCorLibraryIsComplete();
+        return Instance.GetNullableTypeCore(specialType);
+    }
+
     internal static void RegisterDeclaredSpecialType(NamedTypeSymbol type) {
         Instance.EnsureCorLibraryIsComplete();
         Instance.RegisterSpecialType(type);
@@ -50,6 +55,14 @@ internal sealed class CorLibrary {
         Instance.GetBinaryOpertors(kind, operators);
     }
 
+    internal static void GetAllBuiltInUnaryOperators(
+        BinaryOperatorKind kind,
+        ArrayBuilder<BinaryOperatorSignature> operators) {
+        Instance.EnsureCorLibraryIsComplete();
+        Instance.EnsureBuiltInUnaryOperators();
+        Instance.GetUnaryOpertors(kind, operators);
+    }
+
     #endregion
 
     #region Types
@@ -66,6 +79,11 @@ internal sealed class CorLibrary {
             throw new ArgumentException($"Special type {specialType} has not been registered");
 
         return result;
+    }
+
+    private NamedTypeSymbol GetNullableTypeCore(SpecialType specialType) {
+        return GetSpecialTypeCore(SpecialType.Nullable)
+            .Construct([new TypeOrConstant(GetSpecialTypeCore(specialType), false)]);
     }
 
     private void RegisterSpecialType(NamedTypeSymbol type) {
@@ -102,6 +120,44 @@ internal sealed class CorLibrary {
     #endregion
 
     #region Operators
+
+    private void EnsureBuiltInSimpleOperators() {
+        if (_builtInUnaryOperators is null) {
+            var allOperators = new ImmutableArray<UnaryOperatorSignature>[] {
+                    GetSignaturesFromUnaryOperatorKinds(new []
+                    {
+                        (int)UnaryOperatorKind.SBytePostfixIncrement,
+                        (int)UnaryOperatorKind.BytePostfixIncrement,
+                        (int)UnaryOperatorKind.ShortPostfixIncrement,
+                        (int)UnaryOperatorKind.UShortPostfixIncrement,
+                        (int)UnaryOperatorKind.IntPostfixIncrement,
+                        (int)UnaryOperatorKind.UIntPostfixIncrement,
+                        (int)UnaryOperatorKind.LongPostfixIncrement,
+                        (int)UnaryOperatorKind.ULongPostfixIncrement,
+                        (int)UnaryOperatorKind.NIntPostfixIncrement,
+                        (int)UnaryOperatorKind.NUIntPostfixIncrement,
+                        (int)UnaryOperatorKind.CharPostfixIncrement,
+                        (int)UnaryOperatorKind.FloatPostfixIncrement,
+                        (int)UnaryOperatorKind.DoublePostfixIncrement,
+                        (int)UnaryOperatorKind.DecimalPostfixIncrement,
+                        (int)UnaryOperatorKind.LiftedSBytePostfixIncrement,
+                        (int)UnaryOperatorKind.LiftedBytePostfixIncrement,
+                        (int)UnaryOperatorKind.LiftedShortPostfixIncrement,
+                        (int)UnaryOperatorKind.LiftedUShortPostfixIncrement,
+                        (int)UnaryOperatorKind.LiftedIntPostfixIncrement,
+                        (int)UnaryOperatorKind.LiftedUIntPostfixIncrement,
+                        (int)UnaryOperatorKind.LiftedLongPostfixIncrement,
+                        (int)UnaryOperatorKind.LiftedULongPostfixIncrement,
+                        (int)UnaryOperatorKind.LiftedNIntPostfixIncrement,
+                        (int)UnaryOperatorKind.LiftedNUIntPostfixIncrement,
+                        (int)UnaryOperatorKind.LiftedCharPostfixIncrement,
+                        (int)UnaryOperatorKind.LiftedFloatPostfixIncrement,
+                        (int)UnaryOperatorKind.LiftedDoublePostfixIncrement,
+                        (int)UnaryOperatorKind.LiftedDecimalPostfixIncrement,
+                    }),
+            };
+        }
+    }
 
     private void EnsureBuiltInBinaryOperators() {
         if (_builtInBinaryOperators is null) {
@@ -231,7 +287,7 @@ internal sealed class CorLibrary {
             case BinaryOperatorKind.LeftShift:
             case BinaryOperatorKind.RightShift:
             case BinaryOperatorKind.UnsignedRightShift:
-                var rightType = GetSpecialTypeCore(SpecialType.Int);
+                var rightType = GetNullableTypeCore(SpecialType.Int);
                 return new BinaryOperatorSignature(kind, left, rightType, left);
             case BinaryOperatorKind.Equal:
             case BinaryOperatorKind.NotEqual:
@@ -239,19 +295,47 @@ internal sealed class CorLibrary {
             case BinaryOperatorKind.LessThan:
             case BinaryOperatorKind.GreaterThanOrEqual:
             case BinaryOperatorKind.LessThanOrEqual:
-                return new BinaryOperatorSignature(kind, left, left, GetSpecialTypeCore(SpecialType.Bool));
+                return new BinaryOperatorSignature(kind, left, left, GetNullableTypeCore(SpecialType.Bool));
         }
 
         return new BinaryOperatorSignature(kind, left, TypeFromKind(kind), TypeFromKind(kind));
     }
 
+    internal UnaryOperatorSignature GetSignature(UnaryOperatorKind kind) {
+        TypeSymbol opType;
+        switch (kind.OperandTypes()) {
+            case UnaryOperatorKind.SByte: opType = _compilation.GetSpecialType(SpecialType.System_SByte); break;
+            case UnaryOperatorKind.Byte: opType = _compilation.GetSpecialType(SpecialType.System_Byte); break;
+            case UnaryOperatorKind.Short: opType = _compilation.GetSpecialType(SpecialType.System_Int16); break;
+            case UnaryOperatorKind.UShort: opType = _compilation.GetSpecialType(SpecialType.System_UInt16); break;
+            case UnaryOperatorKind.Int: opType = _compilation.GetSpecialType(SpecialType.System_Int32); break;
+            case UnaryOperatorKind.UInt: opType = _compilation.GetSpecialType(SpecialType.System_UInt32); break;
+            case UnaryOperatorKind.Long: opType = _compilation.GetSpecialType(SpecialType.System_Int64); break;
+            case UnaryOperatorKind.ULong: opType = _compilation.GetSpecialType(SpecialType.System_UInt64); break;
+            case UnaryOperatorKind.NInt: opType = _compilation.CreateNativeIntegerTypeSymbol(signed: true); break;
+            case UnaryOperatorKind.NUInt: opType = _compilation.CreateNativeIntegerTypeSymbol(signed: false); break;
+            case UnaryOperatorKind.Char: opType = _compilation.GetSpecialType(SpecialType.System_Char); break;
+            case UnaryOperatorKind.Float: opType = _compilation.GetSpecialType(SpecialType.System_Single); break;
+            case UnaryOperatorKind.Double: opType = _compilation.GetSpecialType(SpecialType.System_Double); break;
+            case UnaryOperatorKind.Decimal: opType = _compilation.GetSpecialType(SpecialType.System_Decimal); break;
+            case UnaryOperatorKind.Bool: opType = _compilation.GetSpecialType(SpecialType.System_Boolean); break;
+            default: throw ExceptionUtilities.UnexpectedValue(kind.OperandTypes());
+        }
+
+        if (kind.IsLifted()) {
+            opType = _compilation.GetOrCreateNullableType(opType);
+        }
+
+        return new UnaryOperatorSignature(kind, opType, opType);
+    }
+
     private TypeSymbol TypeFromKind(BinaryOperatorKind kind) {
         return kind.OperandTypes() switch {
-            BinaryOperatorKind.Int => GetSpecialTypeCore(SpecialType.Nullable).Construct([new TypeOrConstant(GetSpecialTypeCore(SpecialType.Int), false)]),
-            BinaryOperatorKind.Decimal => GetSpecialTypeCore(SpecialType.Nullable).Construct([new TypeOrConstant(GetSpecialTypeCore(SpecialType.Decimal), false)]),
-            BinaryOperatorKind.Bool => GetSpecialTypeCore(SpecialType.Nullable).Construct([new TypeOrConstant(GetSpecialTypeCore(SpecialType.Bool), false)]),
-            BinaryOperatorKind.Object => GetSpecialTypeCore(SpecialType.Nullable).Construct([new TypeOrConstant(GetSpecialTypeCore(SpecialType.Object), false)]),
-            BinaryOperatorKind.String => GetSpecialTypeCore(SpecialType.Nullable).Construct([new TypeOrConstant(GetSpecialTypeCore(SpecialType.String), false)]),
+            BinaryOperatorKind.Int => GetNullableTypeCore(SpecialType.Int),
+            BinaryOperatorKind.Decimal => GetNullableTypeCore(SpecialType.Decimal),
+            BinaryOperatorKind.Bool => GetNullableTypeCore(SpecialType.Bool),
+            BinaryOperatorKind.Object => GetNullableTypeCore(SpecialType.Object),
+            BinaryOperatorKind.String => GetNullableTypeCore(SpecialType.String),
             _ => null,
         };
     }
@@ -261,6 +345,15 @@ internal sealed class CorLibrary {
 
         foreach (var kind in operatorKinds)
             builder.Add(GetSignature((BinaryOperatorKind)kind));
+
+        return builder.ToImmutableAndFree();
+    }
+
+    private ImmutableArray<UnaryOperatorSignature> GetSignaturesFromUnaryOperatorKinds(int[] operatorKinds) {
+        var builder = ArrayBuilder<UnaryOperatorSignature>.GetInstance();
+        foreach (var kind in operatorKinds) {
+            builder.Add(GetSignature((UnaryOperatorKind)kind));
+        }
 
         return builder.ToImmutableAndFree();
     }
