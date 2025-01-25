@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Libraries.Standard;
 using Microsoft.CodeAnalysis.PooledObjects;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
@@ -245,58 +246,60 @@ internal sealed class Lowerer : BoundTreeRewriter {
             );
         }
 
-        if (expression.left.type.IsNullableType() &&
-            expression.right.type.IsNullableType() &&
-            expression.left.constantValue is null &&
-            expression.right.constantValue is null) {
-            return VisitConditionalOperator(
-                Conditional(syntax,
-                    @if: And(syntax,
-                        HasValue(syntax, expression.left),
-                        HasValue(syntax, expression.right)
-                    ),
-                    @then: Binary(syntax,
-                        Value(syntax, expression.left, expression.left.type.GetNullableUnderlyingType()),
-                        expression.opKind,
-                        Value(syntax, expression.right, expression.right.type.GetNullableUnderlyingType()),
+        if (expression.opKind.IsLifted()) {
+            if (expression.left.type.IsNullableType() &&
+                expression.right.type.IsNullableType() &&
+                expression.left.constantValue is null &&
+                expression.right.constantValue is null) {
+                return VisitConditionalOperator(
+                    Conditional(syntax,
+                        @if: And(syntax,
+                            HasValue(syntax, expression.left),
+                            HasValue(syntax, expression.right)
+                        ),
+                        @then: Binary(syntax,
+                            Value(syntax, expression.left, expression.left.type.GetNullableUnderlyingType()),
+                            expression.opKind,
+                            Value(syntax, expression.right, expression.right.type.GetNullableUnderlyingType()),
+                            expression.type
+                        ),
+                        @else: Literal(syntax, null, expression.type),
                         expression.type
-                    ),
-                    @else: Literal(syntax, null, expression.type),
-                    expression.type
-                )
-            );
-        }
+                    )
+                );
+            }
 
-        if (expression.left.type.IsNullableType() && expression.left.constantValue is null) {
-            return VisitConditionalOperator(
-                Conditional(syntax,
-                    @if: HasValue(syntax, expression.left),
-                    @then: Binary(syntax,
-                        Value(syntax, expression.left, expression.left.type.GetNullableUnderlyingType()),
-                        expression.opKind,
-                        expression.right,
+            if (expression.left.type.IsNullableType() && expression.left.constantValue is null) {
+                return VisitConditionalOperator(
+                    Conditional(syntax,
+                        @if: HasValue(syntax, expression.left),
+                        @then: Binary(syntax,
+                            Value(syntax, expression.left, expression.left.type.GetNullableUnderlyingType()),
+                            expression.opKind,
+                            expression.right,
+                            expression.type
+                        ),
+                        @else: Literal(syntax, null, expression.type),
                         expression.type
-                    ),
-                    @else: Literal(syntax, null, expression.type),
-                    expression.type
-                )
-            );
-        }
+                    )
+                );
+            }
 
-        if (expression.right.type.IsNullableType() && expression.right.constantValue is null) {
-            return VisitConditionalOperator(
-                Conditional(syntax,
-                    @if: HasValue(syntax, expression.right),
-                    @then: Binary(syntax,
-                        expression.left,
-                        expression.opKind,
-                        Value(syntax, expression.right, expression.right.type.GetNullableUnderlyingType()),
+            if (expression.right.type.IsNullableType() && expression.right.constantValue is null) {
+                return VisitConditionalOperator(
+                    Conditional(syntax,
+                        @if: HasValue(syntax, expression.right),
+                        @then: Binary(syntax,
+                            expression.left,
+                            expression.opKind,
+                            Value(syntax, expression.right, expression.right.type.GetNullableUnderlyingType()),
+                            expression.type
+                        ),
+                        @else: Literal(syntax, null, expression.type),
                         expression.type
-                    ),
-                    @else: Literal(syntax, null, expression.type),
-                    expression.type
-                )
-            );
+                    )
+                );
+            }
         }
 
         return base.VisitBinaryOperator(expression);
@@ -392,7 +395,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return Visit(assignment);
         }
 
-        if (expression.operand.type.IsNullableType()) {
+        // TODO Is there any case where an operator is lifted but not nullable or vice versa?
+        if (expression.opKind.IsLifted() && expression.operand.type.IsNullableType()) {
             return VisitConditionalOperator(
                 Conditional(syntax,
                     @if: HasValue(syntax, expression.operand),

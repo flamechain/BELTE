@@ -16,6 +16,10 @@ internal static class BinaryOperatorKindExtensions {
         return kind & BinaryOperatorKind.TypeMask;
     }
 
+    internal static bool IsLifted(this BinaryOperatorKind kind) {
+        return 0 != (kind & BinaryOperatorKind.Lifted);
+    }
+
     internal static bool IsUserDefined(this BinaryOperatorKind kind) {
         return (kind & BinaryOperatorKind.TypeMask) == BinaryOperatorKind.UserDefined;
     }

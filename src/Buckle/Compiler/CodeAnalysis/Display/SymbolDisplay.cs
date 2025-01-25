@@ -53,7 +53,7 @@ public static class SymbolDisplay {
             case SymbolKind.Field:
                 DisplayField(text, (FieldSymbol)symbol, format);
                 break;
-            case SymbolKind.NamedType when symbol is not ConstructedNamedTypeSymbol:
+            case SymbolKind.NamedType when symbol is not ConstructedNamedTypeSymbol and not PrimitiveTypeSymbol:
                 DisplayNamedType(text, (NamedTypeSymbol)symbol, format);
                 break;
             case SymbolKind.NamedType:
@@ -85,30 +85,52 @@ public static class SymbolDisplay {
                 text.Write(CreateLiteral(array.sizes[i].ToString()));
                 text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
             }
+
+            if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0)
+                text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
         } else if (type is NamedTypeSymbol namedType) {
-            text.Write(CreateType(namedType.name));
+            if (namedType.specialType == SpecialType.Nullable &&
+                (format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0) {
+                var underlyingType = namedType.GetNullableUnderlyingType();
 
-            if (namedType.arity > 0) {
-                text.Write(CreatePunctuation(SyntaxKind.LessThanToken));
+                if (underlyingType is NamedTypeSymbol namedUnderlying)
+                    DisplayTypeCore(text, namedUnderlying, format);
+                else
+                    DisplayType(text, underlyingType, format);
 
-                var isFirst = true;
+                return;
+            }
 
-                foreach (var argument in namedType.templateArguments) {
-                    if (isFirst) {
-                        isFirst = false;
-                    } else {
-                        text.Write(CreatePunctuation(SyntaxKind.CommaToken));
-                        text.Write(CreateSpace());
-                    }
+            DisplayTypeCore(text, namedType, format);
 
-                    if (argument.isConstant)
-                        DisplayText.DisplayConstant(text, argument.constant);
-                    else
-                        DisplayType(text, argument.type.type, format);
+            if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0)
+                text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
+        }
+    }
+
+    private static void DisplayTypeCore(DisplayText text, NamedTypeSymbol namedType, SymbolDisplayFormat format) {
+        text.Write(CreateType(namedType.name));
+
+        if (namedType.arity > 0) {
+            text.Write(CreatePunctuation(SyntaxKind.LessThanToken));
+
+            var isFirst = true;
+
+            foreach (var argument in namedType.templateArguments) {
+                if (isFirst) {
+                    isFirst = false;
+                } else {
+                    text.Write(CreatePunctuation(SyntaxKind.CommaToken));
+                    text.Write(CreateSpace());
                 }
 
-                text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
+                if (argument.isConstant)
+                    DisplayText.DisplayConstant(text, argument.constant);
+                else
+                    DisplayType(text, argument.type.type, format);
             }
+
+            text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
         }
     }
 
@@ -364,7 +386,7 @@ public static class SymbolDisplay {
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0)
             DisplayModifiers(text, namedType);
 
-        if (format.includeKeywords) {
+        if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.IncludeKeywords) != 0) {
             switch (namedType.typeKind) {
                 case TypeKind.Class:
                     text.Write(CreateKeyword(SyntaxKind.ClassKeyword));
@@ -398,7 +420,7 @@ public static class SymbolDisplay {
     }
 
     private static void DisplayNamespace(DisplayText text, NamespaceSymbol symbol, SymbolDisplayFormat format) {
-        if (format.includeKeywords) {
+        if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.IncludeKeywords) != 0) {
             text.Write(CreateKeyword("namespace"));
             text.Write(CreateSpace());
         }

@@ -5,7 +5,6 @@ using System.Diagnostics;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.Libraries;
@@ -38,6 +37,15 @@ internal sealed class CorLibrary {
         return Instance.GetNullableTypeCore(specialType);
     }
 
+    internal static NamedTypeSymbol GetOrCreateNullableType(NamedTypeSymbol type) {
+        Instance.EnsureCorLibraryIsComplete();
+
+        if (type.IsNullableType())
+            return type;
+
+        return Instance.CreateNullableType(type);
+    }
+
     internal static void RegisterDeclaredSpecialType(NamedTypeSymbol type) {
         Instance.EnsureCorLibraryIsComplete();
         Instance.RegisterSpecialType(type);
@@ -53,7 +61,7 @@ internal sealed class CorLibrary {
         ArrayBuilder<BinaryOperatorSignature> operators) {
         Instance.EnsureCorLibraryIsComplete();
         Instance.EnsureBuiltInBinaryOperators();
-        Instance.GetBinaryOpertors(kind, operators);
+        Instance.GetBinaryOperators(kind, operators);
     }
 
     internal static void GetAllBuiltInUnaryOperators(
@@ -61,7 +69,7 @@ internal sealed class CorLibrary {
         ArrayBuilder<UnaryOperatorSignature> operators) {
         Instance.EnsureCorLibraryIsComplete();
         Instance.EnsureBuiltInUnaryOperators();
-        Instance.GetUnaryOpertors(kind, operators);
+        Instance.GetUnaryOperators(kind, operators);
     }
 
     #endregion
@@ -84,7 +92,11 @@ internal sealed class CorLibrary {
 
     private NamedTypeSymbol GetNullableTypeCore(SpecialType specialType) {
         return GetSpecialTypeCore(SpecialType.Nullable)
-            .Construct([new TypeOrConstant(GetSpecialTypeCore(specialType), false)]);
+            .Construct([new TypeOrConstant(GetSpecialTypeCore(specialType))]);
+    }
+
+    private NamedTypeSymbol CreateNullableType(TypeSymbol type) {
+        return GetSpecialTypeCore(SpecialType.Nullable).Construct([new TypeOrConstant(type)]);
     }
 
     private void RegisterSpecialType(NamedTypeSymbol type) {
@@ -128,32 +140,46 @@ internal sealed class CorLibrary {
                 GetSignaturesFromUnaryOperatorKinds([
                     (int)UnaryOperatorKind.IntPostfixIncrement,
                     (int)UnaryOperatorKind.DecimalPostfixIncrement,
+                    (int)UnaryOperatorKind.LiftedIntPostfixIncrement,
+                    (int)UnaryOperatorKind.LiftedDecimalPostfixIncrement,
                 ]),
                 GetSignaturesFromUnaryOperatorKinds([
                     (int)UnaryOperatorKind.IntPrefixIncrement,
                     (int)UnaryOperatorKind.DecimalPrefixIncrement,
+                    (int)UnaryOperatorKind.LiftedIntPrefixIncrement,
+                    (int)UnaryOperatorKind.LiftedDecimalPrefixIncrement,
                 ]),
                 GetSignaturesFromUnaryOperatorKinds([
                     (int)UnaryOperatorKind.IntPostfixDecrement,
                     (int)UnaryOperatorKind.DecimalPostfixDecrement,
+                    (int)UnaryOperatorKind.LiftedIntPostfixDecrement,
+                    (int)UnaryOperatorKind.LiftedDecimalPostfixDecrement,
                 ]),
                 GetSignaturesFromUnaryOperatorKinds([
                     (int)UnaryOperatorKind.IntPrefixDecrement,
                     (int)UnaryOperatorKind.DecimalPrefixDecrement,
+                    (int)UnaryOperatorKind.LiftedIntPrefixDecrement,
+                    (int)UnaryOperatorKind.LiftedDecimalPrefixDecrement,
                 ]),
                 GetSignaturesFromUnaryOperatorKinds([
                     (int)UnaryOperatorKind.IntUnaryPlus,
                     (int)UnaryOperatorKind.DecimalUnaryPlus,
+                    (int)UnaryOperatorKind.LiftedIntUnaryPlus,
+                    (int)UnaryOperatorKind.LiftedDecimalUnaryPlus,
                 ]),
                 GetSignaturesFromUnaryOperatorKinds([
                     (int)UnaryOperatorKind.IntUnaryMinus,
                     (int)UnaryOperatorKind.DecimalUnaryMinus,
+                    (int)UnaryOperatorKind.LiftedIntUnaryMinus,
+                    (int)UnaryOperatorKind.LiftedDecimalUnaryMinus,
                 ]),
                 GetSignaturesFromUnaryOperatorKinds([
                     (int)UnaryOperatorKind.BoolLogicalNegation,
+                    (int)UnaryOperatorKind.LiftedBoolLogicalNegation,
                 ]),
                 GetSignaturesFromUnaryOperatorKinds([
                     (int)UnaryOperatorKind.IntBitwiseComplement,
+                    (int)UnaryOperatorKind.LiftedIntBitwiseComplement,
                 ]),
                 [],
                 [],
@@ -180,8 +206,8 @@ internal sealed class CorLibrary {
                 [], //greater than or equal
                 [], //less than or equal
                 [], //unsigned right shift
-                [GetSignature(BinaryOperatorKind.BoolConditionalAnd)], //and
-                [GetSignature(BinaryOperatorKind.BoolConditionalOr)], //or
+                [OperatorFacts.GetSignature(BinaryOperatorKind.BoolConditionalAnd)], //and
+                [OperatorFacts.GetSignature(BinaryOperatorKind.BoolConditionalOr)], //or
                 [], //xor
                 [], //power
             };
@@ -190,29 +216,42 @@ internal sealed class CorLibrary {
                 GetSignaturesFromBinaryOperatorKinds([
                     (int)BinaryOperatorKind.IntMultiplication,
                     (int)BinaryOperatorKind.DecimalMultiplication,
+                    (int)BinaryOperatorKind.LiftedIntMultiplication,
+                    (int)BinaryOperatorKind.LiftedDecimalMultiplication,
                 ]),
                 GetSignaturesFromBinaryOperatorKinds([
                     (int)BinaryOperatorKind.IntAddition,
                     (int)BinaryOperatorKind.DecimalAddition,
                     (int)BinaryOperatorKind.StringConcatenation,
+                    (int)BinaryOperatorKind.LiftedIntAddition,
+                    (int)BinaryOperatorKind.LiftedDecimalAddition,
+                    (int)BinaryOperatorKind.LiftedStringConcatenation,
                 ]),
                 GetSignaturesFromBinaryOperatorKinds([
                     (int)BinaryOperatorKind.IntSubtraction,
                     (int)BinaryOperatorKind.DecimalSubtraction,
+                    (int)BinaryOperatorKind.LiftedIntSubtraction,
+                    (int)BinaryOperatorKind.LiftedDecimalSubtraction,
                 ]),
                 GetSignaturesFromBinaryOperatorKinds([
                     (int)BinaryOperatorKind.IntDivision,
                     (int)BinaryOperatorKind.DecimalDivision,
+                    (int)BinaryOperatorKind.LiftedIntDivision,
+                    (int)BinaryOperatorKind.LiftedDecimalDivision,
                 ]),
                 GetSignaturesFromBinaryOperatorKinds([
                     (int)BinaryOperatorKind.IntModulo,
                     (int)BinaryOperatorKind.DecimalModulo,
+                    (int)BinaryOperatorKind.LiftedIntModulo,
+                    (int)BinaryOperatorKind.LiftedDecimalModulo,
                 ]),
                 GetSignaturesFromBinaryOperatorKinds([
                     (int)BinaryOperatorKind.IntLeftShift,
+                    (int)BinaryOperatorKind.LiftedIntLeftShift,
                 ]),
                 GetSignaturesFromBinaryOperatorKinds([
                     (int)BinaryOperatorKind.IntRightShift,
+                    (int)BinaryOperatorKind.LiftedIntRightShift,
                 ]),
                 GetSignaturesFromBinaryOperatorKinds([
                     (int)BinaryOperatorKind.IntEqual,
@@ -222,6 +261,13 @@ internal sealed class CorLibrary {
                     (int)BinaryOperatorKind.StringEqual,
                     (int)BinaryOperatorKind.CharEqual,
                     (int)BinaryOperatorKind.TypeEqual,
+                    (int)BinaryOperatorKind.LiftedIntEqual,
+                    (int)BinaryOperatorKind.LiftedDecimalEqual,
+                    (int)BinaryOperatorKind.LiftedBoolEqual,
+                    (int)BinaryOperatorKind.LiftedObjectEqual,
+                    (int)BinaryOperatorKind.LiftedStringEqual,
+                    (int)BinaryOperatorKind.LiftedCharEqual,
+                    (int)BinaryOperatorKind.LiftedTypeEqual,
                 ]),
                 GetSignaturesFromBinaryOperatorKinds([
                     (int)BinaryOperatorKind.IntNotEqual,
@@ -231,41 +277,65 @@ internal sealed class CorLibrary {
                     (int)BinaryOperatorKind.StringNotEqual,
                     (int)BinaryOperatorKind.CharNotEqual,
                     (int)BinaryOperatorKind.TypeNotEqual,
+                    (int)BinaryOperatorKind.LiftedIntNotEqual,
+                    (int)BinaryOperatorKind.LiftedDecimalNotEqual,
+                    (int)BinaryOperatorKind.LiftedBoolNotEqual,
+                    (int)BinaryOperatorKind.LiftedObjectNotEqual,
+                    (int)BinaryOperatorKind.LiftedStringNotEqual,
+                    (int)BinaryOperatorKind.LiftedCharNotEqual,
+                    (int)BinaryOperatorKind.LiftedTypeNotEqual,
                 ]),
                 GetSignaturesFromBinaryOperatorKinds([
                     (int)BinaryOperatorKind.IntGreaterThan,
                     (int)BinaryOperatorKind.DecimalGreaterThan,
+                    (int)BinaryOperatorKind.LiftedIntGreaterThan,
+                    (int)BinaryOperatorKind.LiftedDecimalGreaterThan,
                 ]),
                 GetSignaturesFromBinaryOperatorKinds([
                     (int)BinaryOperatorKind.IntLessThan,
                     (int)BinaryOperatorKind.DecimalLessThan,
+                    (int)BinaryOperatorKind.LiftedIntLessThan,
+                    (int)BinaryOperatorKind.LiftedDecimalLessThan,
                 ]),
                 GetSignaturesFromBinaryOperatorKinds([
                     (int)BinaryOperatorKind.IntGreaterThanOrEqual,
                     (int)BinaryOperatorKind.DecimalGreaterThanOrEqual,
+                    (int)BinaryOperatorKind.LiftedIntGreaterThanOrEqual,
+                    (int)BinaryOperatorKind.LiftedDecimalGreaterThanOrEqual,
                 ]),
                 GetSignaturesFromBinaryOperatorKinds([
                     (int)BinaryOperatorKind.IntLessThanOrEqual,
                     (int)BinaryOperatorKind.DecimalLessThanOrEqual,
+                    (int)BinaryOperatorKind.LiftedIntLessThanOrEqual,
+                    (int)BinaryOperatorKind.LiftedDecimalLessThanOrEqual,
                 ]),
                 GetSignaturesFromBinaryOperatorKinds([
                     (int)BinaryOperatorKind.IntUnsignedRightShift,
+                    (int)BinaryOperatorKind.LiftedIntUnsignedRightShift,
                 ]),
                 GetSignaturesFromBinaryOperatorKinds([
                     (int)BinaryOperatorKind.IntAnd,
                     (int)BinaryOperatorKind.BoolAnd,
+                    (int)BinaryOperatorKind.LiftedIntAnd,
+                    (int)BinaryOperatorKind.LiftedBoolAnd,
                 ]),
                 GetSignaturesFromBinaryOperatorKinds([
                     (int)BinaryOperatorKind.IntOr,
                     (int)BinaryOperatorKind.BoolOr,
+                    (int)BinaryOperatorKind.LiftedIntOr,
+                    (int)BinaryOperatorKind.LiftedBoolOr,
                 ]),
                 GetSignaturesFromBinaryOperatorKinds([
                     (int)BinaryOperatorKind.IntXor,
                     (int)BinaryOperatorKind.BoolXor,
+                    (int)BinaryOperatorKind.LiftedIntXor,
+                    (int)BinaryOperatorKind.LiftedBoolXor,
                 ]),
                 GetSignaturesFromBinaryOperatorKinds([
                     (int)BinaryOperatorKind.IntPower,
                     (int)BinaryOperatorKind.DecimalPower,
+                    (int)BinaryOperatorKind.LiftedIntPower,
+                    (int)BinaryOperatorKind.LiftedDecimalPower,
                 ]),
             };
 
@@ -274,84 +344,30 @@ internal sealed class CorLibrary {
         }
     }
 
-    private BinaryOperatorSignature GetSignature(BinaryOperatorKind kind) {
-        var left = TypeFromKind(kind);
-
-        switch (kind.Operator()) {
-            case BinaryOperatorKind.Multiplication:
-            case BinaryOperatorKind.Division:
-            case BinaryOperatorKind.Subtraction:
-            case BinaryOperatorKind.Modulo:
-            case BinaryOperatorKind.And:
-            case BinaryOperatorKind.Or:
-            case BinaryOperatorKind.Xor:
-                return new BinaryOperatorSignature(kind, left, left, left);
-            case BinaryOperatorKind.Addition:
-                return new BinaryOperatorSignature(kind, left, TypeFromKind(kind), TypeFromKind(kind));
-            case BinaryOperatorKind.LeftShift:
-            case BinaryOperatorKind.RightShift:
-            case BinaryOperatorKind.UnsignedRightShift:
-                var rightType = GetNullableTypeCore(SpecialType.Int);
-                return new BinaryOperatorSignature(kind, left, rightType, left);
-            case BinaryOperatorKind.Equal:
-            case BinaryOperatorKind.NotEqual:
-            case BinaryOperatorKind.GreaterThan:
-            case BinaryOperatorKind.LessThan:
-            case BinaryOperatorKind.GreaterThanOrEqual:
-            case BinaryOperatorKind.LessThanOrEqual:
-                return new BinaryOperatorSignature(kind, left, left, GetNullableTypeCore(SpecialType.Bool));
-        }
-
-        return new BinaryOperatorSignature(kind, left, TypeFromKind(kind), TypeFromKind(kind));
-    }
-
-    internal UnaryOperatorSignature GetSignature(UnaryOperatorKind kind) {
-        var opType = kind.OperandTypes() switch {
-            UnaryOperatorKind.Int => GetNullableTypeCore(SpecialType.Int),
-            UnaryOperatorKind.Char => GetNullableTypeCore(SpecialType.Char),
-            UnaryOperatorKind.Decimal => GetNullableTypeCore(SpecialType.Decimal),
-            UnaryOperatorKind.Bool => GetNullableTypeCore(SpecialType.Bool),
-            _ => throw ExceptionUtilities.UnexpectedValue(kind.OperandTypes()),
-        };
-
-        return new UnaryOperatorSignature(kind, opType, opType);
-    }
-
-    private TypeSymbol TypeFromKind(BinaryOperatorKind kind) {
-        return kind.OperandTypes() switch {
-            BinaryOperatorKind.Int => GetNullableTypeCore(SpecialType.Int),
-            BinaryOperatorKind.Decimal => GetNullableTypeCore(SpecialType.Decimal),
-            BinaryOperatorKind.Bool => GetNullableTypeCore(SpecialType.Bool),
-            BinaryOperatorKind.Object => GetNullableTypeCore(SpecialType.Object),
-            BinaryOperatorKind.String => GetNullableTypeCore(SpecialType.String),
-            _ => null,
-        };
-    }
-
     private ImmutableArray<BinaryOperatorSignature> GetSignaturesFromBinaryOperatorKinds(int[] operatorKinds) {
         var builder = ArrayBuilder<BinaryOperatorSignature>.GetInstance();
 
         foreach (var kind in operatorKinds)
-            builder.Add(GetSignature((BinaryOperatorKind)kind));
+            builder.Add(OperatorFacts.GetSignature((BinaryOperatorKind)kind));
 
         return builder.ToImmutableAndFree();
     }
 
     private ImmutableArray<UnaryOperatorSignature> GetSignaturesFromUnaryOperatorKinds(int[] operatorKinds) {
         var builder = ArrayBuilder<UnaryOperatorSignature>.GetInstance();
-        foreach (var kind in operatorKinds) {
-            builder.Add(GetSignature((UnaryOperatorKind)kind));
-        }
+
+        foreach (var kind in operatorKinds)
+            builder.Add(OperatorFacts.GetSignature((UnaryOperatorKind)kind));
 
         return builder.ToImmutableAndFree();
     }
 
-    private void GetBinaryOpertors(BinaryOperatorKind kind, ArrayBuilder<BinaryOperatorSignature> operators) {
+    private void GetBinaryOperators(BinaryOperatorKind kind, ArrayBuilder<BinaryOperatorSignature> operators) {
         foreach (var op in _builtInBinaryOperators[kind.IsConditional() ? 1 : 0][kind.OperatorIndex()])
             operators.Add(op);
     }
 
-    private void GetUnaryOpertors(UnaryOperatorKind kind, ArrayBuilder<UnaryOperatorSignature> operators) {
+    private void GetUnaryOperators(UnaryOperatorKind kind, ArrayBuilder<UnaryOperatorSignature> operators) {
         foreach (var op in _builtInUnaryOperators[kind.OperatorIndex()])
             operators.Add(op);
     }

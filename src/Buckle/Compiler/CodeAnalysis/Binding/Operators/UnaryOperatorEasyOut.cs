@@ -7,30 +7,38 @@ internal static class UnaryOperatorEasyOut {
     private const UnaryOperatorKind INT = UnaryOperatorKind.Int;
     private const UnaryOperatorKind DEC = UnaryOperatorKind.Decimal;
     private const UnaryOperatorKind BOL = UnaryOperatorKind.Bool;
+    private const UnaryOperatorKind LIN = UnaryOperatorKind.Lifted | UnaryOperatorKind.Int;
+    private const UnaryOperatorKind LDE = UnaryOperatorKind.Lifted | UnaryOperatorKind.Decimal;
+    private const UnaryOperatorKind LBO = UnaryOperatorKind.Lifted | UnaryOperatorKind.Bool;
 
     private static readonly UnaryOperatorKind[] Increment = [
     //  any  str  bool chr  int  dec  type obj
-        ERR, ERR, ERR, ERR, INT, DEC, ERR, ERR
+        ERR, ERR, ERR, ERR, INT, DEC, ERR, ERR,
+        ERR, ERR, ERR, ERR, LIN, LDE, ERR, ERR // lifted
     ];
 
     private static readonly UnaryOperatorKind[] NumericalIdentity = [
     //  any  str  bool chr  int  dec  type obj
-        ERR, ERR, ERR, ERR, INT, DEC, ERR, ERR
+        ERR, ERR, ERR, ERR, INT, DEC, ERR, ERR,
+        ERR, ERR, ERR, ERR, LIN, LDE, ERR, ERR // lifted
     ];
 
     private static readonly UnaryOperatorKind[] NumericalNegation = [
     //  any  str  bool chr  int  dec  type obj
-        ERR, ERR, ERR, ERR, INT, DEC, ERR, ERR
+        ERR, ERR, ERR, ERR, INT, DEC, ERR, ERR,
+        ERR, ERR, ERR, ERR, LIN, LDE, ERR, ERR // lifted
     ];
 
     private static readonly UnaryOperatorKind[] BooleanNegation = [
     //  any  str  bool chr  int  dec  type obj
-        ERR, ERR, BOL, ERR, ERR, ERR, ERR, ERR
+        ERR, ERR, BOL, ERR, ERR, ERR, ERR, ERR,
+        ERR, ERR, LBO, ERR, ERR, ERR, ERR, ERR // lifted
     ];
 
     private static readonly UnaryOperatorKind[] BitwiseCompliment = [
     //  any  str  bool chr  int  dec  type obj
-        ERR, ERR, ERR, ERR, INT, ERR, ERR, ERR
+        ERR, ERR, ERR, ERR, INT, ERR, ERR, ERR,
+        ERR, ERR, ERR, ERR, LIN, ERR, ERR, ERR // lifted
     ];
 
     private static readonly UnaryOperatorKind[][] Operators = [

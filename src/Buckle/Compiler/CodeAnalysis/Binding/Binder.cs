@@ -4532,6 +4532,9 @@ symIsHidden:;
                     // TODO is this a reachable error?
                     declarationType = new TypeWithAnnotations(CreateErrorType("var"));
                     hasErrors = true;
+                } else if (initializerType.isPrimitiveType && initializerOpt.constantValue is not null) {
+                    // TODO This condition to check for auto-lifting *should* be correct for every case, but need to double check
+                    declarationType = declarationType.SetIsAnnotated();
                 }
 
                 if (!declarationType.type.IsErrorType()) {

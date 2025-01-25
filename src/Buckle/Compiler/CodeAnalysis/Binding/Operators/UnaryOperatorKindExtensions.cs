@@ -16,6 +16,10 @@ internal static class UnaryOperatorKindExtensions {
         return kind & UnaryOperatorKind.OpMask;
     }
 
+    internal static bool IsLifted(this UnaryOperatorKind kind) {
+        return 0 != (kind & UnaryOperatorKind.Lifted);
+    }
+
     internal static SyntaxKind ToSyntaxKind(this UnaryOperatorKind kind) {
         return (kind & UnaryOperatorKind.OpMask) switch {
             UnaryOperatorKind.PostfixIncrement or UnaryOperatorKind.PrefixIncrement => SyntaxKind.PlusPlusToken,

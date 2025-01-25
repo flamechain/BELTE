@@ -7,7 +7,7 @@ public sealed class SymbolDisplayFormat {
         templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
         memberOptions: SymbolDisplayMemberOptions.IncludeParameters | SymbolDisplayMemberOptions.IncludeContainingType,
         parameterOptions: SymbolDisplayParameterOptions.IncludeModifiers | SymbolDisplayParameterOptions.IncludeType,
-        includeKeywords: false
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.SimplifyNullable
     );
 
     public static readonly SymbolDisplayFormat QualifiedNameFormat = new SymbolDisplayFormat(
@@ -15,7 +15,7 @@ public sealed class SymbolDisplayFormat {
         templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
         memberOptions: SymbolDisplayMemberOptions.None,
         parameterOptions: SymbolDisplayParameterOptions.IncludeModifiers | SymbolDisplayParameterOptions.IncludeType,
-        includeKeywords: false
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.None
     );
 
     public static readonly SymbolDisplayFormat Everything = new SymbolDisplayFormat(
@@ -25,7 +25,7 @@ public sealed class SymbolDisplayFormat {
         templateOptions: SymbolDisplayTemplateOptions.Everything,
         memberOptions: SymbolDisplayMemberOptions.Everything,
         parameterOptions: SymbolDisplayParameterOptions.Everything,
-        includeKeywords: true
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.None
     );
 
     public static readonly SymbolDisplayFormat DebuggerDisplay = new SymbolDisplayFormat(
@@ -33,7 +33,7 @@ public sealed class SymbolDisplayFormat {
         templateOptions: SymbolDisplayTemplateOptions.Everything,
         memberOptions: SymbolDisplayMemberOptions.IncludeParameters,
         parameterOptions: SymbolDisplayParameterOptions.Everything,
-        includeKeywords: true
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.IncludeKeywords
     );
 
     private SymbolDisplayFormat(
@@ -41,12 +41,12 @@ public sealed class SymbolDisplayFormat {
         SymbolDisplayTemplateOptions templateOptions,
         SymbolDisplayMemberOptions memberOptions,
         SymbolDisplayParameterOptions parameterOptions,
-        bool includeKeywords) {
+        SymbolDisplayMiscellaneousOptions miscellaneousOptions) {
         this.qualificationStyle = qualificationStyle;
         this.templateOptions = templateOptions;
         this.memberOptions = memberOptions;
         this.parameterOptions = parameterOptions;
-        this.includeKeywords = includeKeywords;
+        this.miscellaneousOptions = miscellaneousOptions;
     }
 
     internal SymbolDisplayQualificationStyle qualificationStyle { get; }
@@ -57,5 +57,5 @@ public sealed class SymbolDisplayFormat {
 
     internal SymbolDisplayParameterOptions parameterOptions { get; }
 
-    internal bool includeKeywords { get; }
+    internal SymbolDisplayMiscellaneousOptions miscellaneousOptions { get; }
 }

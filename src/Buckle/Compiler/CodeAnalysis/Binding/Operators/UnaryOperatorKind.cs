@@ -4,7 +4,6 @@ namespace Buckle.CodeAnalysis.Binding;
 
 [Flags]
 internal enum UnaryOperatorKind : int {
-    // TODO Consider using lifted operators to distinguish null
     Error = 0x00000000,
 
     TypeMask = 0x000000FF,
@@ -34,36 +33,59 @@ internal enum UnaryOperatorKind : int {
     False = 0x00001900,
 
     _Conditional = 0x00010000,
+    Lifted = 0x00020000,
 
     IntPostfixIncrement = Int | PostfixIncrement,
     DecimalPostfixIncrement = Decimal | PostfixIncrement,
     UserDefinedPostfixIncrement = UserDefined | PostfixIncrement,
+    LiftedIntPostfixIncrement = Lifted | Int | PostfixIncrement,
+    LiftedDecimalPostfixIncrement = Lifted | Decimal | PostfixIncrement,
+    LiftedUserDefinedPostfixIncrement = Lifted | UserDefined | PostfixIncrement,
 
     IntPrefixIncrement = Int | PrefixIncrement,
     DecimalPrefixIncrement = Decimal | PrefixIncrement,
     UserDefinedPrefixIncrement = UserDefined | PrefixIncrement,
+    LiftedIntPrefixIncrement = Lifted | Int | PrefixIncrement,
+    LiftedDecimalPrefixIncrement = Lifted | Decimal | PrefixIncrement,
+    LiftedUserDefinedPrefixIncrement = Lifted | UserDefined | PrefixIncrement,
 
     IntPostfixDecrement = Int | PostfixDecrement,
     DecimalPostfixDecrement = Decimal | PostfixDecrement,
     UserDefinedPostfixDecrement = UserDefined | PostfixDecrement,
+    LiftedIntPostfixDecrement = Lifted | Int | PostfixDecrement,
+    LiftedDecimalPostfixDecrement = Lifted | Decimal | PostfixDecrement,
+    LiftedUserDefinedPostfixDecrement = Lifted | UserDefined | PostfixDecrement,
 
     IntPrefixDecrement = Int | PrefixDecrement,
     DecimalPrefixDecrement = Decimal | PrefixDecrement,
     UserDefinedPrefixDecrement = UserDefined | PrefixDecrement,
+    LiftedIntPrefixDecrement = Lifted | Int | PrefixDecrement,
+    LiftedDecimalPrefixDecrement = Lifted | Decimal | PrefixDecrement,
+    LiftedUserDefinedPrefixDecrement = Lifted | UserDefined | PrefixDecrement,
 
     IntUnaryPlus = Int | UnaryPlus,
     DecimalUnaryPlus = Decimal | UnaryPlus,
     UserDefinedUnaryPlus = UserDefined | UnaryPlus,
+    LiftedIntUnaryPlus = Lifted | Int | UnaryPlus,
+    LiftedDecimalUnaryPlus = Lifted | Decimal | UnaryPlus,
+    LiftedUserDefinedUnaryPlus = Lifted | UserDefined | UnaryPlus,
 
     IntUnaryMinus = Int | UnaryMinus,
     DecimalUnaryMinus = Decimal | UnaryMinus,
     UserDefinedUnaryMinus = UserDefined | UnaryMinus,
+    LiftedIntUnaryMinus = Lifted | Int | UnaryMinus,
+    LiftedDecimalUnaryMinus = Lifted | Decimal | UnaryMinus,
+    LiftedUserDefinedUnaryMinus = Lifted | UserDefined | UnaryMinus,
 
     BoolLogicalNegation = Bool | LogicalNegation,
     UserDefinedLogicalNegation = UserDefined | LogicalNegation,
+    LiftedBoolLogicalNegation = Lifted | Bool | LogicalNegation,
+    LiftedUserDefinedLogicalNegation = Lifted | UserDefined | LogicalNegation,
 
     IntBitwiseComplement = Int | BitwiseComplement,
     UserDefinedBitwiseComplement = UserDefined | BitwiseComplement,
+    LiftedIntBitwiseComplement = Lifted | Int | BitwiseComplement,
+    LiftedUserDefinedBitwiseComplement = Lifted | UserDefined | BitwiseComplement,
 
     UserDefinedTrue = UserDefined | True,
     UserDefinedFalse = UserDefined | False,
