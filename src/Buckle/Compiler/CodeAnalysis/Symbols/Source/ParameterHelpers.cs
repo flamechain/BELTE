@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -14,9 +16,27 @@ internal static class ParameterHelpers {
         BelteDiagnosticQueue diagnostics,
         bool allowRef,
         bool addRefConstModifier) {
-        var lastIndex = parameterList.Count - 1;
-        // TODO
-        return [];
+        return MakeParameters<SourceParameterSymbol, Symbol>(
+            withTemplateParametersBinder,
+            owner,
+            parameterList,
+            diagnostics,
+            allowRef,
+            addRefConstModifier,
+            lastIndex: parameterList.Count - 1,
+            parameterCreationFunc: (Symbol owner, TypeWithAnnotations parameterType,
+                                    ParameterSyntax syntax, RefKind refKind,
+                                    int ordinal, bool addRefConstModifier, ScopedKind scope) => {
+                                        return SourceParameterSymbol.Create(
+                                                owner,
+                                                parameterType,
+                                                syntax,
+                                                refKind,
+                                                syntax.identifier,
+                                                ordinal,
+                                                scope
+                                            );
+                                    });
     }
 
     internal static bool ReportDefaultParameterErrors(
@@ -139,5 +159,100 @@ internal static class ParameterHelpers {
         // }
 
         return hasErrors;
+    }
+
+    public static void ReportParameterErrors(
+        Symbol owner,
+        ParameterSyntax syntax,
+        int ordinal,
+        int lastParameterIndex,
+        TypeWithAnnotations typeWithAnnotations,
+        RefKind refKind,
+        Symbol containingSymbol,
+        int firstDefault,
+        BelteDiagnosticQueue diagnostics) {
+        // TODO
+    }
+
+    private static ImmutableArray<TParameterSymbol> MakeParameters<TParameterSymbol, TOwningSymbol>(
+        Binder withTemplateParametersBinder,
+        TOwningSymbol owner,
+        SeparatedSyntaxList<ParameterSyntax> parametersList,
+        BelteDiagnosticQueue diagnostics,
+        bool allowRef,
+        bool addRefConstModifier,
+        int lastIndex,
+        Func<TOwningSymbol, TypeWithAnnotations, ParameterSyntax, RefKind, int, bool, ScopedKind, TParameterSymbol> parameterCreationFunc)
+        where TParameterSymbol : ParameterSymbol
+        where TOwningSymbol : Symbol {
+
+        var parameterIndex = 0;
+        var firstDefault = -1;
+
+        var builder = ArrayBuilder<TParameterSymbol>.GetInstance();
+
+        foreach (var parameterSyntax in parametersList) {
+            if (parameterIndex > lastIndex) break;
+
+            // TODO parameter modifiers
+            // CheckParameterModifiers(parameterSyntax, diagnostics);
+
+            // var refKind = GetModifiers(parameterSyntax.modifiers, out SyntaxToken refnessKeyword, out SyntaxToken paramsKeyword, out SyntaxToken thisKeyword, out ScopedKind scope);
+            // if (thisKeyword.Kind() != SyntaxKind.None && !allowThis) {
+            //     diagnostics.Add(ErrorCode.ERR_ThisInBadContext, thisKeyword.GetLocation());
+            // }
+            var scope = ScopedKind.None;
+            var refKind = RefKind.None;
+
+            if (parameterSyntax is ParameterSyntax concreteParam) {
+                if (concreteParam.defaultValue is not null && firstDefault == -1)
+                    firstDefault = parameterIndex;
+            }
+
+            var parameterType = withTemplateParametersBinder.BindType(parameterSyntax.type, diagnostics);
+
+            if (!allowRef && refKind == RefKind.Ref) {
+                // TODO error
+                // diagnostics.Add(ErrorCode.ERR_IllegalRefParam, refnessKeyword.GetLocation());
+            }
+
+            var parameter = parameterCreationFunc(
+                owner,
+                parameterType,
+                parameterSyntax,
+                refKind,
+                parameterIndex,
+                addRefConstModifier,
+                scope
+            );
+
+            ReportParameterErrors(
+                owner,
+                parameterSyntax,
+                parameter.ordinal,
+                lastParameterIndex: lastIndex,
+                parameter.typeWithAnnotations,
+                parameter.refKind,
+                parameter.containingSymbol,
+                firstDefault,
+                diagnostics
+            );
+
+            builder.Add(parameter);
+            ++parameterIndex;
+        }
+
+        var parameters = builder.ToImmutableAndFree();
+
+        var methodOwner = owner as MethodSymbol;
+        var templateParameters = methodOwner is not null ? methodOwner.templateParameters : default;
+
+        withTemplateParametersBinder.ValidateParameterNameConflicts(
+            templateParameters,
+            parameters.Cast<TParameterSymbol, ParameterSymbol>(),
+            diagnostics
+        );
+
+        return parameters;
     }
 }

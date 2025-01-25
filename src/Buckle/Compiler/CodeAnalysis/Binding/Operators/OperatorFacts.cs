@@ -133,7 +133,10 @@ internal static class OperatorFacts {
             BinaryOperatorKind.Bool => CorLibrary.GetSpecialType(SpecialType.Bool),
             BinaryOperatorKind.Object => CorLibrary.GetSpecialType(SpecialType.Object),
             BinaryOperatorKind.String => CorLibrary.GetSpecialType(SpecialType.String),
-            _ => null,
+            BinaryOperatorKind.Char => CorLibrary.GetSpecialType(SpecialType.Char),
+            BinaryOperatorKind.Type => CorLibrary.GetSpecialType(SpecialType.Type),
+            BinaryOperatorKind.Any => CorLibrary.GetSpecialType(SpecialType.Any),
+            _ => throw ExceptionUtilities.UnexpectedValue(kind.OperandTypes()),
         };
 
         if (kind.IsLifted())

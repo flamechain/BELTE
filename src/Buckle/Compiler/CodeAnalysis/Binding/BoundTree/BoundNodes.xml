@@ -24,6 +24,9 @@
     <Field Name="breakLabel" Type="SynthesizedLabelSymbol"/>
     <Field Name="continueLabel" Type="SynthesizedLabelSymbol"/>
   </AbstractNode>
+  <AbstractNode Name="BoundObjectCreationExpressionBase" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+  </AbstractNode>
   <Node Name="BoundGlobalStatement" Base="BoundInitializer">
     <Field Name="statement" Type="BoundStatement"/>
   </Node>
@@ -166,9 +169,16 @@
     <Field Name="right" Type="BoundExpression"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
-  <Node Name="BoundObjectCreationExpression" Base="BoundExpression">
-    <Field Name="constructor" Type="MethodSymbol"/>
-    <Field Name="arguments" Type="ImmutableArray&lt;BoundExpression&gt;"/>
+  <Node Name="BoundObjectCreationExpression" Base="BoundObjectCreationExpressionBase">
+    <Field Name="constructor" Type="MethodSymbol" PropertyOverrides="true"/>
+    <Field Name="arguments" Type="ImmutableArray&lt;BoundExpression&gt;" PropertyOverrides="true"/>
+    <Field Name="argumentRefKinds" Type="ImmutableArray&lt;RefKind&gt;" Null="allow" PropertyOverrides="true"/>
+    <Field Name="argsToParams" Type="ImmutableArray&lt;int&gt;" Null="allow" PropertyOverrides="true"/>
+    <Field Name="defaultArguments" Type="BitVector" PropertyOverrides="true"/>
+    <Field Name="wasTargetTyped" Type="bool" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundNewT" Base="BoundObjectCreationExpressionBase">
+    <Field Name="wasTargetTyped" Type="bool" PropertyOverrides="true"/>
   </Node>
   <Node Name="BoundParameterExpression" Base="BoundExpression">
     <Field Name="parameter" Type="ParameterSymbol"/>

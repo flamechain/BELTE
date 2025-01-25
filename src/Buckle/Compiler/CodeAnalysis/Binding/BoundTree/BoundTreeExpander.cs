@@ -615,7 +615,17 @@ internal abstract class BoundTreeExpander {
         BoundObjectCreationExpression expression,
         out BoundExpression replacement) {
         var statements = ExpandArguments(expression.arguments, out var newArguments);
-        replacement = expression.Update(expression.constructor, newArguments, expression.type);
+
+        replacement = expression.Update(
+            expression.constructor,
+            newArguments,
+            expression.argumentRefKinds,
+            expression.argsToParams,
+            expression.defaultArguments,
+            expression.wasTargetTyped,
+            expression.type
+        );
+
         return statements;
     }
 

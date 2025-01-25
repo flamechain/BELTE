@@ -666,9 +666,9 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_StaticDataContainer, location, message);
     }
 
-    internal static BelteDiagnostic CannotConstructStatic(TextLocation location, string name) {
-        var message = $"cannot create an instance of the static class '{name}'";
-        return CreateError(DiagnosticCode.ERR_CannotConstructStatic, location, message);
+    internal static BelteDiagnostic CannotCreateStatic(TextLocation location, TypeSymbol type) {
+        var message = $"cannot create an instance of the static class '{type}'";
+        return CreateError(DiagnosticCode.ERR_CannotCreateStatic, location, message);
     }
 
     internal static BelteDiagnostic ConflictingModifiers(TextLocation location, string modifier1, string modifier2) {
@@ -869,9 +869,9 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CannotUseBase, location, message);
     }
 
-    internal static BelteDiagnostic CannotConstructAbstract(TextLocation location, string name) {
-        var message = $"cannot create an instance of the abstract class '{name}'";
-        return CreateError(DiagnosticCode.ERR_CannotConstructAbstract, location, message);
+    internal static BelteDiagnostic CannotCreateAbstract(TextLocation location, TypeSymbol type) {
+        var message = $"cannot create an instance of the abstract class '{type}'";
+        return CreateError(DiagnosticCode.ERR_CannotCreateAbstract, location, message);
     }
 
     internal static BelteDiagnostic NonAbstractMustHaveBody(TextLocation location, MethodSymbol method) {
@@ -1085,7 +1085,12 @@ internal static class Error {
 
     internal static BelteDiagnostic ValueCannotBeNull(TextLocation location, TypeSymbol type) {
         var message = $"cannot convert null to '{type}' because it is a non-nullable type";
-        return CreateError(DiagnosticCode.ERR_ProgramLocalReferencedOutsideOfTopLevelStatement, location, message);
+        return CreateError(DiagnosticCode.ERR_ValueCannotBeNull, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidObjectCreation(TextLocation location) {
+        var message = "invalid object creation";
+        return CreateError(DiagnosticCode.ERR_InvalidObjectCreation, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

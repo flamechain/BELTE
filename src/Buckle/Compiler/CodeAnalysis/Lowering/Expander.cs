@@ -215,6 +215,10 @@ internal sealed class Expander : BoundTreeExpander {
                     syntax,
                     dictionaryType.constructors[0],
                     [],
+                    [],
+                    [],
+                    default,
+                    false,
                     expression.type
                 )
             ))

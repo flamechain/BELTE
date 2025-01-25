@@ -6,7 +6,9 @@ public sealed class SymbolDisplayFormat {
         qualificationStyle: SymbolDisplayQualificationStyle.IncludeContainingTypes,
         templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
         memberOptions: SymbolDisplayMemberOptions.IncludeParameters | SymbolDisplayMemberOptions.IncludeContainingType,
-        parameterOptions: SymbolDisplayParameterOptions.IncludeModifiers | SymbolDisplayParameterOptions.IncludeType,
+        // TODO This was the commented line previously for an unknown reason
+        // parameterOptions: SymbolDisplayParameterOptions.IncludeModifiers | SymbolDisplayParameterOptions.IncludeType,
+        parameterOptions: SymbolDisplayParameterOptions.IncludeName,
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.SimplifyNullable
     );
 
@@ -25,7 +27,7 @@ public sealed class SymbolDisplayFormat {
         templateOptions: SymbolDisplayTemplateOptions.Everything,
         memberOptions: SymbolDisplayMemberOptions.Everything,
         parameterOptions: SymbolDisplayParameterOptions.Everything,
-        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.None
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.IncludeKeywords
     );
 
     public static readonly SymbolDisplayFormat DebuggerDisplay = new SymbolDisplayFormat(

@@ -179,9 +179,7 @@ internal partial class Binder {
     }
 
     internal Binder WithAdditionalFlags(BinderFlags flags) {
-        return this.flags.Includes(flags)
-            ? this
-            : new Binder(this, this.flags | flags);
+        return this.flags.Includes(flags) ? this : new Binder(this, this.flags | flags);
     }
 
     internal Binder WithContainingMember(Symbol containing) {
@@ -588,6 +586,56 @@ internal partial class Binder {
         return new ExtendedErrorTypeSymbol(compilation, name, 0, null);
     }
 
+    internal void ValidateParameterNameConflicts(
+        ImmutableArray<TemplateParameterSymbol> templateParameters,
+        ImmutableArray<ParameterSymbol> parameters,
+        BelteDiagnosticQueue diagnostics) {
+        PooledHashSet<string>? tpNames = null;
+
+        if (!templateParameters.IsDefaultOrEmpty) {
+            tpNames = PooledHashSet<string>.GetInstance();
+
+            foreach (var tp in templateParameters) {
+                var name = tp.name;
+
+                if (string.IsNullOrEmpty(name))
+                    continue;
+
+                if (!tpNames.Add(name)) {
+                    // Type parameter declaration name conflicts are detected elsewhere
+                }
+            }
+        }
+
+        PooledHashSet<string>? pNames = null;
+
+        if (!parameters.IsDefaultOrEmpty) {
+            pNames = PooledHashSet<string>.GetInstance();
+
+            foreach (var p in parameters) {
+                var name = p.name;
+
+                if (string.IsNullOrEmpty(name))
+                    continue;
+
+                if (tpNames is not null && tpNames.Contains(name)) {
+                    // TODO error
+                    // CS0412: 'X': a parameter or local variable cannot have the same name as a method type parameter
+                    // diagnostics.Add(ErrorCode.ERR_LocalSameNameAsTypeParam, GetLocation(p), name);
+                }
+
+                if (!pNames.Add(name)) {
+                    // TODO error
+                    // The parameter name '{0}' is a duplicate
+                    // diagnostics.Add(ErrorCode.ERR_DuplicateParamName, GetLocation(p), name);
+                }
+            }
+        }
+
+        tpNames?.Free();
+        pNames?.Free();
+    }
+
     #endregion
 
     #region Expressions
@@ -873,6 +921,7 @@ internal partial class Binder {
             // SyntaxKind.PostfixExpression => BindPostfixExpression((PostfixExpressionSyntax)node, diagnostics),
             // SyntaxKind.TernaryExpression => BindTernaryExpression((TernaryExpressionSyntax)node, diagnostics),
             SyntaxKind.AssignmentExpression => BindAssignmentExpression((AssignmentExpressionSyntax)node, diagnostics),
+            SyntaxKind.ObjectCreationExpression => BindObjectCreationExpression((ObjectCreationExpressionSyntax)node, diagnostics),
             /*
             case SyntaxKind.InitializerListExpression:
                 return BindInitializerListExpression((InitializerListExpressionSyntax)expression, initializerListType);
@@ -887,8 +936,6 @@ internal partial class Binder {
                 return BindTypeOfExpression((TypeOfExpressionSyntax)expression);
             case SyntaxKind.NameOfExpression:
                 return BindNameOfExpression((NameOfExpressionSyntax)expression);
-            case SyntaxKind.ObjectCreationExpression:
-                return BindObjectCreationExpression((ObjectCreationExpressionSyntax)expression);
             case SyntaxKind.ThrowExpression:
                 return BindThrowExpression((ThrowExpressionSyntax)expression);
             case SyntaxKind.ArrayType when allowTypes:
@@ -911,6 +958,397 @@ internal partial class Binder {
 
     private BoundErrorExpression ErrorExpression(SyntaxNode syntax) {
         return new BoundErrorExpression(syntax, LookupResultKind.Empty, [], [], CreateErrorType(), true);
+    }
+
+    private protected BoundExpression BindObjectCreationExpression(
+        ObjectCreationExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        var typeWithAnnotations = BindType(node.type, diagnostics);
+        var type = typeWithAnnotations.type.StrippedType();
+        var originalType = type;
+
+        // TODO what is this error
+        // if (typeWithAnnotations.NullableAnnotation.IsAnnotated() && !type.IsNullableType()) {
+        //     diagnostics.Add(ErrorCode.ERR_AnnotationDisallowedInObjectCreation, node.Location);
+        // }
+
+        switch (type.typeKind) {
+            case TypeKind.Struct:
+            case TypeKind.Class:
+            case TypeKind.Error:
+                return BindClassCreationExpression(
+                    node,
+                    (NamedTypeSymbol)type,
+                    GetName(node.type),
+                    diagnostics,
+                    originalType
+                );
+            case TypeKind.TemplateParameter:
+                return BindTemplateParameterCreationExpression(node, (TemplateParameterSymbol)type, diagnostics);
+            case TypeKind.Array:
+                type = new ExtendedErrorTypeSymbol(
+                    type,
+                    LookupResultKind.NotCreatable,
+                    Error.InvalidObjectCreation(node.type.location)
+                );
+
+                goto case TypeKind.Class;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(type.typeKind);
+        }
+    }
+
+    private BoundExpression BindTemplateParameterCreationExpression(
+        ObjectCreationExpressionSyntax node,
+        TemplateParameterSymbol templateParameter,
+        BelteDiagnosticQueue diagnostics) {
+        var analyzedArguments = AnalyzedArguments.GetInstance();
+        BindArgumentsAndNames(node.argumentList, diagnostics, analyzedArguments);
+        var result = BindTemplateParameterCreationExpression(
+            node,
+            templateParameter,
+            analyzedArguments,
+            node.type,
+            false,
+            diagnostics
+        );
+
+        analyzedArguments.Free();
+        return result;
+    }
+
+    private BoundExpression BindTemplateParameterCreationExpression(
+        SyntaxNode node,
+        TemplateParameterSymbol templateParameter,
+        AnalyzedArguments analyzedArguments,
+        SyntaxNode typeSyntax,
+        bool wasTargetTyped,
+        BelteDiagnosticQueue diagnostics) {
+        if (TemplateParameterHasParameterlessConstructor(node, templateParameter, diagnostics)) {
+            if (analyzedArguments.arguments.Count > 0) {
+                // TODO error
+                // diagnostics.Add(ErrorCode.ERR_NewTyvarWithArgs, node.Location, templateParameter);
+            } else {
+                return new BoundNewT(node, wasTargetTyped, templateParameter);
+            }
+        }
+
+        return MakeBadExpressionForObjectCreation(node, templateParameter, analyzedArguments, typeSyntax, diagnostics);
+    }
+
+    private static bool TemplateParameterHasParameterlessConstructor(
+        SyntaxNode node,
+        TemplateParameterSymbol templateParameter,
+        BelteDiagnosticQueue diagnostics) {
+        if (/*!templateParameter.hasConstructorConstraint &&*/ !templateParameter.isPrimitiveType) {
+            // TODO error and first condition
+            // diagnostics.Add(ErrorCode.ERR_NoNewTyvar, node.Location, templateParameter);
+            return false;
+        }
+
+        return true;
+    }
+
+    private BoundExpression BindClassCreationExpression(
+        ObjectCreationExpressionSyntax node,
+        NamedTypeSymbol type,
+        string typeName,
+        BelteDiagnosticQueue diagnostics,
+        TypeSymbol initializerType = null) {
+        var analyzedArguments = AnalyzedArguments.GetInstance();
+
+        try {
+            BindArgumentsAndNames(node.argumentList, diagnostics, analyzedArguments);
+
+            if (type.isStatic) {
+                diagnostics.Push(Error.CannotCreateStatic(node.location, type));
+                return MakeBadExpressionForObjectCreation(node, type, analyzedArguments, node.type, diagnostics);
+            }
+
+            return BindClassCreationExpression(node, typeName, node.type, type, analyzedArguments, diagnostics);
+        } finally {
+            analyzedArguments.Free();
+        }
+    }
+
+    private BoundExpression MakeBadExpressionForObjectCreation(
+        SyntaxNode node,
+        TypeSymbol type,
+        AnalyzedArguments analyzedArguments,
+        SyntaxNode typeSyntax,
+        BelteDiagnosticQueue diagnostics) {
+        return new BoundErrorExpression(
+            node,
+            LookupResultKind.NotCreatable,
+            [type],
+            [.. analyzedArguments.arguments],
+            type
+        );
+    }
+
+    private protected BoundExpression BindClassCreationExpression(
+        SyntaxNode node,
+        string typeName,
+        SyntaxNode typeNode,
+        NamedTypeSymbol type,
+        AnalyzedArguments analyzedArguments,
+        BelteDiagnosticQueue diagnostics) {
+        var hasErrors = type.IsErrorType();
+
+        if (type.isAbstract) {
+            diagnostics.Push(Error.CannotCreateAbstract(node.location, type));
+            hasErrors = true;
+        }
+
+        if (TryPerformConstructorOverloadResolution(
+                type,
+                analyzedArguments,
+                typeName,
+                typeNode.location,
+                hasErrors,
+                diagnostics,
+                out MemberResolutionResult<MethodSymbol> memberResolutionResult,
+                out ImmutableArray<MethodSymbol> candidateConstructors,
+                allowProtectedConstructorsOfBaseType: false) &&
+            !type.isAbstract) {
+            return BindClassCreationExpressionContinued(
+                node,
+                typeNode,
+                type,
+                analyzedArguments,
+                memberResolutionResult,
+                candidateConstructors,
+                diagnostics
+            );
+        }
+
+        return CreateBadClassCreationExpression(
+            node,
+            typeNode,
+            type,
+            analyzedArguments,
+            memberResolutionResult,
+            candidateConstructors,
+            diagnostics
+        );
+    }
+
+    internal bool TryPerformConstructorOverloadResolution(
+        NamedTypeSymbol typeContainingConstructors,
+        AnalyzedArguments analyzedArguments,
+        string errorName,
+        TextLocation errorLocation,
+        bool suppressResultDiagnostics,
+        BelteDiagnosticQueue diagnostics,
+        out MemberResolutionResult<MethodSymbol> memberResolutionResult,
+        out ImmutableArray<MethodSymbol> candidateConstructors,
+        bool allowProtectedConstructorsOfBaseType,
+        bool isParamsModifierValidation = false) {
+        candidateConstructors = GetAccessibleConstructorsForOverloadResolution(
+            typeContainingConstructors,
+            allowProtectedConstructorsOfBaseType,
+            out var allInstanceConstructors
+        );
+
+        var result = OverloadResolutionResult<MethodSymbol>.GetInstance();
+        var succeededConsideringAccessibility = false;
+
+        if (candidateConstructors.Any()) {
+            overloadResolution.ObjectCreationOverloadResolution(
+                candidateConstructors,
+                analyzedArguments,
+                result
+            );
+
+            if (result.succeeded)
+                succeededConsideringAccessibility = true;
+        }
+
+        if (!succeededConsideringAccessibility && allInstanceConstructors.Length > candidateConstructors.Length) {
+            var inaccessibleResult = OverloadResolutionResult<MethodSymbol>.GetInstance();
+            overloadResolution.ObjectCreationOverloadResolution(
+                allInstanceConstructors,
+                analyzedArguments,
+                inaccessibleResult
+            );
+
+            if (inaccessibleResult.succeeded) {
+                candidateConstructors = allInstanceConstructors;
+                result.Free();
+                result = inaccessibleResult;
+            } else {
+                inaccessibleResult.Free();
+            }
+        }
+
+        memberResolutionResult = result.succeeded ? result.bestResult : default;
+
+        if (!succeededConsideringAccessibility && !suppressResultDiagnostics) {
+            if (result.succeeded) {
+                diagnostics.Push(Error.MemberIsInaccessible(errorLocation, result.bestResult.member));
+            } else {
+                result.ReportDiagnostics(
+                    binder: this,
+                    location: errorLocation,
+                    node: null,
+                    diagnostics,
+                    name: errorName,
+                    receiver: null,
+                    invokedExpression: null,
+                    analyzedArguments,
+                    memberGroup: candidateConstructors,
+                    typeContainingConstructors
+                );
+            }
+        }
+
+        result.Free();
+        return succeededConsideringAccessibility;
+    }
+
+    private ImmutableArray<MethodSymbol> GetAccessibleConstructorsForOverloadResolution(NamedTypeSymbol type) {
+        return GetAccessibleConstructorsForOverloadResolution(type, false, out _);
+    }
+
+    private ImmutableArray<MethodSymbol> GetAccessibleConstructorsForOverloadResolution(
+        NamedTypeSymbol type,
+        bool allowProtectedConstructorsOfBaseType,
+        out ImmutableArray<MethodSymbol> allInstanceConstructors) {
+        if (type.IsErrorType())
+            type = type.GetNonErrorGuess() as NamedTypeSymbol ?? type;
+
+        allInstanceConstructors = type.constructors;
+        return FilterInaccessibleConstructors(allInstanceConstructors, allowProtectedConstructorsOfBaseType);
+    }
+
+    internal ImmutableArray<MethodSymbol> FilterInaccessibleConstructors(
+        ImmutableArray<MethodSymbol> constructors,
+        bool allowProtectedConstructorsOfBaseType) {
+        ArrayBuilder<MethodSymbol> builder = null;
+
+        for (var i = 0; i < constructors.Length; i++) {
+            var constructor = constructors[i];
+
+            if (!IsConstructorAccessible(constructor, allowProtectedConstructorsOfBaseType)) {
+                if (builder is null) {
+                    builder = ArrayBuilder<MethodSymbol>.GetInstance();
+                    builder.AddRange(constructors, i);
+                }
+            } else {
+                builder?.Add(constructor);
+            }
+        }
+
+        return builder is null ? constructors : builder.ToImmutableAndFree();
+    }
+
+    private BoundObjectCreationExpression BindClassCreationExpressionContinued(
+        SyntaxNode node,
+        SyntaxNode typeNode,
+        NamedTypeSymbol type,
+        AnalyzedArguments analyzedArguments,
+        MemberResolutionResult<MethodSymbol> memberResolutionResult,
+        ImmutableArray<MethodSymbol> candidateConstructors,
+        BelteDiagnosticQueue diagnostics,
+        bool wasTargetTyped = false) {
+        ImmutableArray<int> argToParams;
+
+        if (memberResolutionResult.isNotNull) {
+            CheckAndCoerceArguments(
+                node,
+                memberResolutionResult,
+                analyzedArguments,
+                diagnostics,
+                receiver: null,
+                out argToParams
+            );
+        } else {
+            argToParams = memberResolutionResult.result.argsToParams;
+        }
+
+        var method = memberResolutionResult.member;
+        var hasError = false;
+
+        BindDefaultArguments(
+            node,
+            method.parameters,
+            analyzedArguments.arguments,
+            analyzedArguments.refKinds,
+            analyzedArguments.names,
+            ref argToParams,
+            out var defaultArguments,
+            enableCallerInfo: true,
+            diagnostics
+        );
+
+        var arguments = analyzedArguments.arguments.ToImmutable();
+        var refKinds = analyzedArguments.refKinds.ToImmutableOrNull();
+        var creation = new BoundObjectCreationExpression(
+            node,
+            method,
+            // candidateConstructors,
+            arguments,
+            // analyzedArguments.GetNames(),
+            refKinds,
+            argToParams,
+            defaultArguments,
+            // constantValueOpt,
+            // boundInitializerOpt,
+            wasTargetTyped,
+            type,
+            hasError
+        );
+
+        return creation;
+    }
+
+    private BoundExpression CreateBadClassCreationExpression(
+        SyntaxNode node,
+        SyntaxNode typeNode,
+        NamedTypeSymbol type,
+        AnalyzedArguments analyzedArguments,
+        MemberResolutionResult<MethodSymbol> memberResolutionResult,
+        ImmutableArray<MethodSymbol> candidateConstructors,
+        BelteDiagnosticQueue diagnostics) {
+        if (memberResolutionResult.isNotNull) {
+            CheckAndCoerceArguments(
+                node,
+                memberResolutionResult,
+                analyzedArguments,
+                diagnostics,
+                receiver: null,
+                argsToParams: out _
+            );
+        }
+
+        LookupResultKind resultKind;
+
+        if (type.isAbstract)
+            resultKind = LookupResultKind.NotCreatable;
+        else if (memberResolutionResult.isValid && !IsConstructorAccessible(memberResolutionResult.member))
+            resultKind = LookupResultKind.Inaccessible;
+        else
+            resultKind = LookupResultKind.OverloadResolutionFailure;
+
+        return new BoundErrorExpression(
+            node,
+            resultKind,
+            [.. candidateConstructors],
+            [.. analyzedArguments.arguments],
+            type
+        );
+    }
+
+    private bool IsConstructorAccessible(MethodSymbol constructor, bool allowProtectedConstructorsOfBaseType = false) {
+        var containingType = this.containingType;
+
+        if (containingType is not null) {
+            return allowProtectedConstructorsOfBaseType
+                ? IsAccessible(constructor, null)
+                : IsSymbolAccessibleConditional(constructor, containingType, constructor.containingType);
+        } else {
+            return IsSymbolAccessibleConditional(constructor, compilation.globalNamespaceInternal);
+        }
     }
 
     private BoundExpression BindBinaryExpression(BinaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
@@ -4303,6 +4741,15 @@ symIsHidden:;
         return AccessCheck.IsSymbolAccessible(symbol, within);
     }
 
+
+    internal bool IsSymbolAccessibleConditional(
+        Symbol symbol,
+        NamedTypeSymbol within,
+        TypeSymbol throughTypeOpt = null) {
+        return flags.Includes(BinderFlags.IgnoreAccessibility) ||
+            AccessCheck.IsSymbolAccessible(symbol, within, throughTypeOpt);
+    }
+
     internal bool IsSymbolAccessibleConditional(
         Symbol symbol,
         NamedTypeSymbol within,
@@ -4384,10 +4831,6 @@ symIsHidden:;
             SyntaxKind.ExpressionStatement => BindExpressionStatement((ExpressionStatementSyntax)node, diagnostics),
             SyntaxKind.LocalDeclarationStatement => BindLocalDeclarationStatement((LocalDeclarationStatementSyntax)node, diagnostics),
             /*
-            case SyntaxKind.LocalDeclarationStatement:
-                var statement = BindLocalDeclarationStatement((LocalDeclarationStatementSyntax)syntax);
-                _shadowingVariable = null;
-                return statement;
             case SyntaxKind.IfStatement:
                 return BindIfStatement((IfStatementSyntax)syntax);
             case SyntaxKind.WhileStatement:
@@ -4519,10 +4962,10 @@ symIsHidden:;
             hasErrors = true;
         }
 
-        BoundExpression initializerOpt;
+        BoundExpression initializer;
         if (isImplicitlyTyped) {
-            initializerOpt = BindInferredVariableInitializer(diagnostics, value, valueKind, declaration);
-            var initializerType = initializerOpt?.type;
+            initializer = BindInferredVariableInitializer(diagnostics, value, valueKind, declaration);
+            var initializerType = initializer?.type;
 
             if (initializerType is not null) {
                 declarationType = new TypeWithAnnotations(initializerType);
@@ -4532,7 +4975,7 @@ symIsHidden:;
                     // TODO is this a reachable error?
                     declarationType = new TypeWithAnnotations(CreateErrorType("var"));
                     hasErrors = true;
-                } else if (initializerType.isPrimitiveType && initializerOpt.constantValue is not null) {
+                } else if (initializerType.isPrimitiveType && initializer.constantValue is not null) {
                     // TODO This condition to check for auto-lifting *should* be correct for every case, but need to double check
                     declarationType = declarationType.SetIsAnnotated();
                 }
@@ -4553,12 +4996,22 @@ symIsHidden:;
             }
         } else {
             if (equalsClauseSyntax is null) {
-                initializerOpt = null;
+                if (declarationType.IsNullableType()) {
+                    initializer = new BoundLiteralExpression(
+                        declaration,
+                        new ConstantValue(null),
+                        declarationType.type
+                    );
+                } else {
+                    initializer = ErrorExpression(declaration);
+                    diagnostics.Push(Error.NoInitOnNonNullable(declaration.location));
+                    hasErrors = true;
+                }
             } else {
-                initializerOpt = BindPossibleArrayInitializer(value, declarationType.type, valueKind, diagnostics);
-                initializerOpt = GenerateConversionForAssignment(
+                initializer = BindPossibleArrayInitializer(value, declarationType.type, valueKind, diagnostics);
+                initializer = GenerateConversionForAssignment(
                     declarationType.type,
-                    initializerOpt,
+                    initializer,
                     localDiagnostics,
                     equalsClauseSyntax.value,
                     localSymbol.refKind != RefKind.None
@@ -4570,8 +5023,8 @@ symIsHidden:;
 
         localSymbol.SetTypeWithAnnotations(declarationType);
 
-        if (kind == DataContainerDeclarationKind.Constant && initializerOpt is not null) {
-            var constantValueDiagnostics = localSymbol.GetConstantValueDiagnostics(initializerOpt);
+        if (kind == DataContainerDeclarationKind.Constant && initializer is not null) {
+            var constantValueDiagnostics = localSymbol.GetConstantValueDiagnostics(initializer);
             diagnostics.PushRange(constantValueDiagnostics);
             hasErrors = constantValueDiagnostics.AnyErrors();
         }
@@ -4594,7 +5047,7 @@ symIsHidden:;
 
         return new BoundLocalDeclarationStatement(
             associatedSyntaxNode,
-            new BoundDataContainerDeclaration(declaration, localSymbol, initializerOpt),
+            new BoundDataContainerDeclaration(declaration, localSymbol, initializer),
             hasErrors | nameConflict
         );
     }

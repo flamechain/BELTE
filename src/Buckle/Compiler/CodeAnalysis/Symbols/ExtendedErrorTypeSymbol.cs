@@ -95,6 +95,24 @@ internal sealed class ExtendedErrorTypeSymbol : ErrorTypeSymbol {
         return null;
     }
 
+    internal static TypeSymbol ExtractNonErrorType(TypeSymbol oldSymbol) {
+        if (oldSymbol is null || oldSymbol.typeKind != TypeKind.Error)
+            return oldSymbol;
+
+        var oldError = oldSymbol.originalDefinition as ExtendedErrorTypeSymbol;
+
+        if (oldError is not null &&
+            !oldError._candidateSymbols.IsDefault &&
+            oldError._candidateSymbols.Length == 1) {
+            var type = oldError._candidateSymbols[0] as TypeSymbol;
+
+            if (type is not null)
+                return type.GetNonErrorGuess();
+        }
+
+        return null;
+    }
+
     internal override bool Equals(TypeSymbol t2, TypeCompareKind comparison) {
         if (ReferenceEquals(this, t2))
             return true;

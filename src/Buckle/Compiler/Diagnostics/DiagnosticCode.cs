@@ -108,7 +108,7 @@ public enum DiagnosticCode : ushort {
     ERR_CannotUseType = 97,
     ERR_ConstructorInStaticClass = 98,
     ERR_StaticDataContainer = 99,
-    ERR_CannotConstructStatic = 100,
+    ERR_CannotCreateStatic = 100,
     ERR_ConflictingModifiers = 101,
     ERR_AssignmentInConstMethod = 102,
     ERR_NonConstantCallInConstant = 103,
@@ -146,7 +146,7 @@ public enum DiagnosticCode : ushort {
     ERR_CannotDeriveStatic = 135,
     ERR_ExpectedType = 136,
     ERR_CannotUseBase = 137,
-    ERR_CannotConstructAbstract = 138,
+    ERR_CannotCreateAbstract = 138,
     ERR_NonAbstractMustHaveBody = 139,
     ERR_AbstractCannotHaveBody = 140,
     ERR_AbstractMemberInNonAbstractType = 141,
@@ -191,6 +191,8 @@ public enum DiagnosticCode : ushort {
     WRN_NeverGivenType = 180,
     ERR_AmbiguousBinaryOperator = 181,
     ERR_ProgramLocalReferencedOutsideOfTopLevelStatement = 182,
+    ERR_ValueCannotBeNull = 183,
+    ERR_InvalidObjectCreation = 184,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

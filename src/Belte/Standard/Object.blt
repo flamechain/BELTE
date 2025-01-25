@@ -8,17 +8,14 @@ class Object {
     }
 
     public virtual bool! Equals(Object object) {
-        // return this == object;
-        return false;
+        return this == object;
     }
 
     public bool! ReferenceEquals(Object object) {
-        // return this == object;
-        return false;
+        return this == object;
     }
 
     public virtual int! GetHashCode() {
-        // return GetHashCode(this);
-        return 0;
+        return GetHashCode(this);
     }
 }

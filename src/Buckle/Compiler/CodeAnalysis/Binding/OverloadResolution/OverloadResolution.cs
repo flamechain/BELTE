@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Libraries;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -54,28 +55,6 @@ internal sealed partial class OverloadResolution {
         }
     }
 
-    private bool CandidateOperators(
-        ArrayBuilder<BinaryOperatorSignature> operators,
-        BoundExpression left,
-        BoundExpression right,
-        ArrayBuilder<BinaryOperatorAnalysisResult> results) {
-        var hadApplicableCandidate = false;
-
-        foreach (var op in operators) {
-            var convLeft = conversions.ClassifyConversionFromExpression(left, op.leftType);
-            var convRight = conversions.ClassifyConversionFromExpression(right, op.rightType);
-
-            if (convLeft.isImplicit && convRight.isImplicit) {
-                results.Add(BinaryOperatorAnalysisResult.Applicable(op, convLeft, convRight));
-                hadApplicableCandidate = true;
-            } else {
-                results.Add(BinaryOperatorAnalysisResult.Inapplicable(op, convLeft, convRight));
-            }
-        }
-
-        return hadApplicableCandidate;
-    }
-
     internal void MethodOverloadResolution<T>(
         ArrayBuilder<T> members,
         ArrayBuilder<TypeOrConstant> templateArguments,
@@ -118,6 +97,96 @@ internal sealed partial class OverloadResolution {
                 checkOverriddenOrHidden: checkOverriddenOrHidden
             );
         }
+    }
+
+    internal void ObjectCreationOverloadResolution(
+        ImmutableArray<MethodSymbol> constructors,
+        AnalyzedArguments arguments,
+        OverloadResolutionResult<MethodSymbol> result) {
+        var results = result.resultsBuilder;
+
+        PerformObjectCreationOverloadResolution(results, constructors, arguments, false);
+
+        if (!SingleValidResult(results)) {
+            result.Clear();
+
+            PerformObjectCreationOverloadResolution(results, constructors, arguments, true);
+        }
+    }
+
+    private void PerformObjectCreationOverloadResolution(
+        ArrayBuilder<MemberResolutionResult<MethodSymbol>> results,
+        ImmutableArray<MethodSymbol> constructors,
+        AnalyzedArguments arguments,
+        bool completeResults) {
+        foreach (var constructor in constructors)
+            AddConstructorToCandidateSet(constructor, results, arguments, completeResults);
+
+        // TODO
+        // if (!dynamicResolution) {
+        //     if (!isEarlyAttributeBinding) {
+        //         // If we're still decoding early attributes, we can get into a cycle here where we attempt to decode early attributes,
+        //         // which causes overload resolution, which causes us to attempt to decode early attributes, etc. Concretely, this means
+        //         // that OverloadResolutionPriorityAttribute won't affect early bound attributes, so you can't use OverloadResolutionPriorityAttribute
+        //         // to adjust what constructor of OverloadResolutionPriorityAttribute is chosen. See `CycleOnOverloadResolutionPriorityConstructor_02` for
+        //         // an example.
+        //         RemoveLowerPriorityMembers<MemberResolutionResult<MethodSymbol>, MethodSymbol>(results);
+        //     }
+
+        //     // The best method of the set of candidate methods is identified. If a single best
+        //     // method cannot be identified, the method invocation is ambiguous, and a binding-time
+        //     // error occurs.
+        //     RemoveWorseMembers(results, arguments);
+        // }
+
+        return;
+    }
+
+    private void AddConstructorToCandidateSet(
+        MethodSymbol constructor,
+        ArrayBuilder<MemberResolutionResult<MethodSymbol>> results,
+        AnalyzedArguments arguments,
+        bool completeResults) {
+        // TODO
+        // var normalResult = IsConstructorApplicableInNormalForm(constructor, arguments, completeResults, ref useSiteInfo);
+        // var result = normalResult;
+        // if (!normalResult.IsValid) {
+        //     if (IsValidParams(_binder, constructor, disallowExpandedNonArrayParams: false, out TypeWithAnnotations definitionElementType)) {
+        //         var expandedResult = IsConstructorApplicableInExpandedForm(constructor, arguments, definitionElementType, completeResults, ref useSiteInfo);
+        //         if (expandedResult.IsValid || completeResults) {
+        //             result = expandedResult;
+        //         }
+        //     }
+        // }
+
+        // // If the constructor has a use site diagnostic, we don't want to discard it because we'll have to report the diagnostic later.
+        // if (result.IsValid || completeResults || result.HasUseSiteDiagnosticToReportFor(constructor)) {
+        //     results.Add(new MemberResolutionResult<MethodSymbol>(constructor, constructor, result, hasTypeArgumentInferredFromFunctionType: false));
+        // }
+        var result = MemberAnalysisResult.Applicable([], [], false);
+        results.Add(new MemberResolutionResult<MethodSymbol>(constructor, constructor, result, false));
+    }
+
+    private bool CandidateOperators(
+        ArrayBuilder<BinaryOperatorSignature> operators,
+        BoundExpression left,
+        BoundExpression right,
+        ArrayBuilder<BinaryOperatorAnalysisResult> results) {
+        var hadApplicableCandidate = false;
+
+        foreach (var op in operators) {
+            var convLeft = conversions.ClassifyConversionFromExpression(left, op.leftType);
+            var convRight = conversions.ClassifyConversionFromExpression(right, op.rightType);
+
+            if (convLeft.isImplicit && convRight.isImplicit) {
+                results.Add(BinaryOperatorAnalysisResult.Applicable(op, convLeft, convRight));
+                hadApplicableCandidate = true;
+            } else {
+                results.Add(BinaryOperatorAnalysisResult.Inapplicable(op, convLeft, convRight));
+            }
+        }
+
+        return hadApplicableCandidate;
     }
 
     private void PerformMemberOverloadResolution<T>(

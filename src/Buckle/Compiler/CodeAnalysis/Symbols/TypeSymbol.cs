@@ -113,6 +113,10 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
         return specialType == SpecialType.Void;
     }
 
+    internal TypeSymbol GetNonErrorGuess() {
+        return ExtendedErrorTypeSymbol.ExtractNonErrorType(this);
+    }
+
     internal bool ContainsErrorType() {
         var result = VisitType(
             (type, unused1, unused2) => type.IsErrorType(),
