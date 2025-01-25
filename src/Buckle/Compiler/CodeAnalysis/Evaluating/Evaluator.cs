@@ -261,6 +261,26 @@ internal sealed class Evaluator {
         }
     }
 
+    private EvaluatorObject CreateObject(NamedTypeSymbol type) {
+        var members = new Dictionary<Symbol, EvaluatorObject>();
+        var typeMembers = type.GetMembers();
+
+        foreach (var field in typeMembers.Where(f => f is FieldSymbol).Select(f => f as FieldSymbol)) {
+            var value = new EvaluatorObject(null, field.type);
+
+            if (field.refKind != RefKind.None) {
+                value.isReference = true;
+                value.isExplicitReference = true;
+            }
+
+            members.Add(field, value);
+        }
+
+        // TODO Is this still necessary with the new symbol system?
+        // var trueType = ClarifyType(type);
+        return new EvaluatorObject(members, type);
+    }
+
     private void EnterClassScope(EvaluatorObject @class) {
         var classLocalBuffer = new Dictionary<Symbol, EvaluatorObject>();
 
@@ -398,6 +418,7 @@ internal sealed class Evaluator {
             BoundKind.IsntOperator => EvaluateIsntOperator((BoundIsntOperator)expression, abort),
             BoundKind.ConditionalOperator => EvaluateConditionalOperator((BoundConditionalOperator)expression, abort),
             BoundKind.CallExpression => EvaluateCallExpression((BoundCallExpression)expression, abort),
+            BoundKind.ObjectCreationExpression => EvaluateObjectCreationExpression((BoundObjectCreationExpression)expression, abort),
             _ => throw new BelteInternalException($"EvaluateExpression: unexpected node '{expression.kind}'"),
         };
     }
@@ -409,6 +430,18 @@ internal sealed class Evaluator {
 
         var type = CorLibrary.GetSpecialType(constantValue.specialType);
         return new EvaluatorObject(constantValue.value, type);
+    }
+
+    private EvaluatorObject EvaluateObjectCreationExpression(
+        BoundObjectCreationExpression node,
+        ValueWrapper<bool> abort) {
+        var newObject = CreateObject((NamedTypeSymbol)node.type);
+
+        EnterClassScope(newObject);
+        InvokeMethod(node.constructor, node.arguments, null, abort);
+        ExitClassScope();
+
+        return newObject;
     }
 
     private EvaluatorObject EvaluateCallExpression(BoundCallExpression expression, ValueWrapper<bool> abort) {
@@ -428,14 +461,14 @@ internal sealed class Evaluator {
             return new EvaluatorObject(result, expression.method.returnType);
         }
 
-        return InvokeMethod(expression.method, expression.arguments, abort, expression.receiver);
+        return InvokeMethod(expression.method, expression.arguments, expression.receiver, abort);
     }
 
     private EvaluatorObject InvokeMethod(
         MethodSymbol method,
         ImmutableArray<BoundExpression> arguments,
-        ValueWrapper<bool> abort,
-        BoundExpression receiver) {
+        BoundExpression receiver,
+        ValueWrapper<bool> abort) {
         var receiverObject = default(EvaluatorObject);
 
         if (receiver is not null && receiver is not BoundEmptyExpression) {

@@ -792,7 +792,6 @@ internal partial class Binder {
         var baseType = containingType.baseType;
         MethodSymbol baseConstructor = null;
         var resultKind = LookupResultKind.Viable;
-        var errorLocation = constructor.location;
 
         foreach (var ctor in baseType.constructors) {
             if (ctor.parameterCount == 0) {
@@ -1107,8 +1106,8 @@ internal partial class Binder {
                 typeNode.location,
                 hasErrors,
                 diagnostics,
-                out MemberResolutionResult<MethodSymbol> memberResolutionResult,
-                out ImmutableArray<MethodSymbol> candidateConstructors,
+                out var memberResolutionResult,
+                out var candidateConstructors,
                 allowProtectedConstructorsOfBaseType: false) &&
             !type.isAbstract) {
             return BindClassCreationExpressionContinued(
@@ -5333,6 +5332,9 @@ symIsHidden:;
         Compilation compilation) {
         var containingType = constructor.containingType;
         var baseType = containingType.baseType;
+
+        if (containingType.specialType == SpecialType.Object)
+            return null;
 
         if (baseType is not null) {
             if (baseType.specialType == SpecialType.Object)

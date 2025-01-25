@@ -126,12 +126,21 @@ internal sealed class SynthesizedEntryPoint : SynthesizedInstanceMethodSymbol {
 
     private Binder GetPreviousBinder() {
         var previousCompilation = declaringCompilation.previous;
+        return GetBinderFromCompilation(previousCompilation);
+    }
 
-        if (previousCompilation is null || previousCompilation.syntaxTrees.Length != 1)
+    private static Binder GetBinderFromCompilation(Compilation compilation) {
+        if (compilation is null || compilation.syntaxTrees.Length != 1)
             return null;
 
-        var previousRoot = previousCompilation.syntaxTrees[0].GetCompilationUnitRoot();
-        return GetEntryPoint(previousCompilation, previousRoot)?.programBinder;
+        var syntaxTree = compilation.syntaxTrees[0];
+        var root = syntaxTree.GetCompilationUnitRoot();
+        Binder programBinder = GetEntryPoint(compilation, root)?.programBinder;
+
+        return programBinder ?? new InContainerBinder(
+            compilation.globalNamespaceInternal,
+            GetBinderFromCompilation(compilation.previous) ?? new EndBinder(compilation, syntaxTree.text)
+        );
     }
 
     private ExecutableCodeBinder CreateBodyBinder() {

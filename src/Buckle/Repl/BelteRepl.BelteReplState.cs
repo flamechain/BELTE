@@ -62,6 +62,8 @@ public sealed partial class BelteRepl {
         /// </summary>
         internal Compilation previous;
 
+        internal Compilation baseCompilation;
+
         /// <summary>
         /// Current tree representation of the most recent submission.
         /// </summary>

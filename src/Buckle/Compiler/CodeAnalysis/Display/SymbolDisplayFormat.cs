@@ -12,6 +12,14 @@ public sealed class SymbolDisplayFormat {
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.SimplifyNullable
     );
 
+    public static readonly SymbolDisplayFormat ObjectCreationFormat = new SymbolDisplayFormat(
+        qualificationStyle: SymbolDisplayQualificationStyle.IncludeContainingTypes,
+        templateOptions: SymbolDisplayTemplateOptions.Everything,
+        memberOptions: SymbolDisplayMemberOptions.None,
+        parameterOptions: SymbolDisplayParameterOptions.Everything,
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.None
+    );
+
     public static readonly SymbolDisplayFormat QualifiedNameFormat = new SymbolDisplayFormat(
         qualificationStyle: SymbolDisplayQualificationStyle.Everything,
         templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,

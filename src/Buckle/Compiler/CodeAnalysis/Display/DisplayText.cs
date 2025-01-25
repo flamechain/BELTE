@@ -634,7 +634,7 @@ public sealed class DisplayText {
     private static void DisplayObjectCreationExpression(DisplayText text, BoundObjectCreationExpression node) {
         text.Write(CreateKeyword(SyntaxKind.NewKeyword));
         text.Write(CreateSpace());
-        SymbolDisplay.DisplayType(text, node.type);
+        SymbolDisplay.DisplayType(text, node.type, SymbolDisplayFormat.ObjectCreationFormat);
         DisplayArguments(text, node.arguments);
     }
 

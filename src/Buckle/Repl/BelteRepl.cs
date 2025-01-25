@@ -52,6 +52,7 @@ public sealed partial class BelteRepl : Repl {
         state = new BelteReplState();
         _diagnosticHandle = errorHandle;
         _hasDiagnosticHandle = true;
+        LoadLibraries();
         ResetState();
         Console.BackgroundColor = state.colorTheme.background;
         EvaluateClear();
@@ -101,13 +102,12 @@ public sealed partial class BelteRepl : Repl {
         state.showIL = false;
         state.showCS = false;
         state.loadingSubmissions = false;
-        state.variables = new Dictionary<IDataContainerSymbol, EvaluatorObject>();
-        state.previous = null;
+        state.variables = [];
+        state.previous = state.baseCompilation;
         state.currentPage = Page.Repl;
         _changes.Clear();
         ClearTree();
         base.ResetState();
-        LoadLibraries();
     }
 
     private protected override void RenderLine(IReadOnlyList<string> lines, int lineIndex) {
@@ -285,7 +285,7 @@ public sealed partial class BelteRepl : Repl {
 
     private void LoadLibraries() {
         var compilation = CompilerHelpers.LoadLibraries(DefaultOptions);
-        state.previous = compilation;
+        state.baseCompilation = compilation;
         compilation.Evaluate(_abortEvaluation);
     }
 

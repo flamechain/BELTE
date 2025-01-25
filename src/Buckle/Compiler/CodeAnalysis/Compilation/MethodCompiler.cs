@@ -287,9 +287,10 @@ internal sealed class MethodCompiler {
                     throw ExceptionUtilities.UnexpectedValue(methodBody.kind);
             }
         } else if (method is SynthesizedConstructorSymbol constructor) {
-            var baseConstructorCall = Binder.GenerateBaseParameterlessConstructorInitializer(constructor, diagnostics);
-            var statement = new BoundExpressionStatement(syntax, baseConstructorCall);
-            body = new BoundBlockStatement(syntax, [statement], [], []);
+            // TODO Pretty sure we don't need to actually do anything here
+            // var baseConstructorCall = Binder.GenerateBaseParameterlessConstructorInitializer(constructor, diagnostics);
+            // var statement = new BoundExpressionStatement(syntax, baseConstructorCall);
+            // body = new BoundBlockStatement(syntax, [statement], [], []);
         } else if (method is SynthesizedEntryPoint entryPoint) {
             var bodyBinder = entryPoint.GetBodyBinder();
             var bodyBuilder = ArrayBuilder<BoundStatement>.GetInstance();
