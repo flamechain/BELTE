@@ -841,7 +841,7 @@ public sealed class DisplayText {
     }
 
     private static void DisplayParameterExpression(DisplayText text, BoundParameterExpression node) {
-        SymbolDisplay.AppendToDisplayText(text, node.parameter, SymbolDisplayFormat.QualifiedNameFormat);
+        SymbolDisplay.AppendToDisplayText(text, node.parameter, SymbolDisplayFormat.ErrorMessageFormat);
     }
 
     private static void DisplayUnaryOperator(DisplayText text, BoundUnaryOperator node) {

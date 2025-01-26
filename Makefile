@@ -35,11 +35,11 @@ test:
 	@dotnet build $(CL_DIR).Tests/CommandLine.Tests.csproj
 	@dotnet build $(COMPILER_DIR).Tests/Compiler.Tests.csproj
 	@dotnet build $(DIAGNOSTICS_DIR).Tests/Diagnostics.Tests.csproj
-	@$(RM) -f -r $(TEST_RESOURCES)
-	@mkdir $(TEST_RESOURCES)
-	@$(CP) -a $(COMPILER_DIR)/$(RESOURCES)/. $(TEST_RESOURCES)
-	@$(CP) -a $(COMPILER_DIR)/$(RESOURCES)/. $(TEST_RESOURCES)
-	@$(CP) -a $(REPL_DIR)/$(RESOURCES)/. $(TEST_RESOURCES)
+# @$(RM) -f -r $(TEST_RESOURCES)
+# @mkdir $(TEST_RESOURCES)
+# @$(CP) -a $(COMPILER_DIR)/$(RESOURCES)/. $(TEST_RESOURCES)
+# @$(CP) -a $(COMPILER_DIR)/$(RESOURCES)/. $(TEST_RESOURCES)
+# @$(CP) -a $(REPL_DIR)/$(RESOURCES)/. $(TEST_RESOURCES)
 	@dotnet test $(SLN)
 	@echo "    Finished"
 

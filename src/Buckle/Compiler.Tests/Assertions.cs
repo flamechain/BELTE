@@ -1,8 +1,6 @@
 using System;
-using System.Collections.Generic;
+using System.Threading;
 using Buckle.CodeAnalysis;
-using Buckle.CodeAnalysis.Evaluating;
-using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 using Shared.Tests;
@@ -15,6 +13,11 @@ namespace Buckle.Tests;
 /// All assertions used by Buckle tests.
 /// </summary>
 internal static class Assertions {
+    private static CompilationOptions DefaultOptions
+        => new CompilationOptions(BuildMode.Independent, OutputKind.Console, [], true, false);
+
+    private static Compilation _baseCompilation;
+
     /// <summary>
     /// Asserts that a piece of Belte code evaluates to a value.
     /// </summary>
@@ -24,8 +27,9 @@ internal static class Assertions {
         var syntaxTree = SyntaxTree.Parse(text);
         var compilation = Compilation.CreateScript(
             "Tests",
-            new CompilationOptions(BuildMode.Independent, OutputKind.Console, [], true, false),
-            syntaxTree
+            DefaultOptions,
+            syntaxTree,
+            GetBaseCompilation()
         );
 
         var result = compilation.Evaluate([], false);
@@ -47,8 +51,9 @@ internal static class Assertions {
         var syntaxTree = SyntaxTree.Parse(text);
         var compilation = Compilation.CreateScript(
             "Tests",
-            new CompilationOptions(BuildMode.Independent, OutputKind.Console, [], true, false),
-            syntaxTree
+            DefaultOptions,
+            syntaxTree,
+            GetBaseCompilation()
         );
 
         var result = compilation.Evaluate([], false);
@@ -86,11 +91,12 @@ internal static class Assertions {
         } else {
             var compilation = Compilation.CreateScript(
                 "Tests",
-                new CompilationOptions(BuildMode.Independent, OutputKind.Console, [], true, false),
-                syntaxTree
+                DefaultOptions,
+                syntaxTree,
+                GetBaseCompilation()
             );
 
-            var result = compilation.Evaluate(new Dictionary<IDataContainerSymbol, EvaluatorObject>(), false);
+            var result = compilation.Evaluate([], false);
             tempDiagnostics = result.diagnostics;
         }
 
@@ -138,9 +144,11 @@ internal static class Assertions {
     /// <param name="buildMode">Which emitter to use.</param>
     internal static void AssertText(string text, string expectedText, BuildMode buildMode) {
         var syntaxTree = SyntaxTree.Parse(text);
+        var options = new CompilationOptions(buildMode, OutputKind.Console, [], false, false);
         var compilation = Compilation.Create(
             "EmitterTests",
-            new CompilationOptions(buildMode, OutputKind.Console, [], false, false),
+            options,
+            GetBaseCompilation(),
             syntaxTree
         );
 
@@ -148,5 +156,15 @@ internal static class Assertions {
 
         Assert.Empty(diagnostics.Errors().ToArray());
         Assert.Equal(expectedText, result);
+    }
+
+    private static Compilation GetBaseCompilation() {
+        if (_baseCompilation is null) {
+            var compilation = CompilerHelpers.LoadLibraries(DefaultOptions);
+            _ = compilation.boundProgram;
+            Interlocked.CompareExchange(ref _baseCompilation, compilation, null);
+        }
+
+        return _baseCompilation;
     }
 }

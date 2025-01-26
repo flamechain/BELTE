@@ -55,6 +55,28 @@ internal sealed partial class OverloadResolution {
         }
     }
 
+    internal void UnaryOperatorOverloadResolution(
+        UnaryOperatorKind kind,
+        BoundExpression operand,
+        UnaryOperatorOverloadResolutionResult result) {
+        UnaryOperatorEasyOut(kind, operand, result);
+
+        if (result.results.Count > 0)
+            return;
+
+        NoEasyOut(kind, operand, result);
+
+        void NoEasyOut(
+            UnaryOperatorKind kind,
+            BoundExpression operand,
+            UnaryOperatorOverloadResolutionResult result) {
+            var operators = ArrayBuilder<UnaryOperatorSignature>.GetInstance();
+            CorLibrary.GetAllBuiltInUnaryOperators(kind, operators);
+            CandidateOperators(operators, operand, result.results);
+            operators.Free();
+        }
+    }
+
     internal void MethodOverloadResolution<T>(
         ArrayBuilder<T> members,
         ArrayBuilder<TypeOrConstant> templateArguments,
@@ -183,6 +205,26 @@ internal sealed partial class OverloadResolution {
                 hadApplicableCandidate = true;
             } else {
                 results.Add(BinaryOperatorAnalysisResult.Inapplicable(op, convLeft, convRight));
+            }
+        }
+
+        return hadApplicableCandidate;
+    }
+
+    private bool CandidateOperators(
+        ArrayBuilder<UnaryOperatorSignature> operators,
+        BoundExpression operand,
+        ArrayBuilder<UnaryOperatorAnalysisResult> results) {
+        var hadApplicableCandidate = false;
+
+        foreach (var op in operators) {
+            var conversion = conversions.ClassifyConversionFromExpression(operand, op.operandType);
+
+            if (conversion.isImplicit) {
+                results.Add(UnaryOperatorAnalysisResult.Applicable(op, conversion));
+                hadApplicableCandidate = true;
+            } else {
+                results.Add(UnaryOperatorAnalysisResult.Inapplicable(op, conversion));
             }
         }
 

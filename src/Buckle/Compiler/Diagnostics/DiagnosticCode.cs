@@ -193,6 +193,7 @@ public enum DiagnosticCode : ushort {
     ERR_ProgramLocalReferencedOutsideOfTopLevelStatement = 182,
     ERR_ValueCannotBeNull = 183,
     ERR_InvalidObjectCreation = 184,
+    ERR_AmbiguousUnaryOperator = 185,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

@@ -75,7 +75,7 @@ internal sealed class Evaluator {
         EnterClassScope(new EvaluatorObject([], entryPoint.containingType));
         var result = EvaluateStatement(entryPointBody, abort, out _);
         hasValue = _hasValue;
-        return Value(result);
+        return Value(result, true);
     }
 
     #region Internal Model
@@ -411,6 +411,7 @@ internal sealed class Evaluator {
             BoundKind.ParameterExpression => EvaluateParameterExpression((BoundParameterExpression)expression),
             BoundKind.FieldAccessExpression => EvaluateFieldAccessExpression((BoundFieldAccessExpression)expression, abort),
             BoundKind.AssignmentOperator => EvaluateAssignmentOperator((BoundAssignmentOperator)expression, abort),
+            BoundKind.UnaryOperator => EvaluateUnaryOperator((BoundUnaryOperator)expression, abort),
             BoundKind.BinaryOperator => EvaluateBinaryOperator((BoundBinaryOperator)expression, abort),
             BoundKind.NullAssertExpression => EvaluateNullAssertExpression((BoundNullAssertExpression)expression, abort),
             BoundKind.AsOperator => EvaluateAsOperator((BoundAsOperator)expression, abort),
@@ -643,6 +644,36 @@ internal sealed class Evaluator {
             return new EvaluatorObject(true, expression.type);
     }
 
+    private EvaluatorObject EvaluateUnaryOperator(BoundUnaryOperator expression, ValueWrapper<bool> abort) {
+        var operand = EvaluateExpression(expression.operand, abort);
+        var operandValue = Value(operand);
+        var opKind = expression.opKind & UnaryOperatorKind.OpMask;
+
+        if (operandValue is null)
+            return EvaluatorObject.Null;
+
+        var expressionType = expression.type.specialType;
+        object result;
+
+        switch (opKind) {
+            case UnaryOperatorKind.UnaryPlus:
+                return operand;
+            case UnaryOperatorKind.UnaryMinus:
+                result = expressionType == SpecialType.Int ? -(int)operandValue : -Convert.ToDouble(operandValue);
+                break;
+            case UnaryOperatorKind.LogicalNegation:
+                result = !(bool)operandValue;
+                break;
+            case UnaryOperatorKind.BitwiseComplement:
+                result = ~(int)operandValue;
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(expression.opKind);
+        }
+
+        return new EvaluatorObject(result, expression.type);
+    }
+
     private EvaluatorObject EvaluateBinaryOperator(BoundBinaryOperator expression, ValueWrapper<bool> abort) {
         var left = EvaluateExpression(expression.left, abort);
         var leftValue = Value(left);
@@ -781,6 +812,12 @@ internal sealed class Evaluator {
                 result = expressionType == SpecialType.Int
                     ? (int)leftValue % (int)rightValue
                     : Convert.ToDouble(leftValue) % Convert.ToDouble(rightValue);
+
+                break;
+            case BinaryOperatorKind.Power:
+                result = expressionType == SpecialType.Int
+                    ? Math.Pow((int)leftValue, (int)rightValue)
+                    : Math.Pow(Convert.ToDouble(leftValue), Convert.ToDouble(rightValue));
 
                 break;
             default:

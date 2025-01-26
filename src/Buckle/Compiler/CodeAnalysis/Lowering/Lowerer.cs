@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.CodeAnalysis.Syntax;
 using Buckle.Libraries.Standard;
 using Microsoft.CodeAnalysis.PooledObjects;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
@@ -217,10 +216,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         <left> <op> <right>
 
-        ----> <op> is '**'
-
-        (Math.Pow(<left>, <right>))
-
         ----> <left> is nullable and <right> is nullable
 
         ((HasValue(<left>) && HasValue(<right>)) ? Value(<left>) <op> Value(<right>) : null)
@@ -235,16 +230,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         */
         var syntax = expression.syntax;
-
-        if (expression.opKind == BinaryOperatorKind.Power) {
-            var powMethod = expression.left.type.IsNullableType() || expression.right.type.IsNullableType()
-                ? StandardLibrary.Math.GetMembers()[46]
-                : StandardLibrary.Math.GetMembers()[47];
-
-            return VisitCallExpression(
-                Call(syntax, powMethod as MethodSymbol, [expression.left, expression.right])
-            );
-        }
 
         if (expression.opKind.IsLifted()) {
             if (expression.left.type.IsNullableType() &&

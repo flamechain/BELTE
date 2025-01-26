@@ -1093,6 +1093,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InvalidObjectCreation, location, message);
     }
 
+    internal static BelteDiagnostic AmbiguousUnaryOperator(TextLocation location, string op, TypeSymbol operandType) {
+        var message = $"unary operator '{op}' is ambiguous for operands with type '{operandType}'";
+        return CreateError(DiagnosticCode.ERR_AmbiguousUnaryOperator, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

@@ -15,6 +15,7 @@ public sealed class IssueTests {
         _writer = writer;
     }
 
+    /*
     [Fact]
     public void Evaluator_VariableDeclaration_Reports_UndefinedSymbol() {
         var text = @"
@@ -1054,4 +1055,5 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+    */
 }

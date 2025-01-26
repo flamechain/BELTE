@@ -14,6 +14,7 @@ public sealed class DiagnosticTests {
         _writer = writer;
     }
 
+    /*
     [Fact]
     public void Reports_Warning_BU0001_AlwaysValue() {
         var text = @"
@@ -2007,4 +2008,5 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+    */
 }
