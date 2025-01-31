@@ -55,8 +55,6 @@ internal static class Warning {
                 return UnreachableCode(firstStatement);
 
             return null;
-        } else if (node.kind == SyntaxKind.EmptyExpression) {
-            return null;
         }
 
         return UnreachableCode(node.location);
@@ -78,7 +76,7 @@ internal static class Warning {
     }
 
     internal static BelteDiagnostic NeverGivenType(TextLocation location, TypeSymbol type) {
-        var message = $"the given expression is never of the provided type ('{type}')";
+        var message = $"the given expression is never of the provided type ('{type.ToNullOrString()}')";
         return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_NeverGivenType), location, message);
     }
 

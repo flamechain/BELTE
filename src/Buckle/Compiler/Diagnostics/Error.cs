@@ -85,7 +85,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic NoImplicitConversion(TextLocation location, TypeSymbol from, TypeSymbol to) {
-        var message = $"cannot convert from type '{from}' to '{to}' implicitly";
+        var message = $"cannot convert from type '{from.ToNullOrString()}' to '{to.ToNullOrString()}' implicitly";
         return CreateError(DiagnosticCode.ERR_NoImplicitConversion, location, message);
     }
 
@@ -106,19 +106,19 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic CannotConvertImplicitly(TextLocation location, TypeSymbol from, TypeSymbol to) {
-        var message = $"cannot convert from type '{from}' to '{to}' implicitly; an explicit conversion exists (are you missing a cast?)";
-        var suggestion = $"({to})%";
+        var message = $"cannot convert from type '{from.ToNullOrString()}' to '{to.ToNullOrString()}' implicitly; an explicit conversion exists (are you missing a cast?)";
+        var suggestion = $"({to.ToNullOrString()})%";
         return CreateError(DiagnosticCode.ERR_CannotConvertImplicitly, location, message, suggestion);
     }
 
     internal static BelteDiagnostic CannotConvertImplicitlyNullable(TextLocation location, TypeSymbol from, TypeSymbol to) {
-        var message = $"cannot convert from type '{from}' to '{to}' implicitly; an explicit conversion exists (are you missing a cast?)";
-        var suggestions = (string[])[$"({to})%", "(%)!"];
+        var message = $"cannot convert from type '{from.ToNullOrString()}' to '{to.ToNullOrString()}' implicitly; an explicit conversion exists (are you missing a cast?)";
+        var suggestions = (string[])[$"({to.ToNullOrString()})%", "(%)!"];
         return CreateError(DiagnosticCode.ERR_CannotConvertImplicitlyNullable, location, message, suggestions);
     }
 
     internal static BelteDiagnostic InvalidUnaryOperatorUse(TextLocation location, string op, TypeSymbol operand) {
-        var message = $"unary operator '{op}' is not defined for type '{operand}'";
+        var message = $"unary operator '{op}' is not defined for type '{operand.ToNullOrString()}'";
         return CreateError(DiagnosticCode.ERR_InvalidUnaryOperatorUse, location, message);
     }
 
@@ -133,7 +133,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic InvalidBinaryOperatorUse(TextLocation location, string op, TypeSymbol left, TypeSymbol right) {
-        var message = $"binary operator '{op}' is not defined for operands of types '{left}' and '{right}'";
+        var message = $"binary operator '{op}' is not defined for operands of types '{left.ToNullOrString()}' and '{right.ToNullOrString()}'";
         return CreateError(DiagnosticCode.ERR_InvalidBinaryOperatorUse, location, message);
     }
 
@@ -182,12 +182,12 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic CannotConvert(TextLocation location, TypeSymbol from, TypeSymbol to) {
-        var message = $"cannot convert from type '{from}' to '{to}'";
+        var message = $"cannot convert from type '{from.ToNullOrString()}' to '{to.ToNullOrString()}'";
         return CreateError(DiagnosticCode.ERR_CannotConvert, location, message);
     }
 
     internal static BelteDiagnostic CannotConvertArgument(TextLocation location, TypeSymbol from, TypeSymbol to, int argument) {
-        var message = $"argument {argument}: cannot convert from type '{from}' to '{to}'";
+        var message = $"argument {argument}: cannot convert from type '{from.ToNullOrString()}' to '{to.ToNullOrString()}'";
         return CreateError(DiagnosticCode.ERR_CannotConvertArgument, location, message);
     }
 
@@ -219,7 +219,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic CannotApplyIndexing(TextLocation location, TypeSymbol type) {
-        var message = $"cannot apply indexing with [] to an expression of type '{type}'";
+        var message = $"cannot apply indexing with [] to an expression of type '{type.ToNullOrString()}'";
         return CreateError(DiagnosticCode.ERR_CannotApplyIndexing, location, message);
     }
 
@@ -433,7 +433,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic NoSuchMember(TextLocation location, TypeSymbol operand, string text) {
-        var message = $"'{operand}' contains no such member '{text}'";
+        var message = $"'{operand.ToNullOrString()}' contains no such member '{text}'";
         return CreateError(DiagnosticCode.ERR_NoSuchMember, location, message);
     }
 
@@ -460,12 +460,12 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic InvalidPrefixUse(TextLocation location, string op, TypeSymbol operand) {
-        var message = $"prefix operator '{op}' is not defined for type '{operand}'";
+        var message = $"prefix operator '{op}' is not defined for type '{operand.ToNullOrString()}'";
         return CreateError(DiagnosticCode.ERR_InvalidPrefixUse, location, message);
     }
 
     internal static BelteDiagnostic InvalidPostfixUse(TextLocation location, string op, TypeSymbol operand) {
-        var message = $"postfix operator '{op}' is not defined for type '{operand}'";
+        var message = $"postfix operator '{op}' is not defined for type '{operand.ToNullOrString()}'";
         return CreateError(DiagnosticCode.ERR_InvalidPostfixUse, location, message);
     }
 
@@ -1074,7 +1074,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic AmbiguousBinaryOperator(TextLocation location, string op, TypeSymbol left, TypeSymbol right) {
-        var message = $"binary operator '{op}' is ambiguous for operands with types '{left}' and '{right}'";
+        var message = $"binary operator '{op}' is ambiguous for operands with types '{left.ToNullOrString()}' and '{right.ToNullOrString()}'";
         return CreateError(DiagnosticCode.ERR_AmbiguousBinaryOperator, location, message);
     }
 
@@ -1094,7 +1094,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic AmbiguousUnaryOperator(TextLocation location, string op, TypeSymbol operandType) {
-        var message = $"unary operator '{op}' is ambiguous for operands with type '{operandType}'";
+        var message = $"unary operator '{op}' is ambiguous for operands with type '{operandType.ToNullOrString()}'";
         return CreateError(DiagnosticCode.ERR_AmbiguousUnaryOperator, location, message);
     }
 

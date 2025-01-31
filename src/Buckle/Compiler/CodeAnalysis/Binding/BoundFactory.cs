@@ -65,7 +65,7 @@ internal static partial class BoundFactory {
         params BoundExpression[] arguments) {
         return new BoundCallExpression(
             syntax,
-            new BoundEmptyExpression(syntax, null),
+            null,
             method,
             ImmutableArray.Create(arguments),
             ImmutableArray.CreateRange(Enumerable.Repeat(RefKind.None, arguments.Length)),

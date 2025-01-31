@@ -1,5 +1,4 @@
 using System;
-using System.Threading;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
@@ -16,7 +15,13 @@ internal static class Assertions {
     private static CompilationOptions DefaultOptions
         => new CompilationOptions(BuildMode.Independent, OutputKind.Console, [], true, false);
 
-    private static Compilation _baseCompilation;
+    private readonly static Compilation BaseCompilation;
+
+    static Assertions() {
+        var compilation = CompilerHelpers.LoadLibraries(DefaultOptions);
+        _ = compilation.boundProgram;
+        BaseCompilation = compilation;
+    }
 
     /// <summary>
     /// Asserts that a piece of Belte code evaluates to a value.
@@ -29,7 +34,7 @@ internal static class Assertions {
             "Tests",
             DefaultOptions,
             syntaxTree,
-            GetBaseCompilation()
+            BaseCompilation
         );
 
         var result = compilation.Evaluate([], false);
@@ -53,7 +58,7 @@ internal static class Assertions {
             "Tests",
             DefaultOptions,
             syntaxTree,
-            GetBaseCompilation()
+            BaseCompilation
         );
 
         var result = compilation.Evaluate([], false);
@@ -93,7 +98,7 @@ internal static class Assertions {
                 "Tests",
                 DefaultOptions,
                 syntaxTree,
-                GetBaseCompilation()
+                BaseCompilation
             );
 
             var result = compilation.Evaluate([], false);
@@ -148,7 +153,7 @@ internal static class Assertions {
         var compilation = Compilation.Create(
             "EmitterTests",
             options,
-            GetBaseCompilation(),
+            BaseCompilation,
             syntaxTree
         );
 
@@ -156,15 +161,5 @@ internal static class Assertions {
 
         Assert.Empty(diagnostics.Errors().ToArray());
         Assert.Equal(expectedText, result);
-    }
-
-    private static Compilation GetBaseCompilation() {
-        if (_baseCompilation is null) {
-            var compilation = CompilerHelpers.LoadLibraries(DefaultOptions);
-            _ = compilation.boundProgram;
-            Interlocked.CompareExchange(ref _baseCompilation, compilation, null);
-        }
-
-        return _baseCompilation;
     }
 }

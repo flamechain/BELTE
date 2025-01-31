@@ -222,8 +222,6 @@ internal abstract class BoundTreeExpander {
                 return ExpandNullCoalescingOperator((BoundNullCoalescingOperator)expression, out replacement);
             case BoundKind.NullAssertExpression:
                 return ExpandNullAssertExpression((BoundNullAssertExpression)expression, out replacement);
-            case BoundKind.EmptyExpression:
-                return ExpandEmptyExpression((BoundEmptyExpression)expression, out replacement);
             case BoundKind.ErrorExpression:
                 return ExpandErrorExpression((BoundErrorExpression)expression, out replacement);
             case BoundKind.CallExpression:
@@ -467,13 +465,6 @@ internal abstract class BoundTreeExpander {
             return statements;
         }
 
-        replacement = expression;
-        return [];
-    }
-
-    private protected virtual List<BoundStatement> ExpandEmptyExpression(
-        BoundEmptyExpression expression,
-        out BoundExpression replacement) {
         replacement = expression;
         return [];
     }

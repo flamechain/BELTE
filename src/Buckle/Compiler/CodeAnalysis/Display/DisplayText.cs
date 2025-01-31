@@ -181,9 +181,6 @@ public sealed class DisplayText {
             case BoundKind.CompoundAssignmentOperator:
                 DisplayCompoundAssignmentOperator(text, (BoundCompoundAssignmentOperator)node);
                 break;
-            case BoundKind.EmptyExpression:
-                DisplayEmptyExpression(text);
-                break;
             case BoundKind.ErrorExpression:
                 DisplayErrorExpression(text, (BoundErrorExpression)node);
                 break;
@@ -589,9 +586,6 @@ public sealed class DisplayText {
     }
 
     private static void DisplayExpressionStatement(DisplayText text, BoundExpressionStatement node) {
-        if (node.expression is BoundEmptyExpression)
-            return;
-
         DisplayNode(text, node.expression);
         text.Write(CreateLine());
     }
@@ -710,11 +704,8 @@ public sealed class DisplayText {
     }
 
     private static void DisplayCallExpression(DisplayText text, BoundCallExpression node) {
-        if (node.receiver is not BoundEmptyExpression) {
-            DisplayNode(text, node.receiver);
-            text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
-        }
-
+        DisplayNode(text, node.receiver);
+        text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
         text.Write(CreateIdentifier(node.method.name));
         DisplayArguments(text, node.arguments);
     }
@@ -785,8 +776,6 @@ public sealed class DisplayText {
         SymbolDisplay.DisplayType(text, node.type, SymbolDisplayFormat.Everything);
         text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
     }
-
-    private static void DisplayEmptyExpression(DisplayText _) { }
 
     private static void DisplayAssignmentOperator(DisplayText text, BoundAssignmentOperator node) {
         DisplayNode(text, node.left);

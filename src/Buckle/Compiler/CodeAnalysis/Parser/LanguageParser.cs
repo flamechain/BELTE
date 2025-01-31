@@ -781,6 +781,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.OpenBraceToken:
                 consumedModifiers = true;
                 return ParseBlockStatement(modifiers);
+            case SyntaxKind.SemicolonToken:
+                return ParseEmptyStatement();
             case SyntaxKind.IfKeyword:
                 return ParseIfStatement();
             case SyntaxKind.WhileKeyword:
@@ -926,10 +928,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var condition = ParseNonAssignmentExpression();
         var semicolon = Match(SyntaxKind.SemicolonToken);
 
-        ExpressionSyntax step;
-        if (currentToken.kind == SyntaxKind.CloseParenToken)
-            step = SyntaxFactory.Empty();
-        else
+        ExpressionSyntax step = null;
+
+        if (currentToken.kind != SyntaxKind.CloseParenToken)
             step = ParseExpression();
 
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
@@ -1069,10 +1070,6 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private ExpressionSyntax ParseNonAssignmentExpression() {
         var saved = _context;
         _context |= ParserContext.InExpression;
-
-        if (currentToken.kind == SyntaxKind.SemicolonToken)
-            return ParseEmptyExpression();
-
         _expectParenthesis = true;
         var value = ParseOperatorExpression();
         _expectParenthesis = false;
@@ -1083,21 +1080,13 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private ExpressionSyntax ParseExpression(bool allowEmpty = false) {
         var saved = _context;
         _context |= ParserContext.InExpression;
-
-        if (currentToken.kind == SyntaxKind.SemicolonToken) {
-            if (!allowEmpty)
-                AddDiagnosticToNextToken(Error.ExpectedToken(SyntaxKind.IdentifierName));
-
-            return ParseEmptyExpression();
-        }
-
         var expression = ParseAssignmentExpression();
         _context = saved;
         return expression;
     }
 
-    private ExpressionSyntax ParseEmptyExpression() {
-        return SyntaxFactory.Empty();
+    private StatementSyntax ParseEmptyStatement() {
+        return SyntaxFactory.EmptyStatement(EatToken());
     }
 
     private ExpressionSyntax ParseOperatorExpression(int parentPrecedence = 0) {
@@ -1299,8 +1288,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 var expression = ParseExpression();
                 nodesAndSeparators.Add(expression);
             } else {
-                var empty = SyntaxFactory.Empty();
-                nodesAndSeparators.Add(empty);
+                nodesAndSeparators.Add(null);
             }
 
             if (currentToken.kind == SyntaxKind.CommaToken) {
@@ -1326,8 +1314,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 var keyValuePair = ParseKeyValuePair();
                 nodesAndSeparators.Add(keyValuePair);
             } else {
-                var empty = SyntaxFactory.Empty();
-                nodesAndSeparators.Add(empty);
+                nodesAndSeparators.Add(null);
             }
 
             if (currentToken.kind == SyntaxKind.CommaToken) {
@@ -1491,14 +1478,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
                     var argument = ParseArgument();
                     nodesAndSeparators.Add(argument);
                 } else {
-                    var empty = SyntaxFactory.Argument(
-                        null,
-                        null,
-                        null,
-                        SyntaxFactory.Empty()
-                    );
-
-                    nodesAndSeparators.Add(empty);
+                    nodesAndSeparators.Add(null);
                 }
 
                 if (currentToken.kind == SyntaxKind.CommaToken) {
@@ -1528,9 +1508,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
         ExpressionSyntax expression;
 
-        if (currentToken.kind is SyntaxKind.CommaToken or SyntaxKind.CloseParenToken)
-            expression = SyntaxFactory.Empty();
-        else if ((_context & ParserContext.InTemplateArgumentList) != 0 && PeekIsType(0, out _, out _, out _))
+        if ((_context & ParserContext.InTemplateArgumentList) != 0 && PeekIsType(0, out _, out _, out _))
             expression = ParseType(false);
         else
             expression = ParseNonAssignmentExpression();

@@ -906,7 +906,6 @@ internal partial class Binder {
             SyntaxKind.LiteralExpression => BindLiteralExpression((LiteralExpressionSyntax)node, diagnostics),
             SyntaxKind.ThisExpression => BindThisExpression((ThisExpressionSyntax)node, diagnostics),
             SyntaxKind.BaseExpression => BindBaseExpression((BaseExpressionSyntax)node, diagnostics),
-            SyntaxKind.EmptyExpression => BindEmptyExpression((EmptyExpressionSyntax)node, diagnostics),
             SyntaxKind.CallExpression => BindCallExpression((CallExpressionSyntax)node, diagnostics),
             SyntaxKind.QualifiedName => BindQualifiedName((QualifiedNameSyntax)node, diagnostics),
             SyntaxKind.ReferenceType => BindReferenceType((ReferenceTypeSyntax)node, diagnostics),
@@ -1467,17 +1466,17 @@ internal partial class Binder {
         var targetType = targetTypeWithAnnotations.type;
         var boundType = new BoundTypeExpression(node.right, targetTypeWithAnnotations, targetType);
 
-        if ((operand.type.isObjectType && targetType.isPrimitiveType) ||
-            (operand.type.isPrimitiveType && targetType.isObjectType) ||
-            targetType.isStatic) {
-            diagnostics.Push(Warning.NeverGivenType(node.location, targetType));
-            return new BoundLiteralExpression(node, new ConstantValue(isIsntOperator, SpecialType.Bool), resultType);
-        }
-
         if (ConstantValue.IsNull(operand.constantValue) ||
             operand.kind == BoundKind.MethodGroup ||
             operand.type.IsVoidType()) {
             diagnostics.Push(Warning.AlwaysValue(node.location, isIsntOperator));
+            return new BoundLiteralExpression(node, new ConstantValue(isIsntOperator, SpecialType.Bool), resultType);
+        }
+
+        if ((operand.type.isObjectType && targetType.isPrimitiveType) ||
+            (operand.type.isPrimitiveType && targetType.isObjectType) ||
+            targetType.isStatic) {
+            diagnostics.Push(Warning.NeverGivenType(node.location, targetType));
             return new BoundLiteralExpression(node, new ConstantValue(isIsntOperator, SpecialType.Bool), resultType);
         }
 
@@ -2147,7 +2146,7 @@ internal partial class Binder {
             SyntaxKind.PlusToken => UnaryOperatorKind.UnaryPlus,
             SyntaxKind.MinusToken => UnaryOperatorKind.UnaryMinus,
             SyntaxKind.ExclamationToken => UnaryOperatorKind.LogicalNegation,
-            SyntaxKind.CaretToken => UnaryOperatorKind.BitwiseComplement,
+            SyntaxKind.TildeToken => UnaryOperatorKind.BitwiseComplement,
             _ => throw ExceptionUtilities.UnexpectedValue(kind),
         };
     }
@@ -3914,8 +3913,8 @@ internal partial class Binder {
         }
     }
 
-    private BoundEmptyExpression BindEmptyExpression(EmptyExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
-        return new BoundEmptyExpression(node, null);
+    private BoundStatement BindEmptyStatement(EmptyStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        return new BoundNopStatement(node);
     }
 
     private BoundLiteralExpression BindLiteralExpression(
@@ -4950,6 +4949,7 @@ symIsHidden:;
             SyntaxKind.ReturnStatement => BindReturnStatement((ReturnStatementSyntax)node, diagnostics),
             SyntaxKind.ExpressionStatement => BindExpressionStatement((ExpressionStatementSyntax)node, diagnostics),
             SyntaxKind.LocalDeclarationStatement => BindLocalDeclarationStatement((LocalDeclarationStatementSyntax)node, diagnostics),
+            SyntaxKind.EmptyStatement => BindEmptyStatement((EmptyStatementSyntax)node, diagnostics),
             /*
             case SyntaxKind.IfStatement:
                 return BindIfStatement((IfStatementSyntax)syntax);
@@ -5357,7 +5357,6 @@ symIsHidden:;
             if (expression is not BoundCallExpression
                           and not BoundAssignmentOperator
                           and not BoundErrorExpression
-                          and not BoundEmptyExpression
                           and not BoundCompoundAssignmentOperator
                           and not BoundThrowExpression) {
                 diagnostics.Push(Error.InvalidExpressionStatement(node.location));

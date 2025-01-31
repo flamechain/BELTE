@@ -80,11 +80,6 @@ internal static partial class SyntaxFactory {
     }
 
     /// <summary>
-    /// Creates a <see cref="EmptyExpressionSyntax" />.
-    /// </summary>
-    internal static EmptyExpressionSyntax Empty() => EmptyExpression();
-
-    /// <summary>
     /// Creates an empty syntax list.
     /// </summary>
     public static SyntaxList<T> List<T>() where T : GreenNode {

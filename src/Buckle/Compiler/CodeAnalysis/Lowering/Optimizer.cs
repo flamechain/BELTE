@@ -99,8 +99,9 @@ internal sealed class Optimizer : BoundTreeRewriter {
             right is BoundDataContainerExpression rd &&
             ld.dataContainer.Equals(rd.dataContainer);
 
-        if (canSimplify)
-            return new BoundEmptyExpression(expression.syntax, expression.type);
+        // TODO what to do here
+        // if (canSimplify)
+        //     return new BoundEmptyExpression(expression.syntax, expression.type);
 
         return base.VisitAssignmentOperator(expression);
     }

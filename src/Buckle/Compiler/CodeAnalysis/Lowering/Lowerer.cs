@@ -188,9 +188,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var syntax = statement.syntax;
         var continueLabel = statement.continueLabel;
         var breakLabel = statement.breakLabel;
-        var condition = statement.condition.kind == BoundKind.EmptyExpression
-            ? Literal(syntax, true)
-            : statement.condition;
+        // var condition = statement.condition.kind == BoundKind.EmptyExpression
+        //     ? Literal(syntax, true)
+        //     : statement.condition;
+        var condition = statement.condition;
 
         return Visit(
             _expander.Expand(

@@ -48,8 +48,11 @@ internal static class ConstantFolding {
         var rightValue = rightConstant.value;
         var specialType = type.specialType;
 
-        if (opKind is BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual)
+        if (opKind is BinaryOperatorKind.Equal)
             return new ConstantValue(Equals(leftValue, rightValue));
+
+        if (opKind is BinaryOperatorKind.NotEqual)
+            return new ConstantValue(!Equals(leftValue, rightValue));
 
         leftValue = LiteralUtilities.Cast(leftValue, type);
         rightValue = LiteralUtilities.Cast(rightValue, type);

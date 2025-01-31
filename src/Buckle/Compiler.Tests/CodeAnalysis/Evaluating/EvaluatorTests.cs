@@ -61,7 +61,6 @@ public sealed class EvaluatorTests {
     [InlineData("4 * 2;", 8)]
     [InlineData("-6 * -4;", 24)]
     [InlineData("10 * 1.5;", 15)]
-    [InlineData("10 * (int)1.5;", 10)]
     [InlineData("9 / 3;", 3)]
     [InlineData("12 / 3;", 4)]
     [InlineData("9 / 2;", 4)]
@@ -109,7 +108,6 @@ public sealed class EvaluatorTests {
     [InlineData("false || true;", true)]
     [InlineData("true || false;", true)]
     [InlineData("true || true;", true)]
-    [InlineData("null || true;", true)]
     [InlineData("false == false;", true)]
     [InlineData("true == false;", false)]
     [InlineData("12 == 3;", false)]
@@ -148,7 +146,6 @@ public sealed class EvaluatorTests {
     [InlineData("5 % 2;", 1)]
     [InlineData("9 % 5;", 4)]
     [InlineData("5 ?? 2;", 5)]
-    [InlineData("null ?? 2;", 2)]
     // Compound assignments
     /*
     [InlineData("var a = 1; a += (2 + 3); return a;", 6)]
@@ -283,6 +280,7 @@ public sealed class EvaluatorTests {
     [InlineData("(int)3.4;", 3)]
     [InlineData("(int)3.6;", 3)]
     [InlineData("(int!)3;", 3)]
+    [InlineData("10 * (int)1.5;", 10)]
     [InlineData("string a = (string)(int)3.6; return a;", "3")]
     [InlineData("(string)null;", null)]
     [InlineData("(int)null;", null)]

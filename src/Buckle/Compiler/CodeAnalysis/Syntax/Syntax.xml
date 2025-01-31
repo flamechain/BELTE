@@ -373,6 +373,10 @@
     <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
     <Field Name="statement" Type="StatementSyntax"/>
   </Node>
+  <Node Name="EmptyStatementSyntax" Base="StatementSyntax">
+    <Kind Name="EmptyStatement"/>
+    <Field Name="semicolon" Type="SyntaxToken"/>
+  </Node>
   <Node Name="LocalDeclarationStatementSyntax" Base="StatementSyntax">
     <Kind Name="LocalDeclarationStatement"/>
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;"/>
@@ -464,7 +468,7 @@
     <Field Name="semicolon" Type="SyntaxToken">
       <Kind Name="SemicolonToken"/>
     </Field>
-    <Field Name="step" Type="ExpressionSyntax"/>
+    <Field Name="step" Type="ExpressionSyntax" Optional="true"/>
     <Field Name="closeParenthesis" Type="SyntaxToken">
       <Kind Name="CloseParenToken"/>
     </Field>
@@ -599,10 +603,6 @@
     </Field>
     <Field Name="type" Type="TypeSyntax"/>
     <Field Name="argumentList" Type="ArgumentListSyntax" Optional="true"/>
-  </Node>
-  <Node Name="EmptyExpressionSyntax" Base="ExpressionSyntax">
-    <Kind Name="EmptyExpression"/>
-    <Field Name="artificalLocation" Type="SyntaxToken" Optional="true"/>
   </Node>
   <Node Name="IndexExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="IndexExpression"/>

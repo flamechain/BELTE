@@ -331,6 +331,9 @@ internal sealed class Evaluator {
                 var s = block.statements[index];
 
                 switch (s.kind) {
+                    case BoundKind.NopStatement:
+                        index++;
+                        break;
                     case BoundKind.ExpressionStatement:
                         EvaluateExpressionStatement((BoundExpressionStatement)s, abort);
                         index++;
@@ -345,7 +348,7 @@ internal sealed class Evaluator {
                             ? EvaluatorObject.Null
                             : Copy(EvaluateExpression(returnStatement.expression, abort));
 
-                        _hasValue = returnStatement.expression is not null and not BoundEmptyExpression;
+                        _hasValue = returnStatement.expression is not null;
                         hasReturn = true;
 
                         return _lastValue;
@@ -403,7 +406,6 @@ internal sealed class Evaluator {
             return EvaluateConstant(expression.constantValue);
 
         return expression.kind switch {
-            BoundKind.EmptyExpression => EvaluatorObject.Null,
             BoundKind.ThisExpression => EvaluateThisExpression(),
             BoundKind.BaseExpression => EvaluateBaseExpression(),
             BoundKind.CastExpression => EvaluateCastExpression((BoundCastExpression)expression, abort),
@@ -472,7 +474,7 @@ internal sealed class Evaluator {
         ValueWrapper<bool> abort) {
         var receiverObject = default(EvaluatorObject);
 
-        if (receiver is not null && receiver is not BoundEmptyExpression) {
+        if (receiver is not null) {
             receiverObject = EvaluateExpression(receiver, abort);
             var dereferencedReceiver = Dereference(receiverObject);
 
@@ -601,7 +603,7 @@ internal sealed class Evaluator {
         if (dereferenced.members is null) {
             return new EvaluatorObject(
                 (right.type.StrippedType().specialType == SpecialType.Any) ||
-                (SpecialTypeExtensions.SpecialTypeFromLiteralValue(leftValue) == right.type.specialType),
+                (SpecialTypeExtensions.SpecialTypeFromLiteralValue(leftValue) == right.type.StrippedType().specialType),
                 expression.type
             );
         }

@@ -27,4 +27,11 @@ internal static class TypeSymbolExtensions {
     internal static bool IsNullableType(this TypeSymbol type) {
         return type?.originalDefinition.specialType == SpecialType.Nullable;
     }
+
+    internal static string ToNullOrString(this TypeSymbol? type) {
+        if (type is null)
+            return "<null>";
+
+        return type.ToString();
+    }
 }

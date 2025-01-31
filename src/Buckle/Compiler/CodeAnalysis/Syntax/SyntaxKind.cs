@@ -131,7 +131,6 @@ public enum SyntaxKind : ushort {
     ThisExpression,
     BaseExpression,
     ThrowExpression,
-    EmptyExpression,
 
     // Operator expressions
     TernaryExpression,
@@ -152,11 +151,11 @@ public enum SyntaxKind : ushort {
     ObjectCreationExpression,
 
     // Statements
+    EmptyStatement,
     BlockStatement,
     ExpressionStatement,
     LocalDeclarationStatement,
     LocalFunctionStatement,
-    EmptyStatement,
 
     // Jump statements
     BreakStatement,
