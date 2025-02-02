@@ -418,7 +418,6 @@ internal sealed class Evaluator {
             BoundKind.NullAssertExpression => EvaluateNullAssertExpression((BoundNullAssertExpression)expression, abort),
             BoundKind.AsOperator => EvaluateAsOperator((BoundAsOperator)expression, abort),
             BoundKind.IsOperator => EvaluateIsOperator((BoundIsOperator)expression, abort),
-            BoundKind.IsntOperator => EvaluateIsntOperator((BoundIsntOperator)expression, abort),
             BoundKind.ConditionalOperator => EvaluateConditionalOperator((BoundConditionalOperator)expression, abort),
             BoundKind.CallExpression => EvaluateCallExpression((BoundCallExpression)expression, abort),
             BoundKind.ObjectCreationExpression => EvaluateObjectCreationExpression((BoundObjectCreationExpression)expression, abort),
@@ -587,69 +586,37 @@ internal sealed class Evaluator {
         var right = expression.right;
         var leftValue = Value(left);
         var dereferenced = Dereference(left);
+        var isNot = expression.isNot;
 
         if (right.IsLiteralNull()) {
             if (left.members is null && leftValue is null &&
                 (expression.left.type.specialType != SpecialType.Type || left.type is null)) {
-                return new EvaluatorObject(true, expression.type);
+                return new EvaluatorObject(!isNot, expression.type);
             }
 
-            return new EvaluatorObject(false, expression.type);
+            return new EvaluatorObject(isNot, expression.type);
         }
 
         if (leftValue is null && dereferenced.members is null)
-            return new EvaluatorObject(false, expression.type);
+            return new EvaluatorObject(isNot, expression.type);
 
         if (dereferenced.members is null) {
-            return new EvaluatorObject(
-                (right.type.StrippedType().specialType == SpecialType.Any) ||
-                (SpecialTypeExtensions.SpecialTypeFromLiteralValue(leftValue) == right.type.StrippedType().specialType),
-                expression.type
-            );
+            var isTrue = (right.type.StrippedType().specialType == SpecialType.Any) ||
+                (SpecialTypeExtensions.SpecialTypeFromLiteralValue(leftValue) == right.type.StrippedType().specialType);
+
+            return new EvaluatorObject(isNot ^ isTrue, expression.type);
         }
 
         if (dereferenced.type.InheritsFromIgnoringConstruction((NamedTypeSymbol)expression.right.type))
-            return new EvaluatorObject(true, expression.type);
+            return new EvaluatorObject(!isNot, expression.type);
         else
-            return new EvaluatorObject(false, expression.type);
-    }
-
-    private EvaluatorObject EvaluateIsntOperator(BoundIsntOperator expression, ValueWrapper<bool> abort) {
-        var left = EvaluateExpression(expression.left, abort);
-        var right = expression.right;
-        var leftValue = Value(left);
-        var dereferenced = Dereference(left);
-
-        if (right.IsLiteralNull()) {
-            if (left.members is null && leftValue is null &&
-                (expression.left.type.specialType != SpecialType.Type || left.type is null)) {
-                return new EvaluatorObject(false, expression.type);
-            }
-
-            return new EvaluatorObject(true, expression.type);
-        }
-
-        if (leftValue is null && dereferenced.members is null)
-            return new EvaluatorObject(false, expression.type);
-
-        if (dereferenced.members is null) {
-            return new EvaluatorObject(
-                !((right.type.StrippedType().specialType == SpecialType.Any) ||
-                (SpecialTypeExtensions.SpecialTypeFromLiteralValue(leftValue) == right.type.specialType)),
-                expression.type
-            );
-        }
-
-        if (dereferenced.type.InheritsFromIgnoringConstruction((NamedTypeSymbol)expression.right.type))
-            return new EvaluatorObject(false, expression.type);
-        else
-            return new EvaluatorObject(true, expression.type);
+            return new EvaluatorObject(isNot, expression.type);
     }
 
     private EvaluatorObject EvaluateUnaryOperator(BoundUnaryOperator expression, ValueWrapper<bool> abort) {
         var operand = EvaluateExpression(expression.operand, abort);
         var operandValue = Value(operand);
-        var opKind = expression.opKind & UnaryOperatorKind.OpMask;
+        var opKind = expression.operatorKind.Operator();
 
         if (operandValue is null)
             return EvaluatorObject.Null;
@@ -670,7 +637,7 @@ internal sealed class Evaluator {
                 result = ~(int)operandValue;
                 break;
             default:
-                throw ExceptionUtilities.UnexpectedValue(expression.opKind);
+                throw ExceptionUtilities.UnexpectedValue(expression.operatorKind);
         }
 
         return new EvaluatorObject(result, expression.type);
@@ -679,7 +646,7 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateBinaryOperator(BoundBinaryOperator expression, ValueWrapper<bool> abort) {
         var left = EvaluateExpression(expression.left, abort);
         var leftValue = Value(left);
-        var opKind = expression.opKind & BinaryOperatorKind.OpMask;
+        var opKind = expression.operatorKind.Operator();
 
         if (opKind == BinaryOperatorKind.ConditionalAnd) {
             if (leftValue is null || !(bool)leftValue)
@@ -721,8 +688,8 @@ internal sealed class Evaluator {
         if (leftValue is null || rightValue is null)
             return EvaluatorObject.Null;
 
-        var expressionType = expression.type.specialType;
-        var leftType = expression.left.type.specialType;
+        var expressionType = expression.type.StrippedType().specialType;
+        var leftType = expression.left.type.StrippedType().specialType;
         object result;
 
         switch (opKind) {
@@ -823,7 +790,7 @@ internal sealed class Evaluator {
 
                 break;
             default:
-                throw ExceptionUtilities.UnexpectedValue(expression.opKind);
+                throw ExceptionUtilities.UnexpectedValue(expression.operatorKind);
         }
 
         return new EvaluatorObject(result, expression.type);

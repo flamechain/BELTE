@@ -170,11 +170,12 @@ internal static partial class BoundFactory {
         return new BoundNullAssertExpression(syntax, expression, null, type);
     }
 
-    internal static BoundIsntOperator HasValue(SyntaxNode syntax, BoundExpression expression) {
-        return new BoundIsntOperator(
+    internal static BoundIsOperator HasValue(SyntaxNode syntax, BoundExpression expression) {
+        return new BoundIsOperator(
             syntax,
             expression,
             Literal(syntax, null, expression.type),
+            true,
             null,
             CorLibrary.GetSpecialType(SpecialType.Bool)
         );

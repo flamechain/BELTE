@@ -22,16 +22,14 @@ internal abstract class BoundTreeExpander {
         return statement.kind switch {
             BoundKind.NopStatement => ExpandNopStatement((BoundNopStatement)statement),
             BoundKind.BlockStatement => ExpandBlockStatement((BoundBlockStatement)statement),
-            BoundKind.LocalDeclarationStatement
-                => ExpandLocalDeclarationStatement((BoundLocalDeclarationStatement)statement),
+            BoundKind.LocalDeclarationStatement => ExpandLocalDeclarationStatement((BoundLocalDeclarationStatement)statement),
             BoundKind.IfStatement => ExpandIfStatement((BoundIfStatement)statement),
             BoundKind.WhileStatement => ExpandWhileStatement((BoundWhileStatement)statement),
             BoundKind.ForStatement => ExpandForStatement((BoundForStatement)statement),
             BoundKind.ExpressionStatement => ExpandExpressionStatement((BoundExpressionStatement)statement),
             BoundKind.LabelStatement => ExpandLabelStatement((BoundLabelStatement)statement),
             BoundKind.GotoStatement => ExpandGotoStatement((BoundGotoStatement)statement),
-            BoundKind.ConditionalGotoStatement
-                => ExpandConditionalGotoStatement((BoundConditionalGotoStatement)statement),
+            BoundKind.ConditionalGotoStatement => ExpandConditionalGotoStatement((BoundConditionalGotoStatement)statement),
             BoundKind.DoWhileStatement => ExpandDoWhileStatement((BoundDoWhileStatement)statement),
             BoundKind.ReturnStatement => ExpandReturnStatement((BoundReturnStatement)statement),
             BoundKind.TryStatement => ExpandTryStatement((BoundTryStatement)statement),
@@ -197,68 +195,39 @@ internal abstract class BoundTreeExpander {
     private protected virtual List<BoundStatement> ExpandExpression(
         BoundExpression expression,
         out BoundExpression replacement) {
-        switch (expression.kind) {
-            case BoundKind.LiteralExpression:
-                return ExpandLiteralExpression((BoundLiteralExpression)expression, out replacement);
-            case BoundKind.InitializerList:
-                return ExpandInitializerList((BoundInitializerList)expression, out replacement);
-            case BoundKind.InitializerDictionary:
-                return ExpandInitializerDictionary((BoundInitializerDictionary)expression, out replacement);
-            case BoundKind.DataContainerExpression:
-                return ExpandDataContainerExpression((BoundDataContainerExpression)expression, out replacement);
-            case BoundKind.AssignmentOperator:
-                return ExpandAssignmentOperator((BoundAssignmentOperator)expression, out replacement);
-            case BoundKind.UnaryOperator:
-                return ExpandUnaryOperator((BoundUnaryOperator)expression, out replacement);
-            case BoundKind.BinaryOperator:
-                return ExpandBinaryOperator((BoundBinaryOperator)expression, out replacement);
-            case BoundKind.AsOperator:
-                return ExpandAsOperator((BoundAsOperator)expression, out replacement);
-            case BoundKind.IsOperator:
-                return ExpandIsOperator((BoundIsOperator)expression, out replacement);
-            case BoundKind.IsntOperator:
-                return ExpandIsntOperator((BoundIsntOperator)expression, out replacement);
-            case BoundKind.NullCoalescingOperator:
-                return ExpandNullCoalescingOperator((BoundNullCoalescingOperator)expression, out replacement);
-            case BoundKind.NullAssertExpression:
-                return ExpandNullAssertExpression((BoundNullAssertExpression)expression, out replacement);
-            case BoundKind.ErrorExpression:
-                return ExpandErrorExpression((BoundErrorExpression)expression, out replacement);
-            case BoundKind.CallExpression:
-                return ExpandCallExpression((BoundCallExpression)expression, out replacement);
-            case BoundKind.CastExpression:
-                return ExpandCastExpression((BoundCastExpression)expression, out replacement);
-            case BoundKind.ArrayAccessExpression:
-                return ExpandArrayAccessExpression((BoundArrayAccessExpression)expression, out replacement);
-            case BoundKind.CompoundAssignmentOperator:
-                return ExpandCompoundAssignmentOperator((BoundCompoundAssignmentOperator)expression, out replacement);
-            case BoundKind.ReferenceExpression:
-                return ExpandReferenceExpression((BoundReferenceExpression)expression, out replacement);
-            case BoundKind.TypeOfExpression:
-                return ExpandTypeOfExpression((BoundTypeOfExpression)expression, out replacement);
-            case BoundKind.ConditionalOperator:
-                return ExpandConditionalOperator((BoundConditionalOperator)expression, out replacement);
-            case BoundKind.ObjectCreationExpression:
-                return ExpandObjectCreationExpression((BoundObjectCreationExpression)expression, out replacement);
-            case BoundKind.ArrayCreationExpression:
-                return ExpandArrayCreationExpression((BoundArrayCreationExpression)expression, out replacement);
-            case BoundKind.FieldAccessExpression:
-                return ExpandFieldAccessExpression((BoundFieldAccessExpression)expression, out replacement);
-            case BoundKind.ConditionalAccessExpression:
-                return ExpandConditionalAccessExpression((BoundConditionalAccessExpression)expression, out replacement);
-            case BoundKind.ThisExpression:
-                return ExpandThisExpression((BoundThisExpression)expression, out replacement);
-            case BoundKind.BaseExpression:
-                return ExpandBaseExpression((BoundBaseExpression)expression, out replacement);
-            case BoundKind.ThrowExpression:
-                return ExpandThrowExpression((BoundThrowExpression)expression, out replacement);
-            case BoundKind.TypeExpression:
-                return ExpandTypeExpression((BoundTypeExpression)expression, out replacement);
-            case BoundKind.ParameterExpression:
-                return ExpandParameterExpression((BoundParameterExpression)expression, out replacement);
-            default:
-                throw new BelteInternalException($"ExpandExpression: unexpected expression type '{expression.kind}'");
-        }
+        return expression.kind switch {
+            BoundKind.LiteralExpression => ExpandLiteralExpression((BoundLiteralExpression)expression, out replacement),
+            BoundKind.InitializerList => ExpandInitializerList((BoundInitializerList)expression, out replacement),
+            BoundKind.InitializerDictionary => ExpandInitializerDictionary((BoundInitializerDictionary)expression, out replacement),
+            BoundKind.DataContainerExpression => ExpandDataContainerExpression((BoundDataContainerExpression)expression, out replacement),
+            BoundKind.AssignmentOperator => ExpandAssignmentOperator((BoundAssignmentOperator)expression, out replacement),
+            BoundKind.UnaryOperator => ExpandUnaryOperator((BoundUnaryOperator)expression, out replacement),
+            BoundKind.IncrementOperator => ExpandIncrementOperator((BoundIncrementOperator)expression, out replacement),
+            BoundKind.BinaryOperator => ExpandBinaryOperator((BoundBinaryOperator)expression, out replacement),
+            BoundKind.AsOperator => ExpandAsOperator((BoundAsOperator)expression, out replacement),
+            BoundKind.IsOperator => ExpandIsOperator((BoundIsOperator)expression, out replacement),
+            BoundKind.NullCoalescingOperator => ExpandNullCoalescingOperator((BoundNullCoalescingOperator)expression, out replacement),
+            BoundKind.NullCoalescingAssignmentOperator => ExpandNullCoalescingAssignmentOperator((BoundNullCoalescingAssignmentOperator)expression, out replacement),
+            BoundKind.NullAssertExpression => ExpandNullAssertExpression((BoundNullAssertExpression)expression, out replacement),
+            BoundKind.ErrorExpression => ExpandErrorExpression((BoundErrorExpression)expression, out replacement),
+            BoundKind.CallExpression => ExpandCallExpression((BoundCallExpression)expression, out replacement),
+            BoundKind.CastExpression => ExpandCastExpression((BoundCastExpression)expression, out replacement),
+            BoundKind.ArrayAccessExpression => ExpandArrayAccessExpression((BoundArrayAccessExpression)expression, out replacement),
+            BoundKind.CompoundAssignmentOperator => ExpandCompoundAssignmentOperator((BoundCompoundAssignmentOperator)expression, out replacement),
+            BoundKind.ReferenceExpression => ExpandReferenceExpression((BoundReferenceExpression)expression, out replacement),
+            BoundKind.TypeOfExpression => ExpandTypeOfExpression((BoundTypeOfExpression)expression, out replacement),
+            BoundKind.ConditionalOperator => ExpandConditionalOperator((BoundConditionalOperator)expression, out replacement),
+            BoundKind.ObjectCreationExpression => ExpandObjectCreationExpression((BoundObjectCreationExpression)expression, out replacement),
+            BoundKind.ArrayCreationExpression => ExpandArrayCreationExpression((BoundArrayCreationExpression)expression, out replacement),
+            BoundKind.FieldAccessExpression => ExpandFieldAccessExpression((BoundFieldAccessExpression)expression, out replacement),
+            BoundKind.ConditionalAccessExpression => ExpandConditionalAccessExpression((BoundConditionalAccessExpression)expression, out replacement),
+            BoundKind.ThisExpression => ExpandThisExpression((BoundThisExpression)expression, out replacement),
+            BoundKind.BaseExpression => ExpandBaseExpression((BoundBaseExpression)expression, out replacement),
+            BoundKind.ThrowExpression => ExpandThrowExpression((BoundThrowExpression)expression, out replacement),
+            BoundKind.TypeExpression => ExpandTypeExpression((BoundTypeExpression)expression, out replacement),
+            BoundKind.ParameterExpression => ExpandParameterExpression((BoundParameterExpression)expression, out replacement),
+            _ => throw new BelteInternalException($"ExpandExpression: unexpected expression type '{expression.kind}'"),
+        };
     }
 
     private protected virtual List<BoundStatement> ExpandParameterExpression(
@@ -306,7 +275,7 @@ internal abstract class BoundTreeExpander {
             replacement = expression.Update(
                 newLeft,
                 newRight,
-                expression.opKind,
+                expression.operatorKind,
                 expression.constantValue,
                 expression.type
             );
@@ -347,22 +316,14 @@ internal abstract class BoundTreeExpander {
         statements.AddRange(ExpandExpression(expression.right, out var newRight));
 
         if (statements.Count != 0) {
-            replacement = expression.Update(newLeft, newRight, expression.constantValue, expression.type);
-            return statements;
-        }
+            replacement = expression.Update(
+                newLeft,
+                newRight,
+                expression.isNot,
+                expression.constantValue,
+                expression.type
+            );
 
-        replacement = expression;
-        return [];
-    }
-
-    private protected virtual List<BoundStatement> ExpandIsntOperator(
-        BoundIsntOperator expression,
-        out BoundExpression replacement) {
-        var statements = ExpandExpression(expression.left, out var newLeft);
-        statements.AddRange(ExpandExpression(expression.right, out var newRight));
-
-        if (statements.Count != 0) {
-            replacement = expression.Update(newLeft, newRight, expression.constantValue, expression.type);
             return statements;
         }
 
@@ -378,6 +339,21 @@ internal abstract class BoundTreeExpander {
 
         if (statements.Count != 0) {
             replacement = expression.Update(newLeft, newRight, expression.constantValue, expression.type);
+            return statements;
+        }
+
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandNullCoalescingAssignmentOperator(
+        BoundNullCoalescingAssignmentOperator expression,
+        out BoundExpression replacement) {
+        var statements = ExpandExpression(expression.left, out var newLeft);
+        statements.AddRange(ExpandExpression(expression.right, out var newRight));
+
+        if (statements.Count != 0) {
+            replacement = expression.Update(newLeft, newRight, expression.type);
             return statements;
         }
 
@@ -447,7 +423,38 @@ internal abstract class BoundTreeExpander {
         var statements = ExpandExpression(expression.operand, out var newOperand);
 
         if (statements.Count != 0) {
-            replacement = expression.Update(newOperand, expression.opKind, expression.constantValue, expression.type);
+            replacement = expression.Update(
+                newOperand,
+                expression.operatorKind,
+                expression.constantValue,
+                expression.type
+            );
+
+            return statements;
+        }
+
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandIncrementOperator(
+        BoundIncrementOperator expression,
+        out BoundExpression replacement) {
+        var statements = ExpandExpression(expression.operand, out var newOperand);
+
+        if (statements.Count != 0) {
+            replacement = expression.Update(
+                expression.operatorKind,
+                newOperand,
+                expression.operandPlaceholder,
+                expression.operandConversion,
+                expression.resultPlaceholder,
+                expression.resultConversion,
+                expression.resultKind,
+                expression.originalUserDefinedOperators,
+                expression.type
+            );
+
             return statements;
         }
 

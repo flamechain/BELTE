@@ -163,29 +163,16 @@ internal static class ConstantFolding {
         return null;
     }
 
-    internal static ConstantValue FoldIs(BoundExpression left, BoundExpression right) {
-        // TODO Should be able to expand this to cover some `is object` or `is primitive` expressions to
+    internal static ConstantValue FoldIs(BoundExpression left, BoundExpression right, bool isNot) {
+        // TODO Should be able to expand this to cover some `is object` or `is primitive` expressions too
         var leftConstant = left.constantValue;
         var rightConstant = right.constantValue;
 
         if (ConstantValue.IsNull(leftConstant) && ConstantValue.IsNull(rightConstant))
-            return new ConstantValue(true, SpecialType.Bool);
+            return new ConstantValue(!isNot, SpecialType.Bool);
 
         if (ConstantValue.IsNotNull(leftConstant) && ConstantValue.IsNull(rightConstant))
-            return new ConstantValue(false, SpecialType.Bool);
-
-        return null;
-    }
-
-    internal static ConstantValue FoldIsnt(BoundExpression left, BoundExpression right) {
-        var leftConstant = left.constantValue;
-        var rightConstant = right.constantValue;
-
-        if (ConstantValue.IsNull(leftConstant) && ConstantValue.IsNull(rightConstant))
-            return new ConstantValue(false, SpecialType.Bool);
-
-        if (ConstantValue.IsNotNull(leftConstant) && ConstantValue.IsNull(rightConstant))
-            return new ConstantValue(true, SpecialType.Bool);
+            return new ConstantValue(isNot, SpecialType.Bool);
 
         return null;
     }

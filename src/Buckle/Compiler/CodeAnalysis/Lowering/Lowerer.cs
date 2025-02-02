@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.Libraries.Standard;
+using Buckle.Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
@@ -20,20 +20,18 @@ internal sealed class Lowerer : BoundTreeRewriter {
         _expander = new Expander(container);
     }
 
-    /// <summary>
-    /// Lowers a <see cref="MethodSymbol" />.
-    /// </summary>
-    /// <param name="method">Method to lower.</param>
-    /// <param name="statement">Method body.</param>
-    /// <returns>Lowered method body (same type).</returns>
-    internal static BoundBlockStatement Lower(MethodSymbol method, BoundStatement statement) {
+    internal static BoundBlockStatement Lower(
+        MethodSymbol method,
+        BoundStatement statement,
+        BelteDiagnosticQueue diagnostics) {
         var lowerer = new Lowerer(method);
 
-        var optimizedStatement = Optimizer.Optimize(statement, false);
+        // TODO Maybe separate Optimizer into Optimizer and DeadCodeRemover to prevent calling the Optimizer twice?
+        var optimizedStatement = Optimizer.Optimize(statement, false, diagnostics);
         var expandedStatement = lowerer._expander.Expand(optimizedStatement);
         var rewrittenStatement = (BoundStatement)lowerer.Visit(expandedStatement);
         var block = Flatten(method, rewrittenStatement);
-        var optimizedBlock = Optimizer.Optimize(block, true) as BoundBlockStatement;
+        var optimizedBlock = Optimizer.Optimize(block, true, diagnostics) as BoundBlockStatement;
 
         return optimizedBlock;
     }
@@ -231,8 +229,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         */
         var syntax = expression.syntax;
+        var op = expression.operatorKind;
 
-        if (expression.opKind.IsLifted()) {
+        if (op.IsLifted()) {
             if (expression.left.type.IsNullableType() &&
                 expression.right.type.IsNullableType() &&
                 expression.left.constantValue is null &&
@@ -245,7 +244,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                         ),
                         @then: Binary(syntax,
                             Value(syntax, expression.left, expression.left.type.GetNullableUnderlyingType()),
-                            expression.opKind,
+                            op,
                             Value(syntax, expression.right, expression.right.type.GetNullableUnderlyingType()),
                             expression.type
                         ),
@@ -261,7 +260,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                         @if: HasValue(syntax, expression.left),
                         @then: Binary(syntax,
                             Value(syntax, expression.left, expression.left.type.GetNullableUnderlyingType()),
-                            expression.opKind,
+                            op,
                             expression.right,
                             expression.type
                         ),
@@ -277,7 +276,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                         @if: HasValue(syntax, expression.right),
                         @then: Binary(syntax,
                             expression.left,
-                            expression.opKind,
+                            op,
                             Value(syntax, expression.right, expression.right.type.GetNullableUnderlyingType()),
                             expression.type
                         ),
@@ -326,68 +325,20 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         (HasValue(<operand>) ? <op> Value(<operand>) : null)
 
-        ----> <op> is '++'
-
-        (<operand> += 1)
-
-        ----> <op> is '--'
-
-        (<operand> -= 1)
-
-        ----> <op> is '++' and <isOwnStatement>
-
-        (<operand> += 1)
-
-        ----> <op> is '++'
-
-        ((<operand> += 1) - 1)
-
-        ----> <op> is '--' and <isOwnStatement>
-
-        (<operand> -= 1)
-
-        ----> <op> is '--'
-
-        ((<operand> -= 1) + 1)
-
         */
         var syntax = expression.syntax;
+        var op = expression.operatorKind;
 
-        if (expression.opKind == UnaryOperatorKind.UnaryPlus)
+        if (op == UnaryOperatorKind.UnaryPlus)
             return Visit(expression.operand);
 
-        if (expression.opKind == UnaryOperatorKind.PrefixIncrement)
-            return Visit(Increment(syntax, expression.operand));
-        else if (expression.opKind == UnaryOperatorKind.PrefixDecrement)
-            return Visit(Decrement(syntax, expression.operand));
-
-        if (expression.opKind == UnaryOperatorKind.PostfixIncrement ||
-            expression.opKind == UnaryOperatorKind.PostfixDecrement) {
-            var assignment = expression.opKind == UnaryOperatorKind.PostfixIncrement
-                ? Increment(syntax, expression.operand)
-                : Decrement(syntax, expression.operand);
-
-            // TODO Probably add a BoundIncrementExpression to handle isOwnStatement
-            // Should ABSOLUTELY be using the expander for this kind of operation however, not undoing an increment
-            // if (expression.isOwnStatement) {
-            //     return VisitExpression(assignment);
-            // } else {
-            //     var reversal = expression.op.opKind == UnaryOperatorKind.PostfixIncrement
-            //         ? Subtract(assignment, Literal(1))
-            //         : Add(assignment, Literal(1));
-
-            //     return VisitExpression(reversal);
-            // }
-            return Visit(assignment);
-        }
-
         // TODO Is there any case where an operator is lifted but not nullable or vice versa?
-        if (expression.opKind.IsLifted() && expression.operand.type.IsNullableType()) {
+        if (op.IsLifted() && expression.operand.type.IsNullableType()) {
             return VisitConditionalOperator(
                 Conditional(syntax,
                     @if: HasValue(syntax, expression.operand),
                     @then: Unary(syntax,
-                        expression.opKind,
+                        op,
                         Value(syntax, expression.operand, expression.operand.type.GetNullableUnderlyingType()),
                         expression.type
                     ),
@@ -398,6 +349,29 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
 
         return base.VisitUnaryOperator(expression);
+    }
+
+    internal override BoundNode VisitIncrementOperator(BoundIncrementOperator expression) {
+        /*
+
+        <op> <operand>
+
+        ----> <op> is '++'
+
+        <operand> += 1
+
+        ----> <op> is '--'
+
+        <operand> -= 1
+
+        */
+        var syntax = expression.syntax;
+        var op = expression.operatorKind;
+
+        if (op is UnaryOperatorKind.PrefixIncrement or UnaryOperatorKind.PostfixIncrement)
+            return Visit(Increment(syntax, expression.operand));
+        else
+            return Visit(Decrement(syntax, expression.operand));
     }
 
     internal override BoundNode VisitCastExpression(BoundCastExpression expression) {
@@ -546,7 +520,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         ---->
 
-        (<left> = <left> <op> <right>)
+        <left> = <left> <op> <right>
 
         */
         var syntax = expression.syntax;
@@ -558,6 +532,34 @@ internal sealed class Lowerer : BoundTreeRewriter {
                     expression.left,
                     expression.op.kind,
                     expression.right,
+                    expression.type
+                ),
+                false,
+                expression.type
+            )
+        );
+    }
+
+    internal override BoundNode VisitNullCoalescingAssignmentOperator(BoundNullCoalescingAssignmentOperator expression) {
+        /*
+
+        <left> ??= <right>
+
+        ---->
+
+        <left> = <left> ?? <right>
+
+        */
+        var syntax = expression.syntax;
+
+        return VisitAssignmentOperator(
+            Assignment(syntax,
+                expression.left,
+                new BoundNullCoalescingOperator(
+                    syntax,
+                    expression.left,
+                    expression.right,
+                    null,
                     expression.type
                 ),
                 false,

@@ -147,7 +147,6 @@ public sealed class EvaluatorTests {
     [InlineData("9 % 5;", 4)]
     [InlineData("5 ?? 2;", 5)]
     // Compound assignments
-    /*
     [InlineData("var a = 1; a += (2 + 3); return a;", 6)]
     [InlineData("var a = 1; a -= (2 + 3); return a;", -4)]
     [InlineData("var a = 1; a *= (2 + 3); return a;", 5)]
@@ -175,6 +174,7 @@ public sealed class EvaluatorTests {
     [InlineData("var a = 3; a += null; return a;", null)]
     [InlineData("int a = 3; a += null; return a is null;", true)]
     [InlineData("int a = 3; a += null; return a isnt null;", false)]
+    /*
     // Ternary expressions
     [InlineData("true ? 3 : 5;", 3)]
     [InlineData("false ? \"asdf\" : \"asdf2\";", "asdf2")]

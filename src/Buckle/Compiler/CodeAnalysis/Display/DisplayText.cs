@@ -163,6 +163,9 @@ public sealed class DisplayText {
             case BoundKind.UnaryOperator:
                 DisplayUnaryOperator(text, (BoundUnaryOperator)node);
                 break;
+            case BoundKind.IncrementOperator:
+                DisplayIncrementOperator(text, (BoundIncrementOperator)node);
+                break;
             case BoundKind.InitializerList:
                 DisplayInitializerList(text, (BoundInitializerList)node);
                 break;
@@ -220,11 +223,11 @@ public sealed class DisplayText {
             case BoundKind.IsOperator:
                 DisplayIsOperator(text, (BoundIsOperator)node);
                 break;
-            case BoundKind.IsntOperator:
-                DisplayIsntOperator(text, (BoundIsntOperator)node);
-                break;
             case BoundKind.NullCoalescingOperator:
                 DisplayNullCoalescingOperator(text, (BoundNullCoalescingOperator)node);
+                break;
+            case BoundKind.NullCoalescingAssignmentOperator:
+                DisplayNullCoalescingAssignmentOperator(text, (BoundNullCoalescingAssignmentOperator)node);
                 break;
             case BoundKind.NullAssertExpression:
                 DisplayNullAssertExpression(text, (BoundNullAssertExpression)node);
@@ -801,7 +804,7 @@ public sealed class DisplayText {
     }
 
     private static void DisplayBinaryOperator(DisplayText text, BoundBinaryOperator node) {
-        DisplayBinaryAdjacentExpression(text, node.left, node.right, node.opKind.ToSyntaxKind(), false);
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, node.operatorKind.ToSyntaxKind(), false);
     }
 
     private static void DisplayCompoundAssignmentOperator(DisplayText text, BoundCompoundAssignmentOperator node) {
@@ -810,11 +813,8 @@ public sealed class DisplayText {
     }
 
     private static void DisplayIsOperator(DisplayText text, BoundIsOperator node) {
-        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.IsKeyword, true);
-    }
-
-    private static void DisplayIsntOperator(DisplayText text, BoundIsntOperator node) {
-        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.IsntKeyword, true);
+        var op = node.isNot ? SyntaxKind.IsntKeyword : SyntaxKind.IsKeyword;
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, op, true);
     }
 
     private static void DisplayAsOperator(DisplayText text, BoundAsOperator node) {
@@ -823,6 +823,12 @@ public sealed class DisplayText {
 
     private static void DisplayNullCoalescingOperator(DisplayText text, BoundNullCoalescingOperator node) {
         DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.QuestionQuestionToken, false);
+    }
+
+    private static void DisplayNullCoalescingAssignmentOperator(
+        DisplayText text,
+        BoundNullCoalescingAssignmentOperator node) {
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.QuestionQuestionEqualsToken, false);
     }
 
     private static void DisplayDataContainerExpression(DisplayText text, BoundDataContainerExpression node) {
@@ -834,8 +840,18 @@ public sealed class DisplayText {
     }
 
     private static void DisplayUnaryOperator(DisplayText text, BoundUnaryOperator node) {
-        text.Write(CreatePunctuation(node.opKind.ToSyntaxKind()));
+        text.Write(CreatePunctuation(node.operatorKind.ToSyntaxKind()));
         DisplayNode(text, node.operand);
+    }
+
+    private static void DisplayIncrementOperator(DisplayText text, BoundIncrementOperator node) {
+        if (node.operatorKind.Operator() is UnaryOperatorKind.PrefixDecrement or UnaryOperatorKind.PrefixIncrement)
+            text.Write(CreatePunctuation(node.operatorKind.ToSyntaxKind()));
+
+        DisplayNode(text, node.operand);
+
+        if (node.operatorKind.Operator() is UnaryOperatorKind.PostfixDecrement or UnaryOperatorKind.PostfixIncrement)
+            text.Write(CreatePunctuation(node.operatorKind.ToSyntaxKind()));
     }
 
     private static void DisplayNullAssertExpression(DisplayText text, BoundNullAssertExpression node) {

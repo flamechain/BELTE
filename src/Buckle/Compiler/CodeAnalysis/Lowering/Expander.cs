@@ -71,6 +71,38 @@ internal sealed class Expander : BoundTreeExpander {
         return baseStatements;
     }
 
+    private protected override List<BoundStatement> ExpandNullCoalescingAssignmentOperator(
+        BoundNullCoalescingAssignmentOperator expression,
+        out BoundExpression replacement) {
+        _compoundAssignmentDepth++;
+        var syntax = expression.syntax;
+
+        if (_compoundAssignmentDepth > 1) {
+            var statements = ExpandExpression(expression.left, out var newLeft);
+            statements.AddRange(ExpandExpression(expression.right, out var newRight));
+
+            statements.Add(
+                new BoundExpressionStatement(
+                    syntax,
+                    new BoundNullCoalescingAssignmentOperator(
+                        syntax,
+                        newLeft,
+                        newRight,
+                        expression.type
+                    )
+                )
+            );
+
+            replacement = newLeft;
+            _compoundAssignmentDepth--;
+            return statements;
+        }
+
+        var baseStatements = base.ExpandNullCoalescingAssignmentOperator(expression, out replacement);
+        _compoundAssignmentDepth--;
+        return baseStatements;
+    }
+
     private protected override List<BoundStatement> ExpandCallExpression(
         BoundCallExpression expression,
         out BoundExpression replacement) {
@@ -145,7 +177,7 @@ internal sealed class Expander : BoundTreeExpander {
                         syntax,
                         newLeft,
                         newRight,
-                        expression.opKind,
+                        expression.operatorKind,
                         expression.constantValue,
                         expression.type
                     )
@@ -160,6 +192,28 @@ internal sealed class Expander : BoundTreeExpander {
         var baseStatements = base.ExpandBinaryOperator(expression, out replacement);
         _operatorDepth--;
         return baseStatements;
+    }
+
+    private protected override List<BoundStatement> ExpandIncrementOperator(
+        BoundIncrementOperator expression,
+        out BoundExpression replacement) {
+        if (expression.operatorKind.Operator() is UnaryOperatorKind.PrefixDecrement
+                                               or UnaryOperatorKind.PrefixIncrement) {
+            return base.ExpandIncrementOperator(expression, out replacement);
+        }
+
+        var syntax = expression.syntax;
+
+        var statements = ExpandExpression(expression.operand, out var newOperand);
+        var tempLocal = GenerateTempLocal(expression.type);
+
+        statements.AddRange([
+            new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax, tempLocal, newOperand)),
+            new BoundExpressionStatement(syntax, expression)
+        ]);
+
+        replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+        return statements;
     }
 
     private protected override List<BoundStatement> ExpandConditionalOperator(

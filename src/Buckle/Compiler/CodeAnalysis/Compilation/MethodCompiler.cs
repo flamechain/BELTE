@@ -225,7 +225,7 @@ internal sealed class MethodCompiler {
             return;
         }
 
-        var loweredBody = Lowerer.Lower(method, body);
+        var loweredBody = Lowerer.Lower(method, body, currentDiagnostics);
 
         _diagnostics.PushRangeAndFree(currentDiagnostics);
         _methodBodies.Add(method, loweredBody);

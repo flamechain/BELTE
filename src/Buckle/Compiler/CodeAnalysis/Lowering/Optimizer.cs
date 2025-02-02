@@ -4,6 +4,7 @@ using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.FlowAnalysis;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Diagnostics;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
@@ -12,18 +13,21 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// Optimizes BoundExpressions and BoundStatements.
 /// </summary>
 internal sealed class Optimizer : BoundTreeRewriter {
-    /// <summary>
-    /// Optimizes a <see cref="BoundStatement" />.
-    /// </summary>
-    /// <param name="statement"><see cref="BoundStatement" /> to optimize.</param>
-    /// <param name="removeDeadCode">If the compiler is transpiling skip this part of optimizing.</param>
-    /// <returns>Optimized <param name="statement" />.</returns>
-    internal static BoundStatement Optimize(BoundStatement statement, bool removeDeadCode) {
-        var optimizer = new Optimizer();
+    private readonly BelteDiagnosticQueue _diagnostics;
+
+    private Optimizer(BelteDiagnosticQueue diagnostics) {
+        _diagnostics = diagnostics;
+    }
+
+    internal static BoundStatement Optimize(
+        BoundStatement statement,
+        bool removeDeadCode,
+        BelteDiagnosticQueue diagnostics) {
+        var optimizer = new Optimizer(diagnostics);
         var optimizedStatement = optimizer.Visit(statement);
 
         if (statement is BoundBlockStatement && removeDeadCode)
-            return RemoveDeadCode(optimizedStatement as BoundBlockStatement);
+            return optimizer.RemoveDeadCode(optimizedStatement as BoundBlockStatement);
         else
             return (BoundStatement)optimizedStatement;
     }
@@ -85,11 +89,11 @@ internal sealed class Optimizer : BoundTreeRewriter {
 
         ----> <right> is ref <left>
 
-        ;
+        <left>
 
         ----> <right> is the same as <left>
 
-        ;
+        <left>
 
         */
         var left = expression.left;
@@ -99,11 +103,38 @@ internal sealed class Optimizer : BoundTreeRewriter {
             right is BoundDataContainerExpression rd &&
             ld.dataContainer.Equals(rd.dataContainer);
 
-        // TODO what to do here
-        // if (canSimplify)
-        //     return new BoundEmptyExpression(expression.syntax, expression.type);
+        if (canSimplify)
+            return Visit(left);
 
         return base.VisitAssignmentOperator(expression);
+    }
+
+    internal override BoundNode VisitNullCoalescingAssignmentOperator(
+        BoundNullCoalescingAssignmentOperator expression) {
+        /*
+
+        <left> = <right>
+
+        ----> <right> is ref <left>
+
+        <left>
+
+        ----> <right> is the same as <left>
+
+        <left>
+
+        */
+        var left = expression.left;
+        var right = expression.right is BoundReferenceExpression r ? r.expression : expression.right;
+        // TODO Expand this to cover more cases
+        var canSimplify = left is BoundDataContainerExpression ld &&
+            right is BoundDataContainerExpression rd &&
+            ld.dataContainer.Equals(rd.dataContainer);
+
+        if (canSimplify)
+            return Visit(left);
+
+        return base.VisitNullCoalescingAssignmentOperator(expression);
     }
 
     internal override BoundNode VisitArrayAccessExpression(BoundArrayAccessExpression expression) {
@@ -153,14 +184,17 @@ internal sealed class Optimizer : BoundTreeRewriter {
         return base.VisitCallExpression(expression);
     }
 
-    private static BoundBlockStatement RemoveDeadCode(BoundBlockStatement block) {
+    private BoundBlockStatement RemoveDeadCode(BoundBlockStatement block) {
         var controlFlow = ControlFlowGraph.Create(block);
         var reachableStatements = new HashSet<BoundStatement>(controlFlow.blocks.SelectMany(b => b.statements));
 
         var builder = block.statements.ToBuilder();
         for (var i = builder.Count - 1; i >= 0; i--) {
-            if (!reachableStatements.Contains(builder[i]))
+            if (!reachableStatements.Contains(builder[i])) {
+                var statementToRemove = builder[i];
+                _diagnostics.Push(Warning.UnreachableCode(statementToRemove.syntax));
                 builder.RemoveAt(i);
+            }
         }
 
         return new BoundBlockStatement(block.syntax, builder.ToImmutable(), block.locals, block.localFunctions);

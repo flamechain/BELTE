@@ -84,7 +84,7 @@
   <Node Name="BoundBinaryOperator" Base="BoundExpression">
     <Field Name="left" Type="BoundExpression"/>
     <Field Name="right" Type="BoundExpression"/>
-    <Field Name="opKind" Type="BinaryOperatorKind"/>
+    <Field Name="operatorKind" Type="BinaryOperatorKind"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
   <Node Name="BoundCallExpression" Base="BoundExpression">
@@ -111,6 +111,10 @@
     <Field Name="resultKind" Type="LookupResultKind" PropertyOverrides="true"/>
     <Field Name="originalUserDefinedOperators" Type="ImmutableArray&lt;MethodSymbol&gt;"/>
   </Node>
+  <Node Name="BoundNullCoalescingAssignmentOperator" Base="BoundExpression">
+    <Field Name="left" Type="BoundExpression"/>
+    <Field Name="right" Type="BoundExpression"/>
+  </Node>
   <Node Name="BoundConditionalAccessExpression" Base="BoundExpression">
     <Field Name="receiver" Type="BoundExpression"/>
     <Field Name="accessExpression" Type="BoundExpression"/>
@@ -136,14 +140,10 @@
   <Node Name="BoundInitializerList" Base="BoundExpression">
     <Field Name="items" Type="ImmutableArray&lt;BoundExpression&gt;"/>
   </Node>
-  <Node Name="BoundIsntOperator" Base="BoundExpression">
-    <Field Name="left" Type="BoundExpression"/>
-    <Field Name="right" Type="BoundExpression"/>
-    <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
-  </Node>
   <Node Name="BoundIsOperator" Base="BoundExpression">
     <Field Name="left" Type="BoundExpression"/>
     <Field Name="right" Type="BoundExpression"/>
+    <Field Name="isNot" Type="bool"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
   <Node Name="BoundLiteralExpression" Base="BoundExpression">
@@ -191,8 +191,19 @@
   </Node>
   <Node Name="BoundUnaryOperator" Base="BoundExpression">
     <Field Name="operand" Type="BoundExpression"/>
-    <Field Name="opKind" Type="UnaryOperatorKind"/>
+    <Field Name="operatorKind" Type="UnaryOperatorKind"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundIncrementOperator" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+    <Field Name="operatorKind" Type="UnaryOperatorKind"/>
+    <Field Name="operand" Type="BoundExpression"/>
+    <Field Name="operandPlaceholder" Type="BoundValuePlaceholder?" SkipInVisitor="true"/>
+    <Field Name="operandConversion" Type="BoundExpression?" SkipInVisitor="true"/>
+    <Field Name="resultPlaceholder" Type="BoundValuePlaceholder?" SkipInVisitor="true"/>
+    <Field Name="resultConversion" Type="BoundExpression?" SkipInVisitor="true"/>
+    <Field Name="resultKind" Type="LookupResultKind" PropertyOverrides="true"/>
+    <Field Name="originalUserDefinedOperators" Type="ImmutableArray&lt;MethodSymbol&gt;"/>
   </Node>
   <!-- Statements -->
   <Node Name="BoundErrorStatement" Base="BoundStatement">
