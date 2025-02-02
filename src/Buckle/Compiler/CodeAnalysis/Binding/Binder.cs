@@ -917,7 +917,7 @@ internal partial class Binder {
             SyntaxKind.UnaryExpression => BindUnaryExpression((UnaryExpressionSyntax)node, diagnostics),
             // SyntaxKind.PrefixExpression => BindPrefixExpression((PrefixExpressionSyntax)node, diagnostics),
             // SyntaxKind.PostfixExpression => BindPostfixExpression((PostfixExpressionSyntax)node, diagnostics),
-            // SyntaxKind.TernaryExpression => BindTernaryExpression((TernaryExpressionSyntax)node, diagnostics),
+            SyntaxKind.TernaryExpression => BindTernaryExpression((TernaryExpressionSyntax)node, diagnostics),
             SyntaxKind.AssignmentExpression => BindAssignmentExpression((AssignmentExpressionSyntax)node, diagnostics),
             SyntaxKind.ObjectCreationExpression => BindObjectCreationExpression((ObjectCreationExpressionSyntax)node, diagnostics),
             /*
@@ -2216,6 +2216,96 @@ internal partial class Binder {
             default:
                 return BindValueKind.RValue;
         }
+    }
+
+    private BoundExpression BindTernaryExpression(TernaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var whenTrue = node.center.UnwrapRefExpression(out var whenTrueRefKind);
+        var whenFalse = node.right.UnwrapRefExpression(out var whenFalseRefKind);
+
+        var isRef = whenTrueRefKind == RefKind.Ref && whenFalseRefKind == RefKind.Ref;
+
+        if (!isRef) {
+            if (whenFalseRefKind == RefKind.Ref)
+                diagnostics.Push(Error.RefConditionalNeedsTwoRefs(whenFalse.GetFirstToken().location));
+
+            if (whenTrueRefKind == RefKind.Ref)
+                diagnostics.Push(Error.RefConditionalNeedsTwoRefs(whenTrue.GetFirstToken().location));
+        }
+
+        return isRef
+            ? BindRefConditionalOperator(node, whenTrue, whenFalse, diagnostics)
+            : BindValueConditionalOperator(node, whenTrue, whenFalse, diagnostics);
+    }
+
+    private BoundExpression BindValueConditionalOperator(
+        TernaryExpressionSyntax node,
+        ExpressionSyntax whenTrue,
+        ExpressionSyntax whenFalse,
+        BelteDiagnosticQueue diagnostics) {
+        var condition = BindBooleanExpression(node.left, diagnostics);
+        var trueExpr = BindValue(whenTrue, diagnostics, BindValueKind.RValue);
+        var falseExpr = BindValue(whenFalse, diagnostics, BindValueKind.RValue);
+        ConstantValue? constantValue = null;
+        TypeSymbol? bestType = BestTypeInferrer.InferBestTypeForConditionalOperator(trueExpr, falseExpr, this.Conversions, out bool hadMultipleCandidates);
+
+        if (bestType is null) {
+            ErrorCode noCommonTypeError = hadMultipleCandidates ? ErrorCode.ERR_AmbigQM : ErrorCode.ERR_InvalidQM;
+            constantValue = FoldConditionalOperator(condition, trueExpr, falseExpr);
+            return new BoundUnconvertedConditionalOperator(node, condition, trueExpr, falseExpr, constantValue, noCommonTypeError, hasErrors: constantValue?.IsBad == true);
+        }
+
+        bool hasErrors;
+        if (bestType.IsErrorType()) {
+            trueExpr = BindToNaturalType(trueExpr, diagnostics, reportNoTargetType: false);
+            falseExpr = BindToNaturalType(falseExpr, diagnostics, reportNoTargetType: false);
+            hasErrors = true;
+        } else {
+            trueExpr = GenerateConversionForAssignment(bestType, trueExpr, diagnostics);
+            falseExpr = GenerateConversionForAssignment(bestType, falseExpr, diagnostics);
+            hasErrors = trueExpr.HasAnyErrors || falseExpr.HasAnyErrors;
+        }
+
+        if (!hasErrors) {
+            constantValue = FoldConditionalOperator(condition, trueExpr, falseExpr);
+            hasErrors = constantValue != null && constantValue.IsBad;
+        }
+
+        return new BoundConditionalOperator(node, isRef: false, condition, trueExpr, falseExpr, constantValue, naturalTypeOpt: bestType, wasTargetTyped: false, bestType, hasErrors);
+    }
+
+    private BoundExpression BindRefConditionalOperator(
+        TernaryExpressionSyntax node,
+        ExpressionSyntax whenTrue,
+        ExpressionSyntax whenFalse,
+        BelteDiagnosticQueue diagnostics) {
+        var condition = BindBooleanExpression(node.left, diagnostics);
+        var trueExpr = BindValue(whenTrue, diagnostics, BindValueKind.RValue | BindValueKind.RefersToLocation);
+        var falseExpr = BindValue(whenFalse, diagnostics, BindValueKind.RValue | BindValueKind.RefersToLocation);
+        var hasErrors = trueExpr.hasErrors | falseExpr.hasErrors;
+        var trueType = trueExpr.type;
+        var falseType = falseExpr.type;
+
+        TypeSymbol type;
+        if (!Conversions.HasIdentityConversion(trueType, falseType)) {
+            if (!hasErrors)
+                diagnostics.Add(ErrorCode.ERR_RefConditionalDifferentTypes, falseExpr.Syntax.Location, trueType);
+
+            type = CreateErrorType();
+            hasErrors = true;
+        } else {
+            type = BestTypeInferrer.InferBestTypeForConditionalOperator(trueExpr, falseExpr, this.Conversions, hadMultipleCandidates: out _, ref useSiteInfo);
+        }
+
+        return new BoundConditionalOperator(
+            node,
+            condition,
+            isRef: true,
+            trueExpr,
+            falseExpr,
+            constantValue: null,
+            type,
+            hasErrors
+        );
     }
 
     private BoundExpression BindAssignmentExpression(

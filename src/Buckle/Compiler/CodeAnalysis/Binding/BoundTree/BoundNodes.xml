@@ -120,9 +120,10 @@
     <Field Name="accessExpression" Type="BoundExpression"/>
   </Node>
   <Node Name="BoundConditionalOperator" Base="BoundExpression">
-    <Field Name="left" Type="BoundExpression"/>
-    <Field Name="center" Type="BoundExpression"/>
-    <Field Name="right" Type="BoundExpression"/>
+    <Field Name="condition" Type="BoundExpression"/>
+    <Field Name="isRef" Type="bool"/>
+    <Field Name="trueExpression" Type="BoundExpression"/>
+    <Field Name="falseExpression" Type="BoundExpression"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
   <Node Name="BoundDataContainerExpression" Base="BoundExpression">

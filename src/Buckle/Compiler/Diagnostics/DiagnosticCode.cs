@@ -194,6 +194,7 @@ public enum DiagnosticCode : ushort {
     ERR_ValueCannotBeNull = 183,
     ERR_InvalidObjectCreation = 184,
     ERR_AmbiguousUnaryOperator = 185,
+    ERR_RefConditionalNeedsTwoRefs = 186,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

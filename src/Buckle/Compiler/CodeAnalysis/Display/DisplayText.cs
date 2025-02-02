@@ -674,15 +674,29 @@ public sealed class DisplayText {
 
     private static void DisplayConditionalOperator(DisplayText text, BoundConditionalOperator node) {
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
-        DisplayNode(text, node.left);
+        DisplayNode(text, node.condition);
+
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.QuestionToken));
         text.Write(CreateSpace());
-        DisplayNode(text, node.center);
+
+        if (node.isRef) {
+            text.Write(CreateKeyword(SyntaxKind.RefKeyword));
+            text.Write(CreateSpace());
+        }
+
+        DisplayNode(text, node.trueExpression);
+
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.ColonToken));
         text.Write(CreateSpace());
-        DisplayNode(text, node.right);
+
+        if (node.isRef) {
+            text.Write(CreateKeyword(SyntaxKind.RefKeyword));
+            text.Write(CreateSpace());
+        }
+
+        DisplayNode(text, node.falseExpression);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 

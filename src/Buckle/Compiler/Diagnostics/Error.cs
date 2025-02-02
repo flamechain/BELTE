@@ -1098,6 +1098,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_AmbiguousUnaryOperator, location, message);
     }
 
+    internal static BelteDiagnostic RefConditionalNeedsTwoRefs(TextLocation location) {
+        var message = $"both conditional operator operands must be ref expressions or neither may be a ref expressions";
+        return CreateError(DiagnosticCode.ERR_RefConditionalNeedsTwoRefs, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

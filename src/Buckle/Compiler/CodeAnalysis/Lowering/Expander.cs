@@ -223,9 +223,9 @@ internal sealed class Expander : BoundTreeExpander {
         var syntax = expression.syntax;
 
         if (_operatorDepth > 1) {
-            var statements = ExpandExpression(expression.left, out var newLeft);
-            statements.AddRange(ExpandExpression(expression.center, out var newCenter));
-            statements.AddRange(ExpandExpression(expression.right, out var newRight));
+            var statements = ExpandExpression(expression.condition, out var newCondition);
+            statements.AddRange(ExpandExpression(expression.trueExpression, out var newTrueExpression));
+            statements.AddRange(ExpandExpression(expression.falseExpression, out var newFalseExpression));
 
             var tempLocal = GenerateTempLocal(expression.type);
 
@@ -235,9 +235,10 @@ internal sealed class Expander : BoundTreeExpander {
                     tempLocal,
                     new BoundConditionalOperator(
                         syntax,
-                        newLeft,
-                        newCenter,
-                        newRight,
+                        newCondition,
+                        expression.isRef,
+                        newTrueExpression,
+                        newFalseExpression,
                         null,
                         expression.type
                     )
@@ -326,6 +327,7 @@ internal sealed class Expander : BoundTreeExpander {
         replacement = new BoundConditionalOperator(
             syntax,
             HasValue(syntax, receiver),
+            false,
             newAccess,
             new BoundLiteralExpression(syntax, new ConstantValue(null), access.type),
             null,
