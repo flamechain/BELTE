@@ -366,7 +366,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         */
         var syntax = expression.syntax;
-        var op = expression.operatorKind;
+        var op = expression.operatorKind.Operator();
 
         if (op is UnaryOperatorKind.PrefixIncrement or UnaryOperatorKind.PostfixIncrement)
             return Visit(Increment(syntax, expression.operand));
