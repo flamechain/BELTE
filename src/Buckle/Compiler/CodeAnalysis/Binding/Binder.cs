@@ -727,7 +727,6 @@ internal partial class Binder {
             parameterType,
             valueBeforeConversion,
             diagnostics,
-            defaultValueSyntax.value,
             ConversionForAssignmentFlags.DefaultParameter
         );
 
@@ -779,9 +778,17 @@ internal partial class Binder {
         if (initializerOpt is null)
             return null;
 
-        IsInitializerRefKindValid(initializerOpt, initializerOpt, refKind, diagnostics, out var valueKind, out var value);
+        IsInitializerRefKindValid(
+            initializerOpt,
+            initializerOpt,
+            refKind,
+            diagnostics,
+            out var valueKind,
+            out var value
+        );
+
         var initializer = BindPossibleArrayInitializer(value, varType, valueKind, diagnostics);
-        initializer = GenerateConversionForAssignment(varType, initializer, diagnostics, initializerOpt.value);
+        initializer = GenerateConversionForAssignment(varType, initializer, diagnostics);
         return initializer;
     }
 
@@ -2245,32 +2252,52 @@ internal partial class Binder {
         var condition = BindBooleanExpression(node.left, diagnostics);
         var trueExpr = BindValue(whenTrue, diagnostics, BindValueKind.RValue);
         var falseExpr = BindValue(whenFalse, diagnostics, BindValueKind.RValue);
-        ConstantValue? constantValue = null;
-        TypeSymbol? bestType = BestTypeInferrer.InferBestTypeForConditionalOperator(trueExpr, falseExpr, this.Conversions, out bool hadMultipleCandidates);
+        ConstantValue constantValue = null;
+        var bestType = BestTypeInferrer.InferBestTypeForConditionalOperator(
+            trueExpr,
+            falseExpr,
+            conversions,
+            out var hadMultipleCandidates
+        );
 
         if (bestType is null) {
-            ErrorCode noCommonTypeError = hadMultipleCandidates ? ErrorCode.ERR_AmbigQM : ErrorCode.ERR_InvalidQM;
-            constantValue = FoldConditionalOperator(condition, trueExpr, falseExpr);
-            return new BoundUnconvertedConditionalOperator(node, condition, trueExpr, falseExpr, constantValue, noCommonTypeError, hasErrors: constantValue?.IsBad == true);
+            // ErrorCode noCommonTypeError = hadMultipleCandidates ? ErrorCode.ERR_AmbigQM : ErrorCode.ERR_InvalidQM;
+            // constantValue = FoldConditionalOperator(condition, trueExpr, falseExpr);
+            // TODO error
+            return new BoundConditionalOperator(
+                node,
+                condition,
+                false,
+                trueExpr,
+                falseExpr,
+                constantValue,
+                null,
+                constantValue is null
+            );
         }
 
         bool hasErrors;
         if (bestType.IsErrorType()) {
-            trueExpr = BindToNaturalType(trueExpr, diagnostics, reportNoTargetType: false);
-            falseExpr = BindToNaturalType(falseExpr, diagnostics, reportNoTargetType: false);
             hasErrors = true;
         } else {
             trueExpr = GenerateConversionForAssignment(bestType, trueExpr, diagnostics);
             falseExpr = GenerateConversionForAssignment(bestType, falseExpr, diagnostics);
-            hasErrors = trueExpr.HasAnyErrors || falseExpr.HasAnyErrors;
+            hasErrors = trueExpr.hasErrors || falseExpr.hasErrors;
         }
 
-        if (!hasErrors) {
-            constantValue = FoldConditionalOperator(condition, trueExpr, falseExpr);
-            hasErrors = constantValue != null && constantValue.IsBad;
-        }
+        if (!hasErrors)
+            constantValue = ConstantFolding.FoldConditional(condition, trueExpr, falseExpr, bestType);
 
-        return new BoundConditionalOperator(node, isRef: false, condition, trueExpr, falseExpr, constantValue, naturalTypeOpt: bestType, wasTargetTyped: false, bestType, hasErrors);
+        return new BoundConditionalOperator(
+            node,
+            condition,
+            isRef: false,
+            trueExpr,
+            falseExpr,
+            constantValue,
+            bestType,
+            hasErrors
+        );
     }
 
     private BoundExpression BindRefConditionalOperator(
@@ -2287,13 +2314,14 @@ internal partial class Binder {
 
         TypeSymbol type;
         if (!Conversions.HasIdentityConversion(trueType, falseType)) {
-            if (!hasErrors)
-                diagnostics.Add(ErrorCode.ERR_RefConditionalDifferentTypes, falseExpr.Syntax.Location, trueType);
+            // TODO error
+            // if (!hasErrors)
+            //     diagnostics.Add(ErrorCode.ERR_RefConditionalDifferentTypes, falseExpr.Syntax.Location, trueType);
 
             type = CreateErrorType();
             hasErrors = true;
         } else {
-            type = BestTypeInferrer.InferBestTypeForConditionalOperator(trueExpr, falseExpr, this.Conversions, hadMultipleCandidates: out _, ref useSiteInfo);
+            type = BestTypeInferrer.InferBestTypeForConditionalOperator(trueExpr, falseExpr, conversions, out _);
         }
 
         return new BoundConditionalOperator(
@@ -2306,6 +2334,71 @@ internal partial class Binder {
             type,
             hasErrors
         );
+    }
+
+    internal BoundExpression BindBooleanExpression(ExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var expr = BindValue(node, diagnostics, BindValueKind.RValue);
+        var boolean = CorLibrary.GetSpecialType(SpecialType.Bool);
+
+        if (expr.hasErrors)
+            return new BoundCastExpression(node, expr, Conversion.None, null, boolean, true);
+
+        var conversion = conversions.ClassifyConversionFromExpression(expr, boolean);
+
+        if (conversion.isImplicit) {
+            if (conversion.kind == ConversionKind.Identity) {
+                if (expr.kind == BoundKind.AssignmentOperator) {
+                    var assignment = (BoundAssignmentOperator)expr;
+
+                    if (assignment.right.kind == BoundKind.LiteralExpression &&
+                        assignment.right.constantValue.specialType == SpecialType.Bool) {
+                        // TODO error
+                        // Error(diagnostics, ErrorCode.WRN_IncorrectBooleanAssg, assignment.Syntax);
+                    }
+                }
+            }
+
+            return CreateConversion(
+                node: expr.syntax,
+                source: expr,
+                conversion: conversion,
+                isCast: false,
+                destination: boolean,
+                diagnostics: diagnostics
+            );
+        }
+
+        var best = UnaryOperatorOverloadResolution(
+            UnaryOperatorKind.True,
+            expr,
+            node,
+            diagnostics,
+            out var resultKind,
+            out var originalUserDefinedOperators
+        );
+
+        if (!best.hasValue) {
+            GenerateImplicitConversionError(diagnostics, node, conversion, expr, boolean);
+            return new BoundCastExpression(node, expr, Conversion.None, null, boolean, true);
+        }
+
+        var signature = best.signature;
+        var resultOperand = CreateConversion(
+            node,
+            expr,
+            best.conversion,
+            isCast: false,
+            destination: best.signature.operandType,
+            diagnostics: diagnostics
+        );
+
+        // TODO this is necessarily an operator overload, so this isn't correct because we just drop the method
+        // TODO probably what we should do is store the method information in the Operator nodes (Binary, Unary, Increment, etc.)
+        // TODO and then convert them to calls in the lowerer
+        // return new BoundUnaryOperator(node, signature.kind, resultOperand, null, signature.Method, signature.ConstrainedToTypeOpt, resultKind, originalUserDefinedOperators, signature.ReturnType) {
+        //     WasCompilerGenerated = true
+        // };
+        return new BoundUnaryOperator(node, resultOperand, signature.kind, null, signature.returnType, false);
     }
 
     private BoundExpression BindAssignmentExpression(
@@ -2453,7 +2546,6 @@ internal partial class Binder {
             leftType,
             finalPlaceholder,
             diagnostics,
-            node,
             ConversionForAssignmentFlags.CompoundAssignment |
                 (isPredefinedOperator
                     ? ConversionForAssignmentFlags.PredefinedOperator
@@ -2514,7 +2606,6 @@ internal partial class Binder {
                 op1.type,
                 op2,
                 diagnostics,
-                node,
                 isRef ? ConversionForAssignmentFlags.RefAssignment : ConversionForAssignmentFlags.None
             );
         }
@@ -5266,7 +5357,6 @@ symIsHidden:;
                     declarationType.type,
                     initializer,
                     localDiagnostics,
-                    equalsClauseSyntax.value,
                     localSymbol.refKind != RefKind.None
                         ? ConversionForAssignmentFlags.RefAssignment
                         : ConversionForAssignmentFlags.None
@@ -5665,9 +5755,8 @@ symIsHidden:;
         TypeSymbol targetType,
         BoundExpression expression,
         BelteDiagnosticQueue diagnostics,
-        SyntaxNode syntax,
         ConversionForAssignmentFlags flags = ConversionForAssignmentFlags.None) {
-        return GenerateConversionForAssignment(targetType, expression, diagnostics, out _, syntax, flags);
+        return GenerateConversionForAssignment(targetType, expression, diagnostics, out _, flags);
     }
 
     internal BoundExpression GenerateConversionForAssignment(
@@ -5675,7 +5764,6 @@ symIsHidden:;
         BoundExpression expression,
         BelteDiagnosticQueue diagnostics,
         out Conversion conversion,
-        SyntaxNode syntax,
         ConversionForAssignmentFlags flags = ConversionForAssignmentFlags.None) {
         if (expression.hasErrors)
             diagnostics = BelteDiagnosticQueue.Discarded;
@@ -5696,12 +5784,12 @@ symIsHidden:;
                 ? !conversion.isImplicit
                 : (conversion.isExplicit && (flags & ConversionForAssignmentFlags.PredefinedOperator) == 0))) {
             if ((flags & ConversionForAssignmentFlags.DefaultParameter) == 0)
-                GenerateImplicitConversionError(diagnostics, syntax, conversion, expression, targetType);
+                GenerateImplicitConversionError(diagnostics, expression.syntax, conversion, expression, targetType);
 
             diagnostics = BelteDiagnosticQueue.Discarded;
         }
 
-        return CreateConversion(syntax, expression, conversion, false, targetType, diagnostics);
+        return CreateConversion(expression.syntax, expression, conversion, false, targetType, diagnostics);
     }
 
     private protected void GenerateImplicitConversionError(
@@ -5736,8 +5824,8 @@ symIsHidden:;
             case BoundKind.ConditionalOperator: {
                     var conditionalOperator = (BoundConditionalOperator)operand;
                     var reportedError = false;
-                    TryConversion(conditionalOperator.center, ref reportedError);
-                    TryConversion(conditionalOperator.right, ref reportedError);
+                    TryConversion(conditionalOperator.trueExpression, ref reportedError);
+                    TryConversion(conditionalOperator.falseExpression, ref reportedError);
                     return;
                 }
 

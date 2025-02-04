@@ -73,11 +73,13 @@ internal sealed class Optimizer : BoundTreeRewriter {
        (<right>)
 
         */
-        if (ConstantValue.IsNotNull(expression.left.constantValue) && (bool)expression.left.constantValue.value)
-            return Visit(expression.center);
+        var condition = expression.condition;
 
-        if (ConstantValue.IsNotNull(expression.left.constantValue) && !(bool)expression.left.constantValue.value)
-            return Visit(expression.right);
+        if (ConstantValue.IsNotNull(condition.constantValue) && (bool)condition.constantValue.value)
+            return Visit(expression.trueExpression);
+
+        if (ConstantValue.IsNotNull(condition.constantValue) && !(bool)condition.constantValue.value)
+            return Visit(expression.falseExpression);
 
         return base.VisitConditionalOperator(expression);
     }

@@ -596,12 +596,20 @@ internal abstract class BoundTreeExpander {
     private protected virtual List<BoundStatement> ExpandConditionalOperator(
         BoundConditionalOperator expression,
         out BoundExpression replacement) {
-        var statements = ExpandExpression(expression.left, out var newLeft);
-        statements.AddRange(ExpandExpression(expression.center, out var newCenter));
-        statements.AddRange(ExpandExpression(expression.right, out var newRight));
+        var statements = ExpandExpression(expression.condition, out var newCondition);
+        statements.AddRange(ExpandExpression(expression.trueExpression, out var newTrueExpression));
+        statements.AddRange(ExpandExpression(expression.falseExpression, out var newFalseExpression));
 
         if (statements.Count != 0) {
-            replacement = expression.Update(newLeft, newCenter, newRight, expression.constantValue, expression.type);
+            replacement = expression.Update(
+                newCondition,
+                expression.isRef,
+                newTrueExpression,
+                newFalseExpression,
+                expression.constantValue,
+                expression.type
+            );
+
             return statements;
         }
 

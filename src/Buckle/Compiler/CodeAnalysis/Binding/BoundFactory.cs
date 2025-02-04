@@ -90,7 +90,7 @@ internal static partial class BoundFactory {
         BoundExpression @then,
         BoundExpression @else,
         TypeSymbol type) {
-        return new BoundConditionalOperator(syntax, @if, @then, @else, null, type);
+        return new BoundConditionalOperator(syntax, @if, false, @then, @else, null, type);
     }
 
     internal static BoundAssignmentOperator Assignment(

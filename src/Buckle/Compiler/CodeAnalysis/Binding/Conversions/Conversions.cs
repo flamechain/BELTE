@@ -22,6 +22,14 @@ internal sealed class Conversions {
         );
     }
 
+    internal static bool HasIdentityConversion(TypeSymbol source, TypeSymbol target, bool includeNullability = false) {
+        var compareKind = includeNullability
+            ? TypeCompareKind.AllIgnoreOptions & ~TypeCompareKind.IgnoreNullability
+            : TypeCompareKind.AllIgnoreOptions;
+
+        return source.Equals(target, compareKind);
+    }
+
     internal Conversion ClassifyConversionFromExpression(BoundExpression sourceExpression, TypeSymbol target) {
         if (sourceExpression.IsLiteralNull()) {
             if (target.IsNullableType())

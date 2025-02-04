@@ -547,13 +547,13 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateConditionalOperator(
         BoundConditionalOperator expression,
         ValueWrapper<bool> abort) {
-        var left = EvaluateExpression(expression.left, abort);
-        var leftValue = Value(left);
+        var condition = EvaluateExpression(expression.condition, abort);
+        var conditionValue = Value(condition);
 
-        if ((bool)leftValue)
-            return EvaluateExpression(expression.center, abort);
+        if ((bool)conditionValue)
+            return EvaluateExpression(expression.trueExpression, abort);
         else
-            return EvaluateExpression(expression.right, abort);
+            return EvaluateExpression(expression.falseExpression, abort);
     }
 
     private EvaluatorObject EvaluateNullAssertExpression(

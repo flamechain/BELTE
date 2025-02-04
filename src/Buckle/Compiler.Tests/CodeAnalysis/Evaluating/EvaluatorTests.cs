@@ -174,7 +174,6 @@ public sealed class EvaluatorTests {
     [InlineData("var a = 3; a += null; return a;", null)]
     [InlineData("int a = 3; a += null; return a is null;", true)]
     [InlineData("int a = 3; a += null; return a isnt null;", false)]
-    /*
     // Ternary expressions
     [InlineData("true ? 3 : 5;", 3)]
     [InlineData("false ? \"asdf\" : \"asdf2\";", "asdf2")]
@@ -185,6 +184,7 @@ public sealed class EvaluatorTests {
     [InlineData("int a = 10; return a * a;", 100)]
     [InlineData("int a = 1; return 10 * a;", 10)]
     [InlineData("int a; return a;", null)]
+    /*
     // If statements
     [InlineData("int a = 0; if (a == 0) { a = 10; } return a;", 10)]
     [InlineData("int a = 0; if (a == 4) { a = 10; } return a;", 0)]
