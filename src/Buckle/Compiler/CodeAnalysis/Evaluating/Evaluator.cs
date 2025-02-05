@@ -703,21 +703,24 @@ internal sealed class Evaluator {
 
                 break;
             case BinaryOperatorKind.Subtraction:
-                result = expressionType == SpecialType.Int
-                    ? (int)leftValue - (int)rightValue
-                    : Convert.ToDouble(leftValue) - Convert.ToDouble(rightValue);
+                if (expressionType == SpecialType.Int)
+                    result = (int)leftValue - (int)rightValue
+                else
+                    result = Convert.ToDouble(leftValue) - Convert.ToDouble(rightValue);
 
                 break;
             case BinaryOperatorKind.Multiplication:
-                result = expressionType == SpecialType.Int
-                    ? (int)leftValue * (int)rightValue
-                    : Convert.ToDouble(leftValue) * Convert.ToDouble(rightValue);
+                if (expressionType == SpecialType.Int)
+                    result = (int)leftValue * (int)rightValue
+                else
+                    result = Convert.ToDouble(leftValue) * Convert.ToDouble(rightValue);
 
                 break;
             case BinaryOperatorKind.Division:
-                result = expressionType == SpecialType.Int
-                    ? (int)leftValue / (int)rightValue
-                    : Convert.ToDouble(leftValue) / Convert.ToDouble(rightValue);
+                if (expressionType == SpecialType.Int)
+                    result = (int)leftValue / (int)rightValue
+                else
+                    result = Convert.ToDouble(leftValue) / Convert.ToDouble(rightValue);
 
                 break;
             case BinaryOperatorKind.Equal:
@@ -727,45 +730,52 @@ internal sealed class Evaluator {
                 result = !Equals(leftValue, rightValue);
                 break;
             case BinaryOperatorKind.LessThan:
-                result = leftType == SpecialType.Int
-                    ? (int)leftValue < (int)rightValue
-                    : Convert.ToDouble(leftValue) < Convert.ToDouble(rightValue);
+                if (leftType == SpecialType.Int)
+                    result = (int)leftValue < (int)rightValue
+                else
+                    result = Convert.ToDouble(leftValue) < Convert.ToDouble(rightValue);
 
                 break;
             case BinaryOperatorKind.GreaterThan:
-                result = leftType == SpecialType.Int
-                    ? (int)leftValue > (int)rightValue
-                    : Convert.ToDouble(leftValue) > Convert.ToDouble(rightValue);
+                if (leftType == SpecialType.Int)
+                    result = (int)leftValue > (int)rightValue
+                else
+                    result = Convert.ToDouble(leftValue) > Convert.ToDouble(rightValue);
 
                 break;
             case BinaryOperatorKind.LessThanOrEqual:
-                result = leftType == SpecialType.Int
-                    ? (int)leftValue <= (int)rightValue
-                    : Convert.ToDouble(leftValue) <= Convert.ToDouble(rightValue);
+                if (leftType == SpecialType.Int)
+                    result = (int)leftValue <= (int)rightValue
+                else
+                    result = Convert.ToDouble(leftValue) <= Convert.ToDouble(rightValue);
 
                 break;
             case BinaryOperatorKind.GreaterThanOrEqual:
-                result = leftType == SpecialType.Int
-                    ? (int)leftValue >= (int)rightValue
-                    : Convert.ToDouble(leftValue) >= Convert.ToDouble(rightValue);
+                if (leftType == SpecialType.Int)
+                    result = (int)leftValue >= (int)rightValue
+                else
+                    result = Convert.ToDouble(leftValue) >= Convert.ToDouble(rightValue);
 
                 break;
             case BinaryOperatorKind.And:
-                result = expressionType == SpecialType.Int
-                    ? (int)leftValue & (int)rightValue
-                    : (bool)leftValue & (bool)rightValue;
+                if (expressionType == SpecialType.Int)
+                    result = (int)leftValue & (int)rightValue
+                else
+                    result = (bool)leftValue & (bool)rightValue;
 
                 break;
             case BinaryOperatorKind.Or:
-                result = expressionType == SpecialType.Int
-                    ? (int)leftValue | (int)rightValue
-                    : (bool)leftValue | (bool)rightValue;
+                if (expressionType == SpecialType.Int)
+                    result = (int)leftValue | (int)rightValue
+                else
+                    result = (bool)leftValue | (bool)rightValue;
 
                 break;
             case BinaryOperatorKind.Xor:
-                result = expressionType == SpecialType.Int
-                    ? (int)leftValue ^ (int)rightValue
-                    : (bool)leftValue ^ (bool)rightValue;
+                if (expressionType == SpecialType.Int)
+                    result = (int)leftValue & (int)rightValue
+                else
+                    result = (bool)leftValue & (bool)rightValue;
 
                 break;
             case BinaryOperatorKind.LeftShift:
@@ -778,15 +788,17 @@ internal sealed class Evaluator {
                 result = (int)leftValue >>> (int)rightValue;
                 break;
             case BinaryOperatorKind.Modulo:
-                result = expressionType == SpecialType.Int
-                    ? (int)leftValue % (int)rightValue
-                    : Convert.ToDouble(leftValue) % Convert.ToDouble(rightValue);
+                if (expressionType == SpecialType.Int)
+                    result = (int)leftValue % (int)rightValue
+                else
+                    result = Convert.ToDouble(leftValue) % Convert.ToDouble(rightValue);
 
                 break;
             case BinaryOperatorKind.Power:
-                result = expressionType == SpecialType.Int
-                    ? Math.Pow((int)leftValue, (int)rightValue)
-                    : Math.Pow(Convert.ToDouble(leftValue), Convert.ToDouble(rightValue));
+                if (expressionType == SpecialType.Int)
+                    result = Math.Pow((int)leftValue, (int)rightValue);
+                else
+                    result = Math.Pow(Convert.ToDouble(leftValue), Convert.ToDouble(rightValue));
 
                 break;
             default:
