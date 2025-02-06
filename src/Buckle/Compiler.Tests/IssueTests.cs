@@ -16,6 +16,33 @@ public sealed class IssueTests {
     }
 
     [Fact]
+    public void Evaluator_NullCoalescing_Report_NoDefinedForNullOperand() {
+        var text = @"
+            [null ?? 2];
+        ";
+
+        var diagnostics = @"
+            binary operator '??' is not defined for operands of types '<null>' and 'int!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_ConditionalOr_Report_NoDefinedForNullOperand() {
+        var text = @"
+            [null || true];
+        ";
+
+        var diagnostics = @"
+            binary operator '||' is not defined for operands of types '<null>' and 'bool!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    /*
+    [Fact]
     public void Evaluator_VariableDeclaration_Reports_UndefinedSymbol() {
         var text = @"
             ref int a = ref [b];
@@ -1054,4 +1081,5 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+    */
 }

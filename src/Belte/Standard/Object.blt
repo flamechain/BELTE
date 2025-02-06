@@ -1,16 +1,21 @@
 
 class Object {
-    protected constructor();
+    protected constructor() { }
 
-    public virtual bool! Equals(Object object);
+    public virtual string ToString() {
+        // return GetType().ToString();
+        return "";
+    }
 
-    public virtual int! GetHashCode();
+    public virtual bool! Equals(Object object) {
+        return this == object;
+    }
 
-    public virtual string ToString();
+    public bool! ReferenceEquals(Object object) {
+        return this == object;
+    }
 
-    public virtual bool! ReferenceEquals(ref Object object);
-
-    public static bool operator==(Object x, Object y);
-
-    public static bool operator!=(Object x, Object y);
+    public virtual int! GetHashCode() {
+        return GetHashCode(this);
+    }
 }

@@ -5,7 +5,7 @@ using Buckle.CodeAnalysis.Authoring;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.Diagnostics;
+using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 
 namespace Buckle.CodeAnalysis.Display;
@@ -15,12 +15,12 @@ namespace Buckle.CodeAnalysis.Display;
 /// Can be multiple lines.
 /// </summary>
 public sealed class DisplayText {
-    private readonly List<DisplayTextSegment> _segments;
+    internal readonly List<DisplayTextSegment> segments;
 
     private bool _writeIndent = true;
 
     public DisplayText() {
-        _segments = new List<DisplayTextSegment>();
+        segments = [];
         indent = 0;
     }
 
@@ -36,7 +36,7 @@ public sealed class DisplayText {
     public override string ToString() {
         var builder = new StringBuilder();
 
-        foreach (var segment in _segments)
+        foreach (var segment in segments)
             builder.Append(segment.text);
 
         return builder.ToString();
@@ -47,8 +47,8 @@ public sealed class DisplayText {
     /// </summary>
     /// <returns>The contents before clearing.</returns>
     public ImmutableArray<DisplayTextSegment> Flush() {
-        var array = ImmutableArray.CreateRange(_segments);
-        _segments.Clear();
+        var array = ImmutableArray.CreateRange(segments);
+        segments.Clear();
 
         return array;
     }
@@ -62,13 +62,22 @@ public sealed class DisplayText {
             _writeIndent = false;
 
             for (var i = 0; i < indent; i++)
-                _segments.Add(CreateIndent());
+                segments.Add(CreateIndent());
         }
 
-        _segments.Add(segment);
+        segments.Add(segment);
 
         if (segment.classification == Classification.Line)
             _writeIndent = true;
+    }
+
+    /// <summary>
+    /// Appends multiple <see cref="DisplayTextSegment" /> to the end of this <see cref="DisplayText" />.
+    /// </summary>
+    /// <param name="segments"><see cref="DisplayTextSegment" />s to append.</param>
+    public void Write(IEnumerable<DisplayTextSegment> segments) {
+        foreach (var segment in segments)
+            Write(segment);
     }
 
     /// <summary>
@@ -79,7 +88,6 @@ public sealed class DisplayText {
     internal static DisplayText DisplayNode(BoundNode node) {
         var text = new DisplayText();
         DisplayNode(text, node);
-
         return text;
     }
 
@@ -89,133 +97,172 @@ public sealed class DisplayText {
     /// <param name="text">Existing text.</param>
     /// <param name="node"><see cref="BoundNode" /> to append.</param>
     internal static void DisplayNode(DisplayText text, BoundNode node) {
-        if (node is BoundExpression be && be.constantValue != null) {
+        if (node is BoundExpression be && be.constantValue is not null) {
             DisplayConstant(text, be.constantValue);
             return;
         }
 
         switch (node.kind) {
-            case BoundNodeKind.VariableDeclaration:
-                DisplayVariableDeclaration(text, (BoundVariableDeclaration)node);
+            case BoundKind.NopStatement:
+                DisplayNopStatement(text);
                 break;
-            case BoundNodeKind.Type:
-                DisplayType(text, (BoundType)node);
-                break;
-            case BoundNodeKind.NopStatement:
-                DisplayNopStatement(text, (BoundNopStatement)node);
-                break;
-            case BoundNodeKind.BlockStatement:
+            case BoundKind.BlockStatement:
                 DisplayBlockStatement(text, (BoundBlockStatement)node);
                 break;
-            case BoundNodeKind.ExpressionStatement:
+            case BoundKind.ExpressionStatement:
                 DisplayExpressionStatement(text, (BoundExpressionStatement)node);
                 break;
-            case BoundNodeKind.LocalDeclarationStatement:
+            case BoundKind.LocalDeclarationStatement:
                 DisplayLocalDeclarationStatement(text, (BoundLocalDeclarationStatement)node);
                 break;
-            case BoundNodeKind.IfStatement:
+            case BoundKind.IfStatement:
                 DisplayIfStatement(text, (BoundIfStatement)node);
                 break;
-            case BoundNodeKind.WhileStatement:
+            case BoundKind.WhileStatement:
                 DisplayWhileStatement(text, (BoundWhileStatement)node);
                 break;
-            case BoundNodeKind.ForStatement:
+            case BoundKind.ForStatement:
                 DisplayForStatement(text, (BoundForStatement)node);
                 break;
-            case BoundNodeKind.GotoStatement:
+            case BoundKind.GotoStatement:
                 DisplayGotoStatement(text, (BoundGotoStatement)node);
                 break;
-            case BoundNodeKind.LabelStatement:
+            case BoundKind.LabelStatement:
                 DisplayLabelStatement(text, (BoundLabelStatement)node);
                 break;
-            case BoundNodeKind.ConditionalGotoStatement:
+            case BoundKind.ConditionalGotoStatement:
                 DisplayConditionalGotoStatement(text, (BoundConditionalGotoStatement)node);
                 break;
-            case BoundNodeKind.DoWhileStatement:
+            case BoundKind.DoWhileStatement:
                 DisplayDoWhileStatement(text, (BoundDoWhileStatement)node);
                 break;
-            case BoundNodeKind.ReturnStatement:
+            case BoundKind.ReturnStatement:
                 DisplayReturnStatement(text, (BoundReturnStatement)node);
                 break;
-            case BoundNodeKind.TryStatement:
+            case BoundKind.TryStatement:
                 DisplayTryStatement(text, (BoundTryStatement)node);
                 break;
-            case BoundNodeKind.TernaryExpression:
-                DisplayTernaryExpression(text, (BoundTernaryExpression)node);
+            case BoundKind.TypeExpression:
+                DisplayTypeExpression(text, (BoundTypeExpression)node);
                 break;
-            case BoundNodeKind.IndexExpression:
-                DisplayIndexExpression(text, (BoundIndexExpression)node);
+            case BoundKind.BreakStatement:
+                DisplayBreakStatement(text);
                 break;
-            case BoundNodeKind.ReferenceExpression:
+            case BoundKind.ContinueStatement:
+                DisplayContinueStatement(text);
+                break;
+            case BoundKind.GlobalStatement:
+                DisplayGlobalStatement(text, (BoundGlobalStatement)node);
+                break;
+            case BoundKind.ArrayAccessExpression:
+                DisplayArrayAccessExpression(text, (BoundArrayAccessExpression)node);
+                break;
+            case BoundKind.ReferenceExpression:
                 DisplayReferenceExpression(text, (BoundReferenceExpression)node);
                 break;
-            case BoundNodeKind.UnaryExpression:
-                DisplayUnaryExpression(text, (BoundUnaryExpression)node);
+            case BoundKind.UnaryOperator:
+                DisplayUnaryOperator(text, (BoundUnaryOperator)node);
                 break;
-            case BoundNodeKind.InitializerListExpression:
-                DisplayInitializerListExpression(text, (BoundInitializerListExpression)node);
+            case BoundKind.IncrementOperator:
+                DisplayIncrementOperator(text, (BoundIncrementOperator)node);
                 break;
-            case BoundNodeKind.BinaryExpression:
-                DisplayBinaryExpression(text, (BoundBinaryExpression)node);
+            case BoundKind.InitializerList:
+                DisplayInitializerList(text, (BoundInitializerList)node);
                 break;
-            case BoundNodeKind.VariableExpression:
-                DisplayVariableExpression(text, (BoundVariableExpression)node);
+            case BoundKind.InitializerDictionary:
+                DisplayInitializerDictionary(text, (BoundInitializerDictionary)node);
                 break;
-            case BoundNodeKind.AssignmentExpression:
-                DisplayAssignmentExpression(text, (BoundAssignmentExpression)node);
+            case BoundKind.BinaryOperator:
+                DisplayBinaryOperator(text, (BoundBinaryOperator)node);
                 break;
-            case BoundNodeKind.CompoundAssignmentExpression:
-                DisplayCompoundAssignmentExpression(text, (BoundCompoundAssignmentExpression)node);
+            case BoundKind.DataContainerExpression:
+                DisplayDataContainerExpression(text, (BoundDataContainerExpression)node);
                 break;
-            case BoundNodeKind.PrefixExpression:
-                DisplayPrefixExpression(text, (BoundPrefixExpression)node);
+            case BoundKind.AssignmentOperator:
+                DisplayAssignmentOperator(text, (BoundAssignmentOperator)node);
                 break;
-            case BoundNodeKind.PostfixExpression:
-                DisplayPostfixExpression(text, (BoundPostfixExpression)node);
+            case BoundKind.CompoundAssignmentOperator:
+                DisplayCompoundAssignmentOperator(text, (BoundCompoundAssignmentOperator)node);
                 break;
-            case BoundNodeKind.EmptyExpression:
-                DisplayEmptyExpression(text, (BoundEmptyExpression)node);
-                break;
-            case BoundNodeKind.ErrorExpression:
+            case BoundKind.ErrorExpression:
                 DisplayErrorExpression(text, (BoundErrorExpression)node);
                 break;
-            case BoundNodeKind.CallExpression:
+            case BoundKind.CallExpression:
                 DisplayCallExpression(text, (BoundCallExpression)node);
                 break;
-            case BoundNodeKind.CastExpression:
+            case BoundKind.CastExpression:
                 DisplayCastExpression(text, (BoundCastExpression)node);
                 break;
-            case BoundNodeKind.TypeOfExpression:
+            case BoundKind.TypeOfExpression:
                 DisplayTypeOfExpression(text, (BoundTypeOfExpression)node);
                 break;
-            case BoundNodeKind.ObjectCreationExpression:
+            case BoundKind.ObjectCreationExpression:
                 DisplayObjectCreationExpression(text, (BoundObjectCreationExpression)node);
                 break;
-            case BoundNodeKind.MemberAccessExpression:
-                DisplayMemberAccessExpression(text, (BoundMemberAccessExpression)node);
+            case BoundKind.ArrayCreationExpression:
+                DisplayArrayCreationExpression(text, (BoundArrayCreationExpression)node);
                 break;
-            case BoundNodeKind.ThisExpression:
-                DisplayThisExpression(text, (BoundThisExpression)node);
+            case BoundKind.FieldAccessExpression:
+                DisplayFieldAccessExpression(text, (BoundFieldAccessExpression)node);
                 break;
-            case BoundNodeKind.BaseExpression:
-                DisplayBaseExpression(text, (BoundBaseExpression)node);
+            case BoundKind.ConditionalAccessExpression:
+                DisplayConditionalAccessExpression(text, (BoundConditionalAccessExpression)node);
                 break;
-            case BoundNodeKind.ExtendExpression:
-                DisplayExtendExpression(text, (BoundExtendExpression)node);
+            case BoundKind.ThisExpression:
+                DisplayThisExpression(text);
                 break;
-            case BoundNodeKind.ThrowExpression:
+            case BoundKind.BaseExpression:
+                DisplayBaseExpression(text);
+                break;
+            case BoundKind.ThrowExpression:
                 DisplayThrowExpression(text, (BoundThrowExpression)node);
                 break;
+            case BoundKind.AsOperator:
+                DisplayAsOperator(text, (BoundAsOperator)node);
+                break;
+            case BoundKind.IsOperator:
+                DisplayIsOperator(text, (BoundIsOperator)node);
+                break;
+            case BoundKind.NullCoalescingOperator:
+                DisplayNullCoalescingOperator(text, (BoundNullCoalescingOperator)node);
+                break;
+            case BoundKind.NullCoalescingAssignmentOperator:
+                DisplayNullCoalescingAssignmentOperator(text, (BoundNullCoalescingAssignmentOperator)node);
+                break;
+            case BoundKind.NullAssertOperator:
+                DisplayNullAssertOperator(text, (BoundNullAssertOperator)node);
+                break;
+            case BoundKind.ConditionalOperator:
+                DisplayConditionalOperator(text, (BoundConditionalOperator)node);
+                break;
+            case BoundKind.DataContainerDeclaration:
+                DisplayDataContainerDeclaration(text, (BoundDataContainerDeclaration)node);
+                break;
+            case BoundKind.FieldEqualsValue:
+                DisplayFieldEqualsValue(text, (BoundFieldEqualsValue)node);
+                break;
+            case BoundKind.ParameterExpression:
+                DisplayParameterExpression(text, (BoundParameterExpression)node);
+                break;
+            case BoundKind.ParameterEqualsValue:
+                DisplayParameterEqualsValue(text, (BoundParameterEqualsValue)node);
+                break;
+            case BoundKind.TemplateParameterEqualsValue:
+                DisplayTemplateParameterEqualsValue(text, (BoundTemplateParameterEqualsValue)node);
+                break;
+            case BoundKind.MethodGroup:
+                DisplayMethodGroup(text, (BoundMethodGroup)node);
+                break;
             default:
-                throw new BelteInternalException($"DisplayNode: unexpected node '{node.kind}'");
+                throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
     }
 
     /// <summary>
-    /// Renders a <see cref="BoundConstant" /> and appends it to the given <see cref="DisplayText" />.
+    /// Renders a <see cref="ConstantValue" /> and appends it to the given <see cref="DisplayText" />.
     /// </summary>
-    internal static void DisplayConstant(DisplayText text, BoundConstant constant) {
-        if (constant.value is ImmutableArray<BoundConstant> il) {
+    internal static void DisplayConstant(DisplayText text, ConstantValue constant) {
+        if (constant.value is ImmutableArray<ConstantValue> il) {
             text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
             var isFirst = true;
 
@@ -232,7 +279,7 @@ public sealed class DisplayText {
 
             text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
         } else {
-            DisplayLiteralExpression(text, new BoundLiteralExpression(constant.value));
+            DisplayLiteralExpressionCore(text, constant.value);
         }
     }
 
@@ -240,48 +287,75 @@ public sealed class DisplayText {
     /// Formats a literal into a string representation.
     /// </summary>
     internal static string FormatLiteral(object value) {
-        if (value is null)
-            return "null";
+        var text = new DisplayText();
+        DisplayLiteralExpressionCore(text, value);
+        return text.ToString();
+    }
 
-        var valueText = value.ToString();
-        var typeSymbol = BoundType.Assume(value).typeSymbol;
+    private static void DisplayLiteralExpressionCore(DisplayText text, object value) {
+        if (value is null) {
+            text.Write(CreateLiteral("null"));
+            return;
+        }
 
-        if (typeSymbol == TypeSymbol.String)
-            return FormatStringLiteral(valueText);
+        var specialType = LiteralUtilities.AssumeTypeFromLiteral(value);
+
+        if (specialType == SpecialType.String)
+            DisplayStringLiteral(value.ToString(), false);
+        else if (specialType == SpecialType.Char)
+            DisplayStringLiteral(value.ToString(), true);
         else
-            return valueText.ToLower();
+            text.Write(CreateLiteral(value.ToString().ToLower()));
 
-        string FormatStringLiteral(string stringText) {
-            var stringBuilder = new StringBuilder("\"");
+        void DisplayStringLiteral(string value, bool isCharacter) {
+            var stringBuilder = new StringBuilder(isCharacter ? "'" : "\"");
 
-            foreach (var c in stringText) {
+            foreach (var c in value) {
                 switch (c) {
                     case '\a':
-                        stringBuilder.Append("\\a");
+                        text.Write(CreateString(stringBuilder.ToString()));
+                        stringBuilder.Clear();
+                        text.Write(CreateEscape("\\a"));
                         break;
                     case '\b':
-                        stringBuilder.Append("\\b");
+                        text.Write(CreateString(stringBuilder.ToString()));
+                        stringBuilder.Clear();
+                        text.Write(CreateEscape("\\b"));
                         break;
                     case '\f':
-                        stringBuilder.Append("\\f");
+                        text.Write(CreateString(stringBuilder.ToString()));
+                        stringBuilder.Clear();
+                        text.Write(CreateEscape("\\f"));
                         break;
                     case '\n':
-                        stringBuilder.Append("\\n");
+                        text.Write(CreateString(stringBuilder.ToString()));
+                        stringBuilder.Clear();
+                        text.Write(CreateEscape("\\n"));
                         break;
                     case '\r':
-                        stringBuilder.Append("\\r");
+                        text.Write(CreateString(stringBuilder.ToString()));
+                        stringBuilder.Clear();
+                        text.Write(CreateEscape("\\r"));
                         break;
                     case '\t':
-                        stringBuilder.Append("\\t");
+                        text.Write(CreateString(stringBuilder.ToString()));
+                        stringBuilder.Clear();
+                        text.Write(CreateEscape("\\t"));
                         break;
                     case '\v':
-                        stringBuilder.Append("\\v");
+                        text.Write(CreateString(stringBuilder.ToString()));
+                        stringBuilder.Clear();
+                        text.Write(CreateEscape("\\v"));
                         break;
                     case '\"':
-                        stringBuilder.Append("\\\"");
+                        text.Write(CreateString(stringBuilder.ToString()));
+                        stringBuilder.Clear();
+                        text.Write(CreateEscape("\\\""));
                         break;
                     case '\\':
-                        stringBuilder.Append("\\\\");
+                        text.Write(CreateString(stringBuilder.ToString()));
+                        stringBuilder.Clear();
+                        text.Write(CreateEscape("\\\\"));
                         break;
                     default:
                         stringBuilder.Append(c);
@@ -289,65 +363,40 @@ public sealed class DisplayText {
                 }
             }
 
-            stringBuilder.Append("\"");
-            return stringBuilder.ToString();
+            stringBuilder.Append(isCharacter ? '\'' : '"');
+            text.Write(CreateString(stringBuilder.ToString()));
         }
     }
 
-    private static void DisplayType(DisplayText text, BoundType type) {
-        if (type.isConstant) {
-            text.Write(CreateKeyword(SyntaxKind.ConstKeyword));
-            text.Write(CreateSpace());
-        }
-
-        if (type.isReference) {
-            text.Write(CreateKeyword(SyntaxKind.RefKeyword));
-            text.Write(CreateSpace());
-        }
-
-        if (type.isConstantReference) {
-            text.Write(CreateKeyword(SyntaxKind.ConstKeyword));
-            text.Write(CreateSpace());
-        }
-
-        text.Write(CreateType(type.typeSymbol.name));
-
-        if (type.arity > 0) {
-            text.Write(CreatePunctuation(SyntaxKind.LessThanToken));
-
-            var isFirst = true;
-
-            foreach (var argument in type.templateArguments) {
-                if (isFirst) {
-                    isFirst = false;
-                } else {
-                    text.Write(CreatePunctuation(SyntaxKind.CommaToken));
-                    text.Write(CreateSpace());
-                }
-
-                if (argument.isConstant)
-                    DisplayConstant(text, argument.constant);
-                else
-                    DisplayNode(text, argument.type);
-            }
-
-            text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
-        }
-
-        for (var i = 0; i < type.dimensions; i++) {
-            text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
-
-            if (type.sizes.Length > i)
-                DisplayNode(text, type.sizes[i]);
-
-            text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
-        }
-
-        if (!type.isNullable && !type.isLiteral && type.typeSymbol != TypeSymbol.Void)
-            text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
+    private static void DisplayTypeExpression(DisplayText text, BoundTypeExpression node) {
+        SymbolDisplay.DisplayType(text, node.type);
     }
 
-    private static void DisplayNopStatement(DisplayText text, BoundNopStatement _) {
+    private static void DisplayMethodGroup(DisplayText text, BoundMethodGroup node) {
+        text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
+        text.Write(CreateSpace());
+        SymbolDisplay.AppendToDisplayText(text, node.methods[0], SymbolDisplayFormat.DebuggerDisplay);
+        text.Write(CreateSpace());
+        text.Write(CreateLiteral(node.methods.Length.ToString()));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+    }
+
+    private static void DisplayBreakStatement(DisplayText text) {
+        text.Write(CreateKeyword(SyntaxKind.BreakKeyword));
+        text.Write(CreateLine());
+    }
+
+    private static void DisplayContinueStatement(DisplayText text) {
+        text.Write(CreateKeyword(SyntaxKind.ContinueKeyword));
+        text.Write(CreateLine());
+    }
+
+    private static void DisplayGlobalStatement(DisplayText text, BoundGlobalStatement node) {
+        DisplayNode(text, node.statement);
+    }
+
+    private static void DisplayNopStatement(DisplayText text) {
         text.Write(CreateKeyword("nop"));
         text.Write(CreateLine());
     }
@@ -371,20 +420,20 @@ public sealed class DisplayText {
     private static void DisplayTryStatement(DisplayText text, BoundTryStatement node) {
         text.Write(CreateKeyword(SyntaxKind.TryKeyword));
         text.Write(CreateSpace());
-        DisplayBlockStatement(text, node.body, false);
+        DisplayBlockStatement(text, (BoundBlockStatement)node.body, false);
 
-        if (node.catchBody != null) {
+        if (node.catchBody is not null) {
             text.Write(CreateSpace());
             text.Write(CreateKeyword(SyntaxKind.CatchKeyword));
             text.Write(CreateSpace());
-            DisplayBlockStatement(text, node.catchBody, false);
+            DisplayBlockStatement(text, (BoundBlockStatement)node.catchBody, false);
         }
 
-        if (node.finallyBody != null) {
+        if (node.finallyBody is not null) {
             text.Write(CreateSpace());
             text.Write(CreateKeyword(SyntaxKind.FinallyKeyword));
             text.Write(CreateSpace());
-            DisplayBlockStatement(text, node.finallyBody, false);
+            DisplayBlockStatement(text, (BoundBlockStatement)node.finallyBody, false);
         }
 
         text.Write(CreateLine());
@@ -393,7 +442,7 @@ public sealed class DisplayText {
     private static void DisplayReturnStatement(DisplayText text, BoundReturnStatement node) {
         text.Write(CreateKeyword(SyntaxKind.ReturnKeyword));
 
-        if (node.expression != null) {
+        if (node.expression is not null) {
             text.Write(CreateSpace());
             DisplayNode(text, node.expression);
         }
@@ -501,16 +550,16 @@ public sealed class DisplayText {
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
         text.Write(CreateLine());
-        DisplayNestedStatement(text, node.then);
+        DisplayNestedStatement(text, node.consequence);
         text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
 
-        if (node.elseStatement != null) {
+        if (node.alternative is not null) {
             text.Write(CreateSpace());
             text.Write(CreateKeyword(SyntaxKind.ElseKeyword));
             text.Write(CreateSpace());
             text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
             text.Write(CreateLine());
-            DisplayNestedStatement(text, node.elseStatement);
+            DisplayNestedStatement(text, node.alternative);
             text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
         }
 
@@ -521,10 +570,17 @@ public sealed class DisplayText {
         DisplayNode(text, node.declaration);
     }
 
-    private static void DisplayVariableDeclaration(DisplayText text, BoundVariableDeclaration node) {
-        DisplayNode(text, node.variable.type);
+    private static void DisplayDataContainerDeclaration(DisplayText text, BoundDataContainerDeclaration node) {
+        var dataContainer = node.dataContainer;
+
+        SymbolDisplay.DisplayType(
+            text,
+            dataContainer.type,
+            SymbolDisplayFormat.Everything
+        );
+
         text.Write(CreateSpace());
-        text.Write(CreateIdentifier(node.variable.name));
+        text.Write(CreateIdentifier(dataContainer.name));
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.EqualsToken));
         text.Write(CreateSpace());
@@ -533,76 +589,122 @@ public sealed class DisplayText {
     }
 
     private static void DisplayExpressionStatement(DisplayText text, BoundExpressionStatement node) {
-        if (node.expression is BoundEmptyExpression)
-            return;
-
         DisplayNode(text, node.expression);
         text.Write(CreateLine());
     }
 
-    private static void DisplayMemberAccessExpression(DisplayText text, BoundMemberAccessExpression node) {
-        DisplayNode(text, node.left);
-        text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
-        DisplayNode(text, node.right);
+    private static void DisplayFieldAccessExpression(
+        DisplayText text,
+        BoundFieldAccessExpression node,
+        bool conditional = false) {
+        DisplayNode(text, node.receiver);
+        text.Write(CreatePunctuation(conditional ? SyntaxKind.QuestionPeriodToken : SyntaxKind.PeriodToken));
+        SymbolDisplay.AppendToDisplayText(text, node.field, SymbolDisplayFormat.Everything);
+    }
+
+    private static void DisplayArrayAccessExpression(
+        DisplayText text,
+        BoundArrayAccessExpression node,
+        bool conditional = false) {
+        DisplayNode(text, node.receiver);
+        text.Write(CreatePunctuation(conditional ? SyntaxKind.QuestionOpenBracketToken : SyntaxKind.OpenBracketToken));
+        DisplayNode(text, node.index);
+        text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+    }
+
+    private static void DisplayConditionalAccessExpression(DisplayText text, BoundConditionalAccessExpression node) {
+        DisplayNode(text, node.receiver);
+        var accessExpression = node.accessExpression;
+
+        switch (accessExpression) {
+            case BoundArrayAccessExpression a:
+                DisplayArrayAccessExpression(text, a, true);
+                break;
+            case BoundFieldAccessExpression f:
+                DisplayFieldAccessExpression(text, f, true);
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(accessExpression.kind);
+        }
     }
 
     private static void DisplayObjectCreationExpression(DisplayText text, BoundObjectCreationExpression node) {
         text.Write(CreateKeyword(SyntaxKind.NewKeyword));
         text.Write(CreateSpace());
-        DisplayNode(text, node.type);
-
-        if (node.viaConstructor)
-            DisplayArguments(text, node.arguments);
+        SymbolDisplay.DisplayType(text, node.type, SymbolDisplayFormat.ObjectCreationFormat);
+        DisplayArguments(text, node.arguments);
     }
 
-    private static void DisplayThisExpression(DisplayText text, BoundThisExpression _) {
+    private static void DisplayArrayCreationExpression(DisplayText text, BoundArrayCreationExpression node) {
+        text.Write(CreateKeyword(SyntaxKind.NewKeyword));
+        text.Write(CreateSpace());
+        SymbolDisplay.DisplayType(text, node.type);
+
+        text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
+
+        var isFirst = true;
+
+        foreach (var size in node.sizes) {
+            if (isFirst) {
+                isFirst = false;
+            } else {
+                text.Write(CreatePunctuation(SyntaxKind.CommaToken));
+                text.Write(CreateSpace());
+            }
+
+            DisplayNode(text, size);
+        }
+
+        text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+    }
+
+    private static void DisplayThisExpression(DisplayText text) {
         text.Write(CreateKeyword(SyntaxKind.ThisKeyword));
     }
 
-    private static void DisplayBaseExpression(DisplayText text, BoundBaseExpression _) {
+    private static void DisplayBaseExpression(DisplayText text) {
         text.Write(CreateKeyword(SyntaxKind.BaseKeyword));
-    }
-
-    private static void DisplayExtendExpression(DisplayText text, BoundExtendExpression node) {
-        SymbolDisplay.DisplaySymbol(text, node.template);
-        text.Write(CreateSpace());
-        text.Write(CreateKeyword(SyntaxKind.ExtendsKeyword));
-        text.Write(CreateSpace());
-        DisplayNode(text, node.extension);
     }
 
     private static void DisplayThrowExpression(DisplayText text, BoundThrowExpression node) {
         text.Write(CreateKeyword(SyntaxKind.ThrowKeyword));
         text.Write(CreateSpace());
-        DisplayNode(text, node.exception);
+        DisplayNode(text, node.expression);
     }
 
-    private static void DisplayTernaryExpression(DisplayText text, BoundTernaryExpression node) {
+    private static void DisplayConditionalOperator(DisplayText text, BoundConditionalOperator node) {
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
-        DisplayNode(text, node.left);
+        DisplayNode(text, node.condition);
+
         text.Write(CreateSpace());
-        text.Write(CreatePunctuation(node.op.leftOpKind));
+        text.Write(CreatePunctuation(SyntaxKind.QuestionToken));
         text.Write(CreateSpace());
-        DisplayNode(text, node.center);
+
+        if (node.isRef) {
+            text.Write(CreateKeyword(SyntaxKind.RefKeyword));
+            text.Write(CreateSpace());
+        }
+
+        DisplayNode(text, node.trueExpression);
+
         text.Write(CreateSpace());
-        text.Write(CreatePunctuation(node.op.rightOpKind));
+        text.Write(CreatePunctuation(SyntaxKind.ColonToken));
         text.Write(CreateSpace());
-        DisplayNode(text, node.right);
+
+        if (node.isRef) {
+            text.Write(CreateKeyword(SyntaxKind.RefKeyword));
+            text.Write(CreateSpace());
+        }
+
+        DisplayNode(text, node.falseExpression);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 
     private static void DisplayTypeOfExpression(DisplayText text, BoundTypeOfExpression node) {
         text.Write(CreateKeyword(SyntaxKind.TypeOfKeyword));
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
-        DisplayNode(text, node.typeOfType);
+        SymbolDisplay.DisplayType(text, node.type);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
-    }
-
-    private static void DisplayIndexExpression(DisplayText text, BoundIndexExpression node) {
-        DisplayNode(text, node.expression);
-        text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
-        DisplayNode(text, node.index);
-        text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
     }
 
     private static void DisplayReferenceExpression(DisplayText text, BoundReferenceExpression node) {
@@ -613,17 +715,14 @@ public sealed class DisplayText {
 
     private static void DisplayCastExpression(DisplayText text, BoundCastExpression node) {
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
-        DisplayNode(text, node.type);
+        SymbolDisplay.DisplayType(text, node.type);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
-        DisplayNode(text, node.expression);
+        DisplayNode(text, node.operand);
     }
 
     private static void DisplayCallExpression(DisplayText text, BoundCallExpression node) {
-        if (node.expression is not BoundEmptyExpression) {
-            DisplayNode(text, node.expression);
-            text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
-        }
-
+        DisplayNode(text, node.receiver);
+        text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
         text.Write(CreateIdentifier(node.method.name));
         DisplayArguments(text, node.arguments);
     }
@@ -646,7 +745,7 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 
-    private static void DisplayInitializerListExpression(DisplayText text, BoundInitializerListExpression node) {
+    private static void DisplayInitializerList(DisplayText text, BoundInitializerList node) {
         text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
 
         var isFirst = true;
@@ -665,14 +764,37 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
     }
 
-    private static void DisplayErrorExpression(DisplayText text, BoundErrorExpression _) {
-        // This has no connection to SyntaxKind.QuestionToken, so the string literal is used here
-        text.Write(CreateKeyword("?"));
+    private static void DisplayInitializerDictionary(DisplayText text, BoundInitializerDictionary node) {
+        text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
+
+        var isFirst = true;
+
+        foreach (var item in node.items) {
+            if (isFirst) {
+                isFirst = false;
+            } else {
+                text.Write(CreatePunctuation(SyntaxKind.CommaToken));
+                text.Write(CreateSpace());
+            }
+
+            DisplayNode(text, item.Item1);
+            text.Write(CreatePunctuation(SyntaxKind.ColonToken));
+            text.Write(CreateSpace());
+            DisplayNode(text, item.Item2);
+        }
+
+        text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
     }
 
-    private static void DisplayEmptyExpression(DisplayText _, BoundEmptyExpression _1) { }
+    private static void DisplayErrorExpression(DisplayText text, BoundErrorExpression node) {
+        text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
+        text.Write(CreateKeyword(SyntaxKind.QuestionToken));
+        text.Write(CreateSpace());
+        SymbolDisplay.DisplayType(text, node.type, SymbolDisplayFormat.Everything);
+        text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+    }
 
-    private static void DisplayAssignmentExpression(DisplayText text, BoundAssignmentExpression node) {
+    private static void DisplayAssignmentOperator(DisplayText text, BoundAssignmentOperator node) {
         DisplayNode(text, node.left);
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.EqualsToken));
@@ -680,117 +802,95 @@ public sealed class DisplayText {
         DisplayNode(text, node.right);
     }
 
-    private static void DisplayCompoundAssignmentExpression(DisplayText text, BoundCompoundAssignmentExpression node) {
-        DisplayNode(text, node.left);
-        text.Write(CreateSpace());
-        text.Write(CreatePunctuation(node.op.kind));
-        text.Write(CreateSpace());
-        DisplayNode(text, node.right);
-    }
-
-    private static void DisplayPostfixExpression(DisplayText text, BoundPostfixExpression node) {
-        DisplayNode(text, node.operand);
-        text.Write(CreatePunctuation(node.op.kind));
-    }
-
-    private static void DisplayPrefixExpression(DisplayText text, BoundPrefixExpression node) {
-        text.Write(CreatePunctuation(node.op.kind));
-        DisplayNode(text, node.operand);
-    }
-
-    private static void DisplayVariableExpression(DisplayText text, BoundVariableExpression node) {
-        SymbolDisplay.DisplaySymbol(text, node.variable);
-    }
-
-    private static void DisplayBinaryExpression(DisplayText text, BoundBinaryExpression node) {
+    private static void DisplayBinaryAdjacentExpression(
+        DisplayText text,
+        BoundExpression left,
+        BoundExpression right,
+        SyntaxKind op,
+        bool isKeywordOp) {
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
-        DisplayNode(text, node.left);
+        DisplayNode(text, left);
         text.Write(CreateSpace());
-        text.Write(CreatePunctuation(node.op.kind));
+        text.Write(isKeywordOp ? CreateKeyword(op) : CreatePunctuation(op));
         text.Write(CreateSpace());
-        DisplayNode(text, node.right);
+        DisplayNode(text, right);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 
-    private static void DisplayLiteralExpression(DisplayText text, BoundLiteralExpression node) {
-        if (node.value is null) {
-            text.Write(CreateLiteral("null"));
-            return;
-        }
-
-        var value = node.value.ToString();
-        var typeSymbol = BoundType.Assume(node.value).typeSymbol;
-
-        if (typeSymbol == TypeSymbol.String)
-            DisplayStringLiteral(value, false);
-        else if (typeSymbol == TypeSymbol.Char)
-            DisplayStringLiteral(value, true);
-        else
-            text.Write(CreateLiteral(value.ToLower()));
-
-        void DisplayStringLiteral(string value, bool isCharacter) {
-            var stringBuilder = new StringBuilder(isCharacter ? "'" : "\"");
-
-            foreach (var c in value) {
-                switch (c) {
-                    case '\a':
-                        text.Write(CreateString(stringBuilder.ToString()));
-                        stringBuilder.Clear();
-                        text.Write(CreateEscape("\\a"));
-                        break;
-                    case '\b':
-                        text.Write(CreateString(stringBuilder.ToString()));
-                        stringBuilder.Clear();
-                        text.Write(CreateEscape("\\b"));
-                        break;
-                    case '\f':
-                        text.Write(CreateString(stringBuilder.ToString()));
-                        stringBuilder.Clear();
-                        text.Write(CreateEscape("\\f"));
-                        break;
-                    case '\n':
-                        text.Write(CreateString(stringBuilder.ToString()));
-                        stringBuilder.Clear();
-                        text.Write(CreateEscape("\\n"));
-                        break;
-                    case '\r':
-                        text.Write(CreateString(stringBuilder.ToString()));
-                        stringBuilder.Clear();
-                        text.Write(CreateEscape("\\r"));
-                        break;
-                    case '\t':
-                        text.Write(CreateString(stringBuilder.ToString()));
-                        stringBuilder.Clear();
-                        text.Write(CreateEscape("\\t"));
-                        break;
-                    case '\v':
-                        text.Write(CreateString(stringBuilder.ToString()));
-                        stringBuilder.Clear();
-                        text.Write(CreateEscape("\\v"));
-                        break;
-                    case '\"':
-                        text.Write(CreateString(stringBuilder.ToString()));
-                        stringBuilder.Clear();
-                        text.Write(CreateEscape("\\\""));
-                        break;
-                    case '\\':
-                        text.Write(CreateString(stringBuilder.ToString()));
-                        stringBuilder.Clear();
-                        text.Write(CreateEscape("\\\\"));
-                        break;
-                    default:
-                        stringBuilder.Append(c);
-                        break;
-                }
-            }
-
-            stringBuilder.Append(isCharacter ? '\'' : '"');
-            text.Write(CreateString(stringBuilder.ToString()));
-        }
+    private static void DisplayBinaryOperator(DisplayText text, BoundBinaryOperator node) {
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, node.operatorKind.ToSyntaxKind(), false);
     }
 
-    private static void DisplayUnaryExpression(DisplayText text, BoundUnaryExpression node) {
-        text.Write(CreatePunctuation(node.op.kind));
+    private static void DisplayCompoundAssignmentOperator(DisplayText text, BoundCompoundAssignmentOperator node) {
+        var opKind = SyntaxFacts.GetAssignmentOperatorOfBinaryOperator(node.op.kind.ToSyntaxKind());
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, opKind, false);
+    }
+
+    private static void DisplayIsOperator(DisplayText text, BoundIsOperator node) {
+        var op = node.isNot ? SyntaxKind.IsntKeyword : SyntaxKind.IsKeyword;
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, op, true);
+    }
+
+    private static void DisplayAsOperator(DisplayText text, BoundAsOperator node) {
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.AsKeyword, true);
+    }
+
+    private static void DisplayNullCoalescingOperator(DisplayText text, BoundNullCoalescingOperator node) {
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.QuestionQuestionToken, false);
+    }
+
+    private static void DisplayNullCoalescingAssignmentOperator(
+        DisplayText text,
+        BoundNullCoalescingAssignmentOperator node) {
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.QuestionQuestionEqualsToken, false);
+    }
+
+    private static void DisplayDataContainerExpression(DisplayText text, BoundDataContainerExpression node) {
+        SymbolDisplay.AppendToDisplayText(text, node.dataContainer, SymbolDisplayFormat.QualifiedNameFormat);
+    }
+
+    private static void DisplayParameterExpression(DisplayText text, BoundParameterExpression node) {
+        SymbolDisplay.AppendToDisplayText(text, node.parameter, SymbolDisplayFormat.ErrorMessageFormat);
+    }
+
+    private static void DisplayUnaryOperator(DisplayText text, BoundUnaryOperator node) {
+        text.Write(CreatePunctuation(node.operatorKind.ToSyntaxKind()));
         DisplayNode(text, node.operand);
+    }
+
+    private static void DisplayIncrementOperator(DisplayText text, BoundIncrementOperator node) {
+        if (node.operatorKind.Operator() is UnaryOperatorKind.PrefixDecrement or UnaryOperatorKind.PrefixIncrement)
+            text.Write(CreatePunctuation(node.operatorKind.ToSyntaxKind()));
+
+        DisplayNode(text, node.operand);
+
+        if (node.operatorKind.Operator() is UnaryOperatorKind.PostfixDecrement or UnaryOperatorKind.PostfixIncrement)
+            text.Write(CreatePunctuation(node.operatorKind.ToSyntaxKind()));
+    }
+
+    private static void DisplayNullAssertOperator(DisplayText text, BoundNullAssertOperator node) {
+        DisplayNode(text, node.operand);
+        text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
+    }
+
+    private static void DisplayFieldEqualsValue(DisplayText text, BoundFieldEqualsValue node) {
+        DisplayEqualsValueCore(text, node.field, node.value);
+    }
+
+    private static void DisplayParameterEqualsValue(DisplayText text, BoundParameterEqualsValue node) {
+        DisplayEqualsValueCore(text, node.parameter, node.value);
+    }
+
+    private static void DisplayTemplateParameterEqualsValue(DisplayText text, BoundTemplateParameterEqualsValue node) {
+        DisplayEqualsValueCore(text, node.parameter, node.value);
+    }
+
+    private static void DisplayEqualsValueCore(DisplayText text, Symbol symbol, BoundExpression value) {
+        SymbolDisplay.AppendToDisplayText(text, symbol, SymbolDisplayFormat.Everything);
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.EqualsToken));
+        text.Write(CreateSpace());
+        DisplayNode(text, value);
+        text.Write(CreateLine());
     }
 }

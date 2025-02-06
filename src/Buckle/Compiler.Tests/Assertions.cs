@@ -1,8 +1,5 @@
 using System;
-using System.Collections.Generic;
 using Buckle.CodeAnalysis;
-using Buckle.CodeAnalysis.Evaluating;
-using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 using Shared.Tests;
@@ -15,6 +12,17 @@ namespace Buckle.Tests;
 /// All assertions used by Buckle tests.
 /// </summary>
 internal static class Assertions {
+    private static CompilationOptions DefaultOptions
+        => new CompilationOptions(BuildMode.Independent, OutputKind.Console, [], true, false);
+
+    private readonly static Compilation BaseCompilation;
+
+    static Assertions() {
+        var compilation = CompilerHelpers.LoadLibraries(DefaultOptions);
+        _ = compilation.boundProgram;
+        BaseCompilation = compilation;
+    }
+
     /// <summary>
     /// Asserts that a piece of Belte code evaluates to a value.
     /// </summary>
@@ -23,10 +31,13 @@ internal static class Assertions {
     internal static void AssertValue(string text, object expectedValue) {
         var syntaxTree = SyntaxTree.Parse(text);
         var compilation = Compilation.CreateScript(
-            new CompilationOptions(BuildMode.Independent, ProjectType.Console, [], true, false), null, syntaxTree
+            "Tests",
+            DefaultOptions,
+            syntaxTree,
+            BaseCompilation
         );
 
-        var result = compilation.Evaluate(new Dictionary<IVariableSymbol, EvaluatorObject>(), false);
+        var result = compilation.Evaluate([], false);
 
         if (result.value is double && Convert.ToDouble(expectedValue).CompareTo(result.value) == 0)
             expectedValue = Convert.ToDouble(expectedValue);
@@ -44,10 +55,13 @@ internal static class Assertions {
     internal static void AssertExceptions(string text, ITestOutputHelper writer, params Exception[] exceptions) {
         var syntaxTree = SyntaxTree.Parse(text);
         var compilation = Compilation.CreateScript(
-            new CompilationOptions(BuildMode.Independent, ProjectType.Console, [], true, false), null, syntaxTree
+            "Tests",
+            DefaultOptions,
+            syntaxTree,
+            BaseCompilation
         );
 
-        var result = compilation.Evaluate(new Dictionary<IVariableSymbol, EvaluatorObject>(), false);
+        var result = compilation.Evaluate([], false);
 
         if (exceptions.Length != result.exceptions.Count) {
             writer.WriteLine($"Input: {text}");
@@ -77,14 +91,17 @@ internal static class Assertions {
         var tempDiagnostics = new BelteDiagnosticQueue();
         var treeDiagnostics = syntaxTree.GetDiagnostics();
 
-        if (treeDiagnostics.Errors().Any()) {
+        if (treeDiagnostics.AnyErrors()) {
             tempDiagnostics.Move(treeDiagnostics);
         } else {
             var compilation = Compilation.CreateScript(
-                new CompilationOptions(BuildMode.Independent, ProjectType.Console, [], true, false), null, syntaxTree
+                "Tests",
+                DefaultOptions,
+                syntaxTree,
+                BaseCompilation
             );
 
-            var result = compilation.Evaluate(new Dictionary<IVariableSymbol, EvaluatorObject>(), false);
+            var result = compilation.Evaluate([], false);
             tempDiagnostics = result.diagnostics;
         }
 
@@ -132,14 +149,17 @@ internal static class Assertions {
     /// <param name="buildMode">Which emitter to use.</param>
     internal static void AssertText(string text, string expectedText, BuildMode buildMode) {
         var syntaxTree = SyntaxTree.Parse(text);
+        var options = new CompilationOptions(buildMode, OutputKind.Console, [], false, false);
         var compilation = Compilation.Create(
-            new CompilationOptions(buildMode, ProjectType.Console, [], false, false),
+            "EmitterTests",
+            options,
+            BaseCompilation,
             syntaxTree
         );
 
-        var result = compilation.EmitToString(buildMode, "EmitterTests");
+        var result = compilation.EmitToString(out var diagnostics);
 
-        Assert.Empty(compilation.diagnostics.Errors().ToArray());
+        Assert.Empty(diagnostics.Errors().ToArray());
         Assert.Equal(expectedText, result);
     }
 }

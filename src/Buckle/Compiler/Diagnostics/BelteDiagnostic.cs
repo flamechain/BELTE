@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Text;
 using Diagnostics;
 
@@ -6,6 +7,7 @@ namespace Buckle.Diagnostics;
 /// <summary>
 /// Belte/Buckle specific <see cref="Diagnostic" />.
 /// </summary>
+[DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
 public sealed class BelteDiagnostic : Diagnostic {
     /// <summary>
     /// Creates a <see cref="BelteDiagnostic" />.
@@ -67,4 +69,12 @@ public sealed class BelteDiagnostic : Diagnostic {
     /// <see cref="BelteDiagnostic" />).
     /// </summary>
     public TextLocation location { get; }
+
+    public override string ToString() {
+        return DiagnosticFormatter.Format(this);
+    }
+
+    private string GetDebuggerDisplay() {
+        return ToString();
+    }
 }

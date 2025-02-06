@@ -4,10 +4,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text.RegularExpressions;
 using System.Threading;
 using Buckle;
-using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Diagnostics;
 using Repl;
@@ -38,32 +36,35 @@ public static partial class BuckleCommandLine {
     /// <returns>Error code, 0 = success.</returns>
     public static int ProcessArgs(string[] args) {
         int err;
-        var compiler = new Compiler {
-            me = Process.GetCurrentProcess().ProcessName,
-            state = DecodeOptions(args, out var diagnostics, out var dialogs, out var multipleExplains)
+
+        var processName = Process.GetCurrentProcess().ProcessName;
+        var state = DecodeOptions(args, out var diagnostics, out var dialogs, out var multipleExplains);
+
+        var compiler = new Compiler(state) {
+            me = processName
         };
 
-        var hasDialog = dialogs.machine || dialogs.version || dialogs.help || dialogs.error != null;
+        var hasDialog = dialogs.machine || dialogs.version || dialogs.help || dialogs.error is not null;
 
         if (multipleExplains)
-            ResolveDiagnostic(Belte.Diagnostics.Error.MultipleExplains(), compiler.me, compiler.state);
+            ResolveDiagnostic(Belte.Diagnostics.Error.MultipleExplains(), processName, state);
 
         if (hasDialog) {
             diagnostics.Clear();
             diagnostics.Move(ShowDialogs(dialogs, multipleExplains));
-            ResolveDiagnostics(diagnostics, compiler.me, compiler.state);
+            ResolveDiagnostics(diagnostics, processName, state);
 
             return SuccessExitCode;
         }
 
-        if (compiler.state.verboseMode && !compiler.state.noOut)
+        if (state.verboseMode && !state.noOut)
             ShowDialogs(new ShowDialogs() { machine = true, version = true }, false);
 
         // Only mode that does not go through one-time compilation
-        if (compiler.state.buildMode == BuildMode.Repl) {
-            ResolveDiagnostics(diagnostics, compiler.me, compiler.state);
+        if (state.buildMode == BuildMode.Repl) {
+            ResolveDiagnostics(diagnostics, processName, state);
 
-            if (!compiler.state.noOut) {
+            if (!state.noOut) {
                 var repl = new BelteRepl(compiler, ResolveDiagnostics);
                 repl.Run();
             }
@@ -71,23 +72,23 @@ public static partial class BuckleCommandLine {
             return SuccessExitCode;
         }
 
-        err = ResolveDiagnostics(diagnostics, compiler.me, compiler.state);
+        err = ResolveDiagnostics(diagnostics, processName, state);
 
         if (err > 0)
             return err;
 
-        if (!compiler.state.noOut)
+        if (!state.noOut)
             CleanOutputFiles(compiler);
 
         ReadInputFiles(compiler, out diagnostics);
 
-        err = ResolveDiagnostics(diagnostics, compiler.me, compiler.state);
+        err = ResolveDiagnostics(diagnostics, processName, state);
 
         if (err > 0)
             return err;
 
-        if (compiler.state.verboseMode && !compiler.state.noOut)
-            LogTasks(compiler.state.tasks);
+        if (state.verboseMode && !state.noOut)
+            LogTasks(state.tasks);
 
         compiler.Compile();
 
@@ -111,13 +112,17 @@ public static partial class BuckleCommandLine {
         if (dialogs.help)
             ShowHelpDialog();
 
-        if (dialogs.error != null && !multipleExplains)
+        if (dialogs.error is not null && !multipleExplains)
             ShowErrorHelp(dialogs.error, out diagnostics);
 
         return diagnostics;
     }
 
     private static void ShowErrorHelp(string error, out DiagnosticQueue<Diagnostic> diagnostics) {
+        diagnostics = new DiagnosticQueue<Diagnostic>();
+        diagnostics.Push(new Diagnostic(DiagnosticSeverity.Error, "--explain is not implemented"));
+        return;
+
         string prefix;
 
         if (error.Length < 3 || (char.IsDigit(error[0]) && char.IsDigit(error[1]))) {
@@ -222,120 +227,16 @@ public static partial class BuckleCommandLine {
         Console.WriteLine($"Version: Buckle {reader.ReadLine()}");
     }
 
-    private static void PrettyPrintDiagnostic(BelteDiagnostic diagnostic, ConsoleColor? textColor) {
-        void ResetColor() {
-            if (textColor != null)
-                Console.ForegroundColor = textColor.Value;
-            else
-                Console.ResetColor();
-        }
-
-        var span = diagnostic.location.span;
-        var text = diagnostic.location.text;
-
-        var lineNumber = text.GetLineIndex(span.start);
-        var line = text.GetLine(lineNumber);
-        var column = span.start - line.start + 1;
-        var lineText = line.ToString();
-
-        var fileName = diagnostic.location.fileName;
-
-        if (!string.IsNullOrEmpty(fileName))
-            Console.Write($"{fileName}:");
-
-        Console.Write($"{lineNumber + 1}:{column}:");
-
-        var highlightColor = ConsoleColor.White;
-
-        var severity = diagnostic.info.severity;
-
-        switch (severity) {
-            case DiagnosticSeverity.Debug:
-                highlightColor = ConsoleColor.Gray;
-                Console.ForegroundColor = highlightColor;
-                Console.Write(" debug");
-                break;
-            case DiagnosticSeverity.Info:
-                highlightColor = ConsoleColor.Yellow;
-                Console.ForegroundColor = highlightColor;
-                Console.Write(" info");
-                break;
-            case DiagnosticSeverity.Warning:
-                highlightColor = ConsoleColor.Magenta;
-                Console.ForegroundColor = highlightColor;
-                Console.Write(" warning");
-                break;
-            case DiagnosticSeverity.Error:
-                highlightColor = ConsoleColor.Red;
-                Console.ForegroundColor = highlightColor;
-                Console.Write(" error");
-                break;
-            case DiagnosticSeverity.Fatal:
-                highlightColor = ConsoleColor.Red;
-                Console.ForegroundColor = highlightColor;
-                Console.Write(" fatal");
-                break;
-        }
-
-        if (diagnostic.info.code != null && diagnostic.info.code > 0)
-            Console.Write($" {diagnostic.info}: ");
-        else
-            Console.Write(": ");
-
-        ResetColor();
-        Console.WriteLine(diagnostic.message);
-
-        if (text.IsAtEndOfInput(span))
-            return;
-
-        var prefixSpan = TextSpan.FromBounds(line.start, span.start);
-        var suffixSpan = span.end > line.end
-            ? TextSpan.FromBounds(line.end, line.end)
-            : TextSpan.FromBounds(span.end, line.end);
-
-        var prefix = text.ToString(prefixSpan);
-        var focus = text.ToString(span);
-        var suffix = text.ToString(suffixSpan);
-
-        Console.Write($" {prefix}");
-        Console.ForegroundColor = highlightColor;
-        Console.Write(focus);
-        ResetColor();
-        Console.WriteLine(suffix);
-
-        Console.ForegroundColor = highlightColor;
-        var markerPrefix = " " + MyRegex().Replace(prefix, " ");
-        var marker = "^";
-
-        if (span.length > 0 && column != lineText.Length)
-            marker += new string('~', span.length - 1);
-
-        Console.WriteLine(markerPrefix + marker);
-
-        if (diagnostic.suggestions.Length > 0) {
-            Console.ForegroundColor = ConsoleColor.Green;
-            var firstSuggestion = diagnostic.suggestions[0].Replace("%", focus);
-            Console.WriteLine(markerPrefix + firstSuggestion);
-
-            for (var i = 1; i < diagnostic.suggestions.Length; i++) {
-                var suggestion = diagnostic.suggestions[i].Replace("%", focus);
-                ResetColor();
-                Console.Write(string.Concat(markerPrefix.AsSpan(0, markerPrefix.Length - 3), "or "));
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine(suggestion);
-            }
-        }
-
-        ResetColor();
-    }
-
     private static DiagnosticSeverity ResolveDiagnostic<Type>(
-        Type diagnostic, string me, CompilerState state, ConsoleColor? textColor = null)
+        Type diagnostic,
+        string me,
+        CompilerState state,
+        ConsoleColor? textColor = null)
         where Type : Diagnostic {
         var previous = Console.ForegroundColor;
 
         void ResetColor() {
-            if (textColor != null)
+            if (textColor is not null)
                 Console.ForegroundColor = textColor.Value;
             else
                 Console.ResetColor();
@@ -383,7 +284,7 @@ public static partial class BuckleCommandLine {
             ResetColor();
             Console.WriteLine(diagnostic.message);
         } else {
-            PrettyPrintDiagnostic(diagnostic as BelteDiagnostic, textColor);
+            DiagnosticFormatter.PrettyPrint(diagnostic as BelteDiagnostic, textColor);
         }
 
         Console.ForegroundColor = previous;
@@ -429,7 +330,10 @@ public static partial class BuckleCommandLine {
     }
 
     private static int ResolveDiagnostics<Type>(
-        DiagnosticQueue<Type> diagnostics, string me, CompilerState state, ConsoleColor? textColor = null)
+        DiagnosticQueue<Type> diagnostics,
+        string me,
+        CompilerState state,
+        ConsoleColor? textColor = null)
         where Type : Diagnostic {
         if (diagnostics.Count == 0)
             return SuccessExitCode;
@@ -437,7 +341,7 @@ public static partial class BuckleCommandLine {
         var worst = diagnostics.ToList().Select(d => (int)d.info.severity).Max();
         var diagnostic = diagnostics.Pop();
 
-        while (diagnostic != null) {
+        while (diagnostic is not null) {
             ResolveDiagnostic(diagnostic, me, state, textColor);
             diagnostic = diagnostics.Pop();
         }
@@ -454,7 +358,9 @@ public static partial class BuckleCommandLine {
     }
 
     private static int ResolveDiagnostics(
-        Compiler compiler, string me = null, ConsoleColor textColor = ConsoleColor.White) {
+        Compiler compiler,
+        string me = null,
+        ConsoleColor textColor = ConsoleColor.White) {
         return ResolveDiagnostics(compiler.diagnostics, me ?? compiler.me, compiler.state, textColor);
     }
 
@@ -537,8 +443,10 @@ public static partial class BuckleCommandLine {
     }
 
     private static CompilerState DecodeOptions(
-        string[] args, out DiagnosticQueue<Diagnostic> diagnostics,
-        out ShowDialogs dialogs, out bool multipleExplains) {
+        string[] args,
+        out DiagnosticQueue<Diagnostic> diagnostics,
+        out ShowDialogs dialogs,
+        out bool multipleExplains) {
         var state = new CompilerState();
         var tasks = new List<FileState>();
         var references = new List<string>();
@@ -569,7 +477,7 @@ public static partial class BuckleCommandLine {
         state.noOut = false;
         state.warningLevel = 1;
         state.severity = DiagnosticSeverity.Warning;
-        state.projectType = ProjectType.Console;
+        state.projectType = OutputKind.Console;
         state.verboseMode = false;
 
         void DecodeSimpleOption(string arg) {
@@ -652,7 +560,7 @@ public static partial class BuckleCommandLine {
                 else
                     diagnostics.Push(Belte.Diagnostics.Error.MissingFilenameO());
             } else if (arg.StartsWith("--explain")) {
-                if (tempDialogs.error != null) {
+                if (tempDialogs.error is not null) {
                     multipleExplains = true;
                     continue;
                 }
@@ -732,9 +640,9 @@ public static partial class BuckleCommandLine {
                 var type = arg.Substring(7).ToLower();
 
                 if (type == "console")
-                    state.projectType = ProjectType.Console;
+                    state.projectType = OutputKind.Console;
                 else if (type == "graphics")
-                    state.projectType = ProjectType.Graphics;
+                    state.projectType = OutputKind.Graphics;
                 else
                     diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedType(type));
             } else if (arg == "--") {
@@ -750,7 +658,7 @@ public static partial class BuckleCommandLine {
         dialogs = tempDialogs;
         diagnostics.Move(diagnosticsCL);
 
-        if (dialogs.machine || dialogs.help || dialogs.version || dialogs.error != null)
+        if (dialogs.machine || dialogs.help || dialogs.version || dialogs.error is not null)
             return state;
 
         state.tasks = tasks.ToArray();
@@ -905,7 +813,4 @@ public static partial class BuckleCommandLine {
 
         return diagnostics;
     }
-
-    [GeneratedRegex(@"\S")]
-    private static partial Regex MyRegex();
 }

@@ -25,8 +25,9 @@ namespace Repl;
 /// </summary>
 public sealed partial class BelteRepl : Repl {
     private static readonly CompilationOptions DefaultOptions =
-        new CompilationOptions(BuildMode.Repl, ProjectType.Console, [], true, false);
-    private static readonly Compilation EmptyCompilation = Compilation.CreateScript(DefaultOptions, null);
+        new CompilationOptions(BuildMode.Repl, OutputKind.Console, [], true, false);
+    // TODO Any benefit to generating numbered assembly names so they are unique?
+    private static readonly Compilation EmptyCompilation = Compilation.CreateScript("ReplSubmission", DefaultOptions);
     private static readonly ImmutableArray<(string name, string contributor, ColorTheme theme)> InUse =
         [
             ("Dark", "", new DarkTheme()),
@@ -51,6 +52,7 @@ public sealed partial class BelteRepl : Repl {
         state = new BelteReplState();
         _diagnosticHandle = errorHandle;
         _hasDiagnosticHandle = true;
+        LoadLibraries();
         ResetState();
         Console.BackgroundColor = state.colorTheme.background;
         EvaluateClear();
@@ -100,16 +102,15 @@ public sealed partial class BelteRepl : Repl {
         state.showIL = false;
         state.showCS = false;
         state.loadingSubmissions = false;
-        state.variables = new Dictionary<IVariableSymbol, EvaluatorObject>();
-        state.previous = null;
+        state.variables = [];
+        state.previous = state.baseCompilation;
         state.currentPage = Page.Repl;
         _changes.Clear();
         ClearTree();
         base.ResetState();
-        LoadLibraries();
     }
 
-    protected override void RenderLine(IReadOnlyList<string> lines, int lineIndex) {
+    private protected override void RenderLine(IReadOnlyList<string> lines, int lineIndex) {
         UpdateTree();
 
         var texts = new List<(string text, ConsoleColor color)>();
@@ -161,25 +162,25 @@ public sealed partial class BelteRepl : Repl {
 
         Console.ForegroundColor = state.colorTheme.@default;
     }
-    protected override void EvaluateSubmission(string text) {
+    private protected override void EvaluateSubmission(string text) {
         // ONLY use this when evaluating previous submissions, where incremental compilation would do nothing
         // Otherwise, this is much slower than the 0 arity overload
         var syntaxTree = SyntaxTree.Parse(text, SourceCodeKind.Script);
         EvaluateSubmissionInternal(syntaxTree);
     }
 
-    protected override void EvaluateSubmission() {
+    private protected override void EvaluateSubmission() {
         UpdateTree();
         EvaluateSubmissionInternal(state.tree);
         ClearTree();
     }
 
-    protected override string EditSubmission() {
+    private protected override string EditSubmission() {
         ClearTree();
         return base.EditSubmission();
     }
 
-    protected override void AddChange(
+    private protected override void AddChange(
         ObservableCollection<string> document, int lineIndex, int startIndex, int oldLength, string newText) {
         var position = startIndex;
 
@@ -189,11 +190,11 @@ public sealed partial class BelteRepl : Repl {
         _changes.Add(new TextChange(new TextSpan(position, oldLength), newText));
     }
 
-    protected override void AddClearChange(ObservableCollection<string> document) {
+    private protected override void AddClearChange(ObservableCollection<string> document) {
         ClearTree();
     }
 
-    protected override void AddRemoveLineChange(ObservableCollection<string> document, int lineIndex) {
+    private protected override void AddRemoveLineChange(ObservableCollection<string> document, int lineIndex) {
         var position = 0;
 
         for (var i = 0; i < lineIndex; i++) {
@@ -208,16 +209,19 @@ public sealed partial class BelteRepl : Repl {
         );
     }
 
-    protected override bool IsCompleteSubmission(string text) {
+    private protected override bool IsCompleteSubmission(string text) {
         if (string.IsNullOrEmpty(text))
             return true;
 
-        var twoBlankTines = text.Split(Environment.NewLine).Reverse()
+        var lines = text.Split(Environment.NewLine);
+        lines.Reverse();
+
+        var twoBlankLines = lines
             .TakeWhile(s => string.IsNullOrEmpty(s) || string.IsNullOrWhiteSpace(s))
             .Take(2)
             .Count() == 2;
 
-        if (twoBlankTines)
+        if (twoBlankLines)
             return true;
 
         UpdateTree();
@@ -229,15 +233,15 @@ public sealed partial class BelteRepl : Repl {
         return true;
     }
 
-    protected override void AddDiagnostic(Diagnostic diagnostic) {
+    private protected override void AddDiagnostic(Diagnostic diagnostic) {
         handle.diagnostics.Push(diagnostic);
     }
 
-    protected override void ClearDiagnostics() {
+    private protected override void ClearDiagnostics() {
         handle.diagnostics.Clear();
     }
 
-    protected override void CallDiagnosticHandle(object handle, object arg1 = null, object arg2 = null) {
+    private protected override void CallDiagnosticHandle(object handle, object arg1 = null, object arg2 = null) {
         if (arg2 is null)
             _diagnosticHandle(handle as Compiler, arg1 is null ? null : arg1 as string);
         else
@@ -269,7 +273,7 @@ public sealed partial class BelteRepl : Repl {
 
     private void IterateTokens(SyntaxNodeOrToken node, DisplayText text) {
         if (node.isToken) {
-            node.AsToken().WriteTo(text);
+            SyntaxTokenExtensions.PrettyPrint(text, node.AsToken());
             text.Write(CreateSpace());
         }
 
@@ -281,12 +285,12 @@ public sealed partial class BelteRepl : Repl {
 
     private void LoadLibraries() {
         var compilation = CompilerHelpers.LoadLibraries(DefaultOptions);
-        state.previous = compilation;
-        compilation.Evaluate(new Dictionary<IVariableSymbol, EvaluatorObject>(), _abortEvaluation);
+        state.baseCompilation = compilation;
+        compilation.Evaluate(_abortEvaluation);
     }
 
     private void EvaluateSubmissionInternal(SyntaxTree syntaxTree) {
-        var compilation = Compilation.CreateScript(DefaultOptions, state.previous, syntaxTree);
+        var compilation = Compilation.CreateScript("ReplSubmission", DefaultOptions, syntaxTree, state.previous);
         var displayText = new DisplayText();
 
         if (state.showTokens) {
@@ -296,7 +300,7 @@ public sealed partial class BelteRepl : Repl {
         }
 
         if (state.showTree) {
-            syntaxTree.GetRoot().WriteTo(displayText);
+            SyntaxNodeExtensions.PrettyPrint(displayText, syntaxTree.GetRoot());
             WriteDisplayText(displayText);
         }
 
@@ -306,28 +310,30 @@ public sealed partial class BelteRepl : Repl {
         }
 
         if (state.showCS) {
-            var code = compilation.EmitToString(BuildMode.CSharpTranspile, "ReplSubmission");
+            var code = compilation.EmitToString(out _, BuildMode.CSharpTranspile);
             writer.Write(code);
         }
 
         if (state.showIL) {
             try {
-                var code = compilation.EmitToString(BuildMode.Dotnet, "ReplSubmission");
+                var code = compilation.EmitToString(out _, BuildMode.Dotnet);
                 writer.Write(code);
             } catch (KeyNotFoundException) {
                 handle.diagnostics.Push(new BelteDiagnostic(Diagnostics.Error.FailedILGeneration()));
             }
         }
 
+        var diagnostics = compilation.GetDiagnostics();
+
         if (state.showWarnings)
-            handle.diagnostics.Move(compilation.diagnostics);
+            handle.diagnostics.Move(diagnostics);
         else
-            handle.diagnostics.Move(compilation.diagnostics.Errors());
+            handle.diagnostics.Move(diagnostics.Errors());
 
         EvaluationResult result = null;
         Console.ForegroundColor = state.colorTheme.result;
 
-        if (!handle.diagnostics.Errors().Any()) {
+        if (!handle.diagnostics.AnyErrors()) {
             result = compilation.Evaluate(state.variables, _abortEvaluation);
 
             if (result.lastOutputWasPrint)
@@ -344,7 +350,7 @@ public sealed partial class BelteRepl : Repl {
                 handle.diagnostics.Move(result.diagnostics.Errors());
         }
 
-        var hasErrors = handle.diagnostics.Errors().Any();
+        var hasErrors = handle.diagnostics.AnyErrors();
 
         if (handle.diagnostics.Any()) {
             if (_hasDiagnosticHandle) {
@@ -540,12 +546,22 @@ public sealed partial class BelteRepl : Repl {
     [MetaCommand("list", "List all defined symbols")]
     private void EvaluateList() {
         var compilation = state.previous ?? EmptyCompilation;
-        var symbols = compilation.GetSymbols().OrderBy(s => s.kind).ThenBy(s => s.name);
+        var symbols = compilation.GetSymbols(true);
         var displayText = new DisplayText();
 
         foreach (var symbol in symbols) {
-            if (symbol.parent == null) {
-                SymbolDisplay.DisplaySymbol(displayText, symbol, true);
+            if (symbol.name == "<Program>$") {
+                var programSymbol = symbol as INamedTypeSymbol;
+                var mainMethod = programSymbol.GetMembers()[0] as IMethodSymbol;
+                var locals = CompilationExtensions.GetMethodLocals(mainMethod);
+
+                foreach (var local in locals) {
+                    // TODO consider adding some extra text here to denote which submission each local is from
+                    displayText.Write(local.ToDisplaySegments(SymbolDisplayFormat.Everything));
+                    displayText.Write(CreateLine());
+                }
+            } else {
+                displayText.Write(symbol.ToDisplaySegments(SymbolDisplayFormat.Everything));
                 displayText.Write(CreateLine());
             }
         }
@@ -557,18 +573,18 @@ public sealed partial class BelteRepl : Repl {
     private void EvaluateDump(string signature) {
         // TODO Let this work with template overloads
         var compilation = state.previous ?? EmptyCompilation;
+        var allSymbols = compilation.GetSymbols(true);
         var name = signature.Contains('(') ? signature.Split('(')[0] : signature;
         ISymbol[] symbols;
 
         if (name.Contains('.')) {
             var failed = false;
             var parts = name.Split('.');
-            var currentSymbols = compilation.GetSymbols();
 
             for (var i = 0; i < parts.Length - 1; i++) {
-                var namedTypes = currentSymbols
-                    .Where(s => s.name == parts[i] && s is ITypeSymbolWithMembers)
-                    .Select(s => s as ITypeSymbolWithMembers);
+                var namedTypes = allSymbols
+                    .Where(s => s.name == parts[i] && s is INamedTypeSymbol)
+                    .Select(s => s as INamedTypeSymbol);
 
                 if (!namedTypes.Any()) {
                     failed = true;
@@ -576,43 +592,27 @@ public sealed partial class BelteRepl : Repl {
                 }
 
                 var first = namedTypes.First();
-                currentSymbols = first.GetMembers().Where(s => s.parent == first);
-
-                if (!currentSymbols.Any())
-                    currentSymbols = first.GetMembers();
+                allSymbols = first.GetMembers();
             }
 
             if (failed) {
                 symbols = [];
             } else {
                 symbols = (signature == name
-                    ? currentSymbols.Where(s => s.name == parts[^1])
-                    : currentSymbols.Where(s => s is IMethodSymbol i &&
-                        i.Signature() == (parts[^1] + string.Join('(', signature.Split('(')[1..]))))
+                    ? allSymbols.Where(s => s.name == parts[^1])
+                    : allSymbols.Where(s => s is IMethodSymbol i &&
+                        i.ToString() == (parts[^1] + string.Join('(', signature.Split('(')[1..]))))
                     .ToArray();
             }
         } else {
             symbols = (signature == name
-                ? compilation.GetSymbols().Where(f => f.name == name)
-                : compilation.GetSymbols<IMethodSymbol>().Where(f => f.Signature() == signature))
+                ? allSymbols.Where(s => s.name == name)
+                : allSymbols.Where(s => s.name == name).Where(f => f.ToString() == signature))
                     .ToArray();
         }
 
         ISymbol symbol = null;
         var displayText = new DisplayText();
-
-        if (symbols.Length == 0 && signature.StartsWith('<')) {
-            // This will find hidden method symbols not normally exposed to the user
-            // Generated methods should never have overloads, so only the name is checked
-            // (as apposed to the entire signature)
-            try {
-                compilation.EmitTree(name, displayText);
-                WriteDisplayText(displayText);
-                return;
-            } catch (BelteException) {
-                // If the generated method does not actually exist, just ignore and continue
-            }
-        }
 
         if (symbols.Length == 0) {
             if (signature == name)
@@ -635,7 +635,7 @@ public sealed partial class BelteRepl : Repl {
             symbol = symbols[0];
         }
 
-        if (symbol != null) {
+        if (symbol is not null) {
             compilation.EmitTree(symbol, displayText);
             WriteDisplayText(displayText);
             return;

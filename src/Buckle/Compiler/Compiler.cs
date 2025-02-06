@@ -1,14 +1,12 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using Buckle.CodeAnalysis;
-using Buckle.CodeAnalysis.Evaluating;
-using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Diagnostics;
+using Microsoft.CodeAnalysis.PooledObjects;
 using Shared;
 
 namespace Buckle;
@@ -25,14 +23,20 @@ public sealed class Compiler {
     private const int InterpreterMaxTextLength = 4096;
     private const int EvaluatorMaxTextLength = 4096 * 4;
 
-    private CompilationOptions _options
-        => new CompilationOptions(state.buildMode, state.projectType, state.arguments, false, !state.noOut);
+    private CompilationOptions _options => new CompilationOptions(
+        state.buildMode,
+        state.projectType,
+        state.arguments,
+        false,
+        !state.noOut,
+        state.references
+    );
 
     /// <summary>
     /// Creates a new <see cref="Compiler" />, state needs to be set separately.
     /// </summary>
-    public Compiler() {
-        diagnostics = new BelteDiagnosticQueue();
+    public Compiler(CompilerState state) {
+        this.state = state;
     }
 
     /// <summary>
@@ -47,24 +51,28 @@ public sealed class Compiler {
     public string me { get; set; }
 
     /// <summary>
-    /// Where the diagnostics are stored for the compiler before being displayed or logged.
+    /// The diagnostics from the most recent compiler operation.
     /// </summary>
-    public BelteDiagnosticQueue diagnostics { get; set; }
+    public BelteDiagnosticQueue diagnostics { get; private set; } = new BelteDiagnosticQueue();
 
     /// <summary>
     /// Handles compiling, assembling, and linking of a set of files.
     /// </summary>
     /// <returns>Error code, 0 = success.</returns>
     public int Compile() {
-        if (state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute)
-            InternalInterpreter();
-        else
-            InternalCompiler();
+        lock (state) lock (me) {
+                diagnostics.Clear();
 
-        return CheckErrors();
+                if (state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute)
+                    diagnostics = InternalInterpreter();
+                else
+                    diagnostics = InternalCompiler();
+
+                return CalculateExitCode(diagnostics);
+            }
     }
 
-    private int CheckErrors() {
+    private static int CalculateExitCode(BelteDiagnosticQueue diagnostics) {
         var worst = SuccessExitCode;
 
         foreach (Diagnostic diagnostic in diagnostics) {
@@ -75,172 +83,133 @@ public sealed class Compiler {
         return worst;
     }
 
-    private void InternalInterpreter() {
+    private BelteDiagnosticQueue InternalInterpreter() {
+        var diagnostics = new BelteDiagnosticQueue();
         var timer = state.verboseMode ? Stopwatch.StartNew() : null;
         var textLength = 0;
         var textsCount = 0;
 
         foreach (var task in state.tasks) {
-            if (task.fileContent.text != null) {
+            if (task.fileContent.text is not null) {
                 textLength += task.fileContent.text.Length;
                 textsCount++;
             }
         }
 
-        var buildMode = state.buildMode == BuildMode.AutoRun ? textLength switch {
-            // ! Temporary, `-i` will not use `--script` until it allows entry points such as `Main`
-            // <= InterpreterMaxTextLength when textsCount == 1 => BuildMode.Interpret,
-            <= EvaluatorMaxTextLength => BuildMode.Evaluate,
-            // ! Temporary, `-i` will not use `--execute` until it is implemented
-            // _ => BuildMode.Execute
-            _ => BuildMode.Evaluate,
-        } : state.buildMode;
+        var buildMode = state.buildMode != BuildMode.AutoRun
+            ? state.buildMode
+            : textLength switch {
+                // ! Temporary, `-i` will not use `--script` until it allows entry points such as `Main`
+                // <= InterpreterMaxTextLength when textsCount == 1 => BuildMode.Interpret,
+                <= EvaluatorMaxTextLength => BuildMode.Evaluate,
+                // ! Temporary, `-i` will not use `--execute` until it is implemented
+                // _ => BuildMode.Execute
+                _ => BuildMode.Evaluate,
+            };
 
         if (buildMode is BuildMode.Evaluate or BuildMode.Execute) {
-            var syntaxTrees = new List<SyntaxTree>();
-
-            for (var i = 0; i < state.tasks.Length; i++) {
-                ref var task = ref state.tasks[i];
-
-                if (task.stage == CompilerStage.Raw) {
-                    var syntaxTree = SyntaxTree.Load(task.inputFileName, task.fileContent.text);
-                    syntaxTrees.Add(syntaxTree);
-                    task.stage = CompilerStage.Finished;
-                }
-            }
-
-            var compilation = Compilation.CreateWithPrevious(
-                _options,
-                CompilerHelpers.LoadLibraries(_options),
-                syntaxTrees.ToArray()
-            );
-
-            diagnostics.Move(compilation.diagnostics);
-
-            if (diagnostics.Errors().Any())
-                return;
+            var syntaxTrees = CreateSyntaxTrees(CompilerStage.Finished);
+            var previous = CompilerHelpers.LoadLibraries(_options);
+            var compilation = Compilation.Create(state.moduleName, _options, previous, syntaxTrees);
 
             if (state.noOut)
-                return;
+                return compilation.GetParseDiagnostics();
 
-            EvaluationResult result = null;
-
-            if (state.verboseMode) {
-                timer.Stop();
-                diagnostics.Push(new BelteDiagnostic(
-                    DiagnosticSeverity.Debug,
-                    $"Loaded {syntaxTrees.Count} syntax trees in {timer.ElapsedMilliseconds} ms"
-                ));
-                timer.Start();
-            }
+            LogParseTime(timer, syntaxTrees.Length);
 
             void Wrapper(object parameter) {
                 if (buildMode == BuildMode.Evaluate) {
-                    result = compilation.Evaluate(
-                        new Dictionary<IVariableSymbol, EvaluatorObject>(),
-                        (ValueWrapper<bool>)parameter,
-                        state.verboseMode
-                    );
+                    var result = compilation.Evaluate((ValueWrapper<bool>)parameter, state.verboseMode);
+                    diagnostics.PushRange(result.diagnostics);
                 } else {
-                    compilation.Execute();
+                    diagnostics.PushRange(compilation.Execute());
                 }
             }
 
             InternalInterpreterStart(Wrapper);
-
-            diagnostics.Move(result?.diagnostics);
         } else {
             Debug.Assert(state.tasks.Length == 1, "multiple tasks while in script mode");
 
-            var sourceText = new StringText(state.tasks[0].inputFileName, state.tasks[0].fileContent.text);
+            ref var task = ref state.tasks[0];
+            var sourceText = new StringText(task.inputFileName, task.fileContent.text);
             var syntaxTree = new SyntaxTree(sourceText, SourceCodeKind.Regular);
+            task.stage = CompilerStage.Finished;
 
-            state.tasks[0].stage = CompilerStage.Finished;
+            var compilation = Compilation.CreateScript(state.moduleName, _options, syntaxTree);
 
-            var options = _options;
-            options.isScript = true;
-            var compilation = Compilation.Create(options, syntaxTree);
-            EvaluationResult result = null;
+            if (state.noOut)
+                return compilation.GetParseDiagnostics();
 
-            if (state.verboseMode && !state.noOut) {
-                timer.Stop();
-                diagnostics.Push(new BelteDiagnostic(
-                    DiagnosticSeverity.Debug,
-                    $"Loaded 1 syntax tree in {timer.ElapsedMilliseconds} ms"
-                ));
-                timer.Start();
-            }
+            LogParseTime(timer, 1);
 
             void Wrapper(object parameter) {
-                result = compilation.Interpret(
-                    new Dictionary<IVariableSymbol, EvaluatorObject>(),
-                    (ValueWrapper<bool>)parameter
-                );
+                var result = compilation.Interpret((ValueWrapper<bool>)parameter);
+                diagnostics.PushRange(result.diagnostics);
             }
 
             InternalInterpreterStart(Wrapper);
-
-            diagnostics.Move(result?.diagnostics);
         }
 
-        if (state.verboseMode && !state.noOut) {
-            timer.Stop();
-            diagnostics.Push(new BelteDiagnostic(
-                DiagnosticSeverity.Debug,
-                $"Total compilation time: {timer.ElapsedMilliseconds} ms"
-            ));
-        }
+        LogCompilationTime(timer);
+
+        return diagnostics;
     }
 
-    private void InternalCompiler() {
+    private BelteDiagnosticQueue InternalCompiler() {
+        var diagnostics = new BelteDiagnosticQueue();
         var timer = state.verboseMode ? Stopwatch.StartNew() : null;
-        var syntaxTrees = new List<SyntaxTree>();
+        var syntaxTrees = CreateSyntaxTrees(CompilerStage.Compiled);
 
-        for (var i = 0; i < state.tasks.Length; i++) {
-            ref var task = ref state.tasks[i];
-
-            if (task.stage == CompilerStage.Raw) {
-                var syntaxTree = SyntaxTree.Load(task.inputFileName, task.fileContent.text);
-                syntaxTrees.Add(syntaxTree);
-                task.stage = CompilerStage.Compiled;
-            }
-        }
-
-        var compilation = Compilation.CreateWithPrevious(
+        var compilation = Compilation.Create(
+            state.moduleName,
             _options,
             CompilerHelpers.LoadLibraries(_options),
-            syntaxTrees.ToArray()
+            syntaxTrees
         );
 
         if (state.noOut)
-            return;
+            return diagnostics;
 
-        if (state.verboseMode) {
-            timer.Stop();
-            diagnostics.Push(new BelteDiagnostic(
-                DiagnosticSeverity.Debug,
-                $"Loaded {syntaxTrees.Count} syntax trees in {timer.ElapsedMilliseconds} ms"
-            ));
-            timer.Start();
+        LogParseTime(timer, syntaxTrees.Length);
+
+        var result = compilation.Emit(state.outputFilename, state.verboseMode);
+        diagnostics.PushRange(result);
+
+        LogCompilationTime(timer);
+
+        return diagnostics;
+    }
+
+    private SyntaxTree[] CreateSyntaxTrees(CompilerStage stageToSet) {
+        var builder = ArrayBuilder<SyntaxTree>.GetInstance();
+        var tasks = state.tasks;
+
+        for (var i = 0; i < tasks.Length; i++) {
+            ref var task = ref tasks[i];
+
+            if (task.stage == CompilerStage.Raw) {
+                var syntaxTree = SyntaxTree.Load(task.inputFileName, task.fileContent.text);
+                builder.Add(syntaxTree);
+                task.stage = stageToSet;
+            }
         }
 
-        var result = compilation.Emit(
-            state.buildMode,
-            state.moduleName,
-            state.references,
-            state.outputFilename,
-            state.finishStage,
-            state.verboseMode
-        );
+        return builder.ToArrayAndFree();
+    }
 
-        diagnostics.Move(result);
+    private void LogParseTime(Stopwatch timer, int count) {
+        Log(timer, $"Loaded {count} syntax tree in {timer.ElapsedMilliseconds} ms");
+    }
 
+    private void LogCompilationTime(Stopwatch timer) {
+        Log(timer, $"Total compilation time: {timer.ElapsedMilliseconds} ms");
+    }
+
+    private void Log(Stopwatch timer, string message) {
         if (state.verboseMode) {
             timer.Stop();
-            diagnostics.Push(new BelteDiagnostic(
-                DiagnosticSeverity.Debug,
-                $"Total compilation time: {timer.ElapsedMilliseconds} ms"
-            ));
+            diagnostics.Push(new BelteDiagnostic(DiagnosticSeverity.Debug, message));
+            timer.Start();
         }
     }
 

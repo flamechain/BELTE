@@ -62,6 +62,8 @@ public sealed partial class BelteRepl {
         /// </summary>
         internal Compilation previous;
 
+        internal Compilation baseCompilation;
+
         /// <summary>
         /// Current tree representation of the most recent submission.
         /// </summary>
@@ -71,6 +73,6 @@ public sealed partial class BelteRepl {
         /// Current defined variables.
         /// Not tracked after Repl instance is over, instead previous submissions are reevaluated.
         /// </summary>
-        internal Dictionary<IVariableSymbol, EvaluatorObject> variables;
+        internal Dictionary<IDataContainerSymbol, EvaluatorObject> variables;
     }
 }

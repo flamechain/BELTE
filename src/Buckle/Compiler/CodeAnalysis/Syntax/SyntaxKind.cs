@@ -4,7 +4,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// <summary>
 /// All types of things to be found in a source file.
 /// </summary>
-public enum SyntaxKind {
+public enum SyntaxKind : ushort {
     None = 0,
     List = GreenNode.ListKind,
 
@@ -107,6 +107,8 @@ public enum SyntaxKind {
     AsKeyword,
     WhereKeyword,
     ThrowKeyword,
+    PrimitiveKeyword,
+    NotnullKeyword,
 
     // Tokens with text
     BadToken,
@@ -129,7 +131,6 @@ public enum SyntaxKind {
     ThisExpression,
     BaseExpression,
     ThrowExpression,
-    EmptyExpression,
 
     // Operator expressions
     TernaryExpression,
@@ -139,7 +140,6 @@ public enum SyntaxKind {
     PrefixExpression,
     PostfixExpression,
     AssignmentExpression,
-    CompoundAssignmentExpression,
 
     // Primary expressions
     LiteralExpression,
@@ -151,11 +151,11 @@ public enum SyntaxKind {
     ObjectCreationExpression,
 
     // Statements
+    EmptyStatement,
     BlockStatement,
     ExpressionStatement,
     LocalDeclarationStatement,
     LocalFunctionStatement,
-    EmptyStatement,
 
     // Jump statements
     BreakStatement,
@@ -205,8 +205,10 @@ public enum SyntaxKind {
     TemplateArgumentList,
     Attribute,
     AttributeList,
-    TemplateParameterConstraintClause,
-    TemplateParameterConstraintClauseList,
+    TemplateConstraintClause,
+    TemplateExtendsConstraintClause,
+    TemplateIsConstraintClause,
+    TemplateConstraintClauseList,
     InitializerListExpression,
     KeyValuePair,
     InitializerDictionaryExpression,
