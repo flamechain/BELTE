@@ -1103,6 +1103,16 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_RefConditionalNeedsTwoRefs, location, message);
     }
 
+    internal static BelteDiagnostic NullAssertAlwaysThrows(TextLocation location) {
+        var message = $"cannot perform a 'not null' assertion on an expression with constant value 'null'";
+        return CreateError(DiagnosticCode.ERR_NullAssertAlwaysThrows, location, message);
+    }
+
+    internal static BelteDiagnostic NullAssertOnNonNullableType(TextLocation location, TypeSymbol type) {
+        var message = $"cannot perform a 'not null' assertion on an expression with type '{type}' as it is a non-nullable type";
+        return CreateError(DiagnosticCode.ERR_NullAssertOnNonNullableType, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

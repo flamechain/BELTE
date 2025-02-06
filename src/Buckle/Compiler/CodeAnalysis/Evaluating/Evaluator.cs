@@ -415,7 +415,7 @@ internal sealed class Evaluator {
             BoundKind.AssignmentOperator => EvaluateAssignmentOperator((BoundAssignmentOperator)expression, abort),
             BoundKind.UnaryOperator => EvaluateUnaryOperator((BoundUnaryOperator)expression, abort),
             BoundKind.BinaryOperator => EvaluateBinaryOperator((BoundBinaryOperator)expression, abort),
-            BoundKind.NullAssertExpression => EvaluateNullAssertExpression((BoundNullAssertExpression)expression, abort),
+            BoundKind.NullAssertOperator => EvaluateNullAssertOperator((BoundNullAssertOperator)expression, abort),
             BoundKind.AsOperator => EvaluateAsOperator((BoundAsOperator)expression, abort),
             BoundKind.IsOperator => EvaluateIsOperator((BoundIsOperator)expression, abort),
             BoundKind.ConditionalOperator => EvaluateConditionalOperator((BoundConditionalOperator)expression, abort),
@@ -556,8 +556,8 @@ internal sealed class Evaluator {
             return EvaluateExpression(expression.falseExpression, abort);
     }
 
-    private EvaluatorObject EvaluateNullAssertExpression(
-        BoundNullAssertExpression expression,
+    private EvaluatorObject EvaluateNullAssertOperator(
+        BoundNullAssertOperator expression,
         ValueWrapper<bool> abort) {
         var value = Dereference(EvaluateExpression(expression.operand, abort));
 
@@ -704,21 +704,21 @@ internal sealed class Evaluator {
                 break;
             case BinaryOperatorKind.Subtraction:
                 if (expressionType == SpecialType.Int)
-                    result = (int)leftValue - (int)rightValue
+                    result = (int)leftValue - (int)rightValue;
                 else
                     result = Convert.ToDouble(leftValue) - Convert.ToDouble(rightValue);
 
                 break;
             case BinaryOperatorKind.Multiplication:
                 if (expressionType == SpecialType.Int)
-                    result = (int)leftValue * (int)rightValue
+                    result = (int)leftValue * (int)rightValue;
                 else
                     result = Convert.ToDouble(leftValue) * Convert.ToDouble(rightValue);
 
                 break;
             case BinaryOperatorKind.Division:
                 if (expressionType == SpecialType.Int)
-                    result = (int)leftValue / (int)rightValue
+                    result = (int)leftValue / (int)rightValue;
                 else
                     result = Convert.ToDouble(leftValue) / Convert.ToDouble(rightValue);
 
@@ -731,51 +731,51 @@ internal sealed class Evaluator {
                 break;
             case BinaryOperatorKind.LessThan:
                 if (leftType == SpecialType.Int)
-                    result = (int)leftValue < (int)rightValue
+                    result = (int)leftValue < (int)rightValue;
                 else
                     result = Convert.ToDouble(leftValue) < Convert.ToDouble(rightValue);
 
                 break;
             case BinaryOperatorKind.GreaterThan:
                 if (leftType == SpecialType.Int)
-                    result = (int)leftValue > (int)rightValue
+                    result = (int)leftValue > (int)rightValue;
                 else
                     result = Convert.ToDouble(leftValue) > Convert.ToDouble(rightValue);
 
                 break;
             case BinaryOperatorKind.LessThanOrEqual:
                 if (leftType == SpecialType.Int)
-                    result = (int)leftValue <= (int)rightValue
+                    result = (int)leftValue <= (int)rightValue;
                 else
                     result = Convert.ToDouble(leftValue) <= Convert.ToDouble(rightValue);
 
                 break;
             case BinaryOperatorKind.GreaterThanOrEqual:
                 if (leftType == SpecialType.Int)
-                    result = (int)leftValue >= (int)rightValue
+                    result = (int)leftValue >= (int)rightValue;
                 else
                     result = Convert.ToDouble(leftValue) >= Convert.ToDouble(rightValue);
 
                 break;
             case BinaryOperatorKind.And:
                 if (expressionType == SpecialType.Int)
-                    result = (int)leftValue & (int)rightValue
+                    result = (int)leftValue & (int)rightValue;
                 else
                     result = (bool)leftValue & (bool)rightValue;
 
                 break;
             case BinaryOperatorKind.Or:
                 if (expressionType == SpecialType.Int)
-                    result = (int)leftValue | (int)rightValue
+                    result = (int)leftValue | (int)rightValue;
                 else
                     result = (bool)leftValue | (bool)rightValue;
 
                 break;
             case BinaryOperatorKind.Xor:
                 if (expressionType == SpecialType.Int)
-                    result = (int)leftValue & (int)rightValue
+                    result = (int)leftValue ^ (int)rightValue;
                 else
-                    result = (bool)leftValue & (bool)rightValue;
+                    result = (bool)leftValue ^ (bool)rightValue;
 
                 break;
             case BinaryOperatorKind.LeftShift:
@@ -789,7 +789,7 @@ internal sealed class Evaluator {
                 break;
             case BinaryOperatorKind.Modulo:
                 if (expressionType == SpecialType.Int)
-                    result = (int)leftValue % (int)rightValue
+                    result = (int)leftValue % (int)rightValue;
                 else
                     result = Convert.ToDouble(leftValue) % Convert.ToDouble(rightValue);
 

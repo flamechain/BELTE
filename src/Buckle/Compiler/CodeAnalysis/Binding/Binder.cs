@@ -923,7 +923,7 @@ internal partial class Binder {
             SyntaxKind.BinaryExpression => BindBinaryExpression((BinaryExpressionSyntax)node, diagnostics),
             SyntaxKind.UnaryExpression => BindUnaryExpression((UnaryExpressionSyntax)node, diagnostics),
             SyntaxKind.PrefixExpression => BindIncrementOperator(node, ((PrefixExpressionSyntax)node).operand, ((PrefixExpressionSyntax)node).operatorToken, diagnostics),
-            SyntaxKind.PostfixExpression => BindIncrementOperator(node, ((PostfixExpressionSyntax)node).operand, ((PostfixExpressionSyntax)node).operatorToken, diagnostics),
+            SyntaxKind.PostfixExpression => BindIncrementOrNullAssertOperator((PostfixExpressionSyntax)node, diagnostics),
             SyntaxKind.TernaryExpression => BindTernaryExpression((TernaryExpressionSyntax)node, diagnostics),
             SyntaxKind.AssignmentExpression => BindAssignmentOperator((AssignmentExpressionSyntax)node, diagnostics),
             SyntaxKind.ObjectCreationExpression => BindObjectCreationExpression((ObjectCreationExpressionSyntax)node, diagnostics),
@@ -4026,6 +4026,41 @@ internal partial class Binder {
             // resultKind,
             resultType
         );
+    }
+
+    private BoundExpression BindNullAssertOperator(PostfixExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var operand = BindExpression(node.operand, diagnostics);
+
+        if (operand.IsLiteralNull()) {
+            diagnostics.Push(Error.NullAssertAlwaysThrows(node.location));
+            return new BoundNullAssertOperator(node, operand, null, CreateErrorType("<null>"), true);
+        }
+
+        var operandType = operand.type;
+
+        if (!operandType.IsNullableType()) {
+            diagnostics.Push(Error.NullAssertOnNonNullableType(node.location, operandType));
+            return new BoundNullAssertOperator(node, operand, null, operandType, true);
+        }
+
+        var resultType = operandType.StrippedType();
+        var constantValue = operand.constantValue;
+
+        if (ConstantValue.IsNull(constantValue)) {
+            diagnostics.Push(Error.NullAssertAlwaysThrows(node.location));
+            return new BoundNullAssertOperator(node, operand, null, resultType, true);
+        }
+
+        return new BoundNullAssertOperator(node, operand, constantValue, resultType);
+    }
+
+    private BoundExpression BindIncrementOrNullAssertOperator(
+        PostfixExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        if (node.operatorToken.kind == SyntaxKind.ExclamationToken)
+            return BindNullAssertOperator(node, diagnostics);
+
+        return BindIncrementOperator(node, node.operand, node.operatorToken, diagnostics);
     }
 
     private BoundExpression BindIncrementOperator(

@@ -229,8 +229,8 @@ public sealed class DisplayText {
             case BoundKind.NullCoalescingAssignmentOperator:
                 DisplayNullCoalescingAssignmentOperator(text, (BoundNullCoalescingAssignmentOperator)node);
                 break;
-            case BoundKind.NullAssertExpression:
-                DisplayNullAssertExpression(text, (BoundNullAssertExpression)node);
+            case BoundKind.NullAssertOperator:
+                DisplayNullAssertOperator(text, (BoundNullAssertOperator)node);
                 break;
             case BoundKind.ConditionalOperator:
                 DisplayConditionalOperator(text, (BoundConditionalOperator)node);
@@ -868,7 +868,7 @@ public sealed class DisplayText {
             text.Write(CreatePunctuation(node.operatorKind.ToSyntaxKind()));
     }
 
-    private static void DisplayNullAssertExpression(DisplayText text, BoundNullAssertExpression node) {
+    private static void DisplayNullAssertOperator(DisplayText text, BoundNullAssertOperator node) {
         DisplayNode(text, node.operand);
         text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
     }

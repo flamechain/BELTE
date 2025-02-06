@@ -208,7 +208,7 @@ internal abstract class BoundTreeExpander {
             BoundKind.IsOperator => ExpandIsOperator((BoundIsOperator)expression, out replacement),
             BoundKind.NullCoalescingOperator => ExpandNullCoalescingOperator((BoundNullCoalescingOperator)expression, out replacement),
             BoundKind.NullCoalescingAssignmentOperator => ExpandNullCoalescingAssignmentOperator((BoundNullCoalescingAssignmentOperator)expression, out replacement),
-            BoundKind.NullAssertExpression => ExpandNullAssertExpression((BoundNullAssertExpression)expression, out replacement),
+            BoundKind.NullAssertOperator => ExpandNullAssertOperator((BoundNullAssertOperator)expression, out replacement),
             BoundKind.ErrorExpression => ExpandErrorExpression((BoundErrorExpression)expression, out replacement),
             BoundKind.CallExpression => ExpandCallExpression((BoundCallExpression)expression, out replacement),
             BoundKind.CastExpression => ExpandCastExpression((BoundCastExpression)expression, out replacement),
@@ -462,8 +462,8 @@ internal abstract class BoundTreeExpander {
         return [];
     }
 
-    private protected virtual List<BoundStatement> ExpandNullAssertExpression(
-        BoundNullAssertExpression expression,
+    private protected virtual List<BoundStatement> ExpandNullAssertOperator(
+        BoundNullAssertOperator expression,
         out BoundExpression replacement) {
         var statements = ExpandExpression(expression.operand, out var newOperand);
 
