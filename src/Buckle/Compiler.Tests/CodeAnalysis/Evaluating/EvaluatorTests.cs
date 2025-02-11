@@ -214,6 +214,18 @@ public sealed class EvaluatorTests {
     [InlineData("int a = 3 + (4 * 2); return a;", 11)]
     [InlineData("int a = 12 / (4 * 2); return a;", 1)]
     [InlineData("int a = (12 / 4) * 2; return a;", 6)]
+    // Call expressions
+    [InlineData("int F(int a, int b, int c) { return a + b * c; } return F(b: 3, c: 2, a: 9);", 15)]
+    [InlineData("int F(int a = 3) { return a; } return F(5);", 5)]
+    [InlineData("int F(int a = 3) { return a; } return F();", 3)]
+    [InlineData("int F(int a, int b, int c = 6) { return a + b * c; } return F(b: 3, c: 2, a: 9);", 15)]
+    [InlineData("int F(int a, int b, int c = 6) { return a + b * c; } return F(b: 3, a: 9);", 27)]
+    [InlineData("int F(int a, int b) { if (a is null) return 1; if (b is null) return 2; return 3;} return F(1, 2);", 3)]
+    [InlineData("int F(int a, int b) { if (a is null) return 1; if (b is null) return 2; return 3;} return F(1,);", 2)]
+    [InlineData("int F(int a, int b) { if (a is null) return 1; if (b is null) return 2; return 3;} return F(,2);", 1)]
+    [InlineData("class A { public int a; public int M() { if (a is null) a = 3; return a++; } } var myA = new A(); return myA.M();", 3)]
+    [InlineData("class A { public int a; public int M() { if (a is null) a = 3; return a++; } } var myA = new A(); myA.M(); return myA.M();", 4)]
+    [InlineData("int A(int a) { return 1; } int A(int a, int b = 3) { return 2; } return A(9);", 1)]
     /*
     // If statements
     [InlineData("int a = 0; if (a == 0) { a = 10; } return a;", 10)]
@@ -254,18 +266,6 @@ public sealed class EvaluatorTests {
     // TODO Add this test back after adding containingAssembly checks to CannotUseGlobalInClass
     // [InlineData("int a = 3; class A { public ref int b = ref a; } var m = new A(); a = 6; return m.b;", 6)]
     [InlineData("lowlevel class A { public int[] b = { 1, 2, 3 }; } var a = new A(); var r = ref a.b; r[0]++; return a.b[0];", 2)]
-    // Call expressions
-    [InlineData("int F(int a, int b, int c) { return a + b * c; } return F(b: 3, c: 2, a: 9);", 15)]
-    [InlineData("int F(int a = 3) { return a; } return F(5);", 5)]
-    [InlineData("int F(int a = 3) { return a; } return F();", 3)]
-    [InlineData("int F(int a, int b, int c = 6) { return a + b * c; } return F(b: 3, c: 2, a: 9);", 15)]
-    [InlineData("int F(int a, int b, int c = 6) { return a + b * c; } return F(b: 3, a: 9);", 27)]
-    [InlineData("int F(int a, int b) { if (a is null) return 1; if (b is null) return 2; return 3;} return F(1, 2);", 3)]
-    [InlineData("int F(int a, int b) { if (a is null) return 1; if (b is null) return 2; return 3;} return F(1,);", 2)]
-    [InlineData("int F(int a, int b) { if (a is null) return 1; if (b is null) return 2; return 3;} return F(,2);", 1)]
-    [InlineData("class A { public int a; public int M() { if (a is null) a = 3; return a++; } } var myA = new A(); return myA.M();", 3)]
-    [InlineData("class A { public int a; public int M() { if (a is null) a = 3; return a++; } } var myA = new A(); myA.M(); return myA.M();", 4)]
-    [InlineData("int A(int a) { return 1; } int A(int a, int b = 3) { return 2; } return A(9);", 1)]
     // Builtin Methods
     [InlineData("Console.Print(message: \"test\");", null)]
     [InlineData("Hex(13);", "D")]

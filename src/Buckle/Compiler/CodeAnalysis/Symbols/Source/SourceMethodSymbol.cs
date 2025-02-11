@@ -39,6 +39,7 @@ internal abstract class SourceMethodSymbol : MethodSymbol {
             // I can't imagine a situation where you could add an error-free constraint clause without having templates
             // However this would speed up compilation slightly as you wouldn't need to actually bind the constraints
             // Just push this error instead
+            // EDIT: It *would* be legal to do something like `where { 3 == 3; }` and that would require no templates
         }
     }
 
