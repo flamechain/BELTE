@@ -1,8 +1,9 @@
 
 .*/
 !.github
-# VSCode is the offical supported code editor, hence .vs is ignored
+# VSCode is the official supported code editor, hence .vs is ignored
 !.vscode
+!.devcontainer
 
 [Oo]ld/
 [Oo]bj/
