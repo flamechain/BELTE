@@ -220,21 +220,54 @@ done:
             );
 
             var membersBuilder = ArrayBuilder<Symbol>.GetInstance();
+            var localFunctionStatements = ArrayBuilder<GlobalStatementSyntax>.GetInstance();
+
+            foreach (var method in methods) {
+                var localFunction = SyntaxFactory.GlobalStatement(
+                    SyntaxFactory.List<AttributeListSyntax>(),
+                    null,
+                    SyntaxFactory.LocalFunctionStatement(
+                        method.attributeLists,
+                        method.modifiers,
+                        method.returnType,
+                        method.identifier,
+                        method.parameterList,
+                        method.body
+                    )
+                );
+
+                localFunctionStatements.Add(localFunction);
+            }
+
+            var attributedMethods = false;
 
             foreach (var keyValuePair in globals) {
+                var statements = keyValuePair.Value;
+
+                if (!attributedMethods) {
+                    attributedMethods = true;
+                    statements.AddRange(localFunctionStatements.ToImmutableAndFree());
+                }
+
                 var entryPoint = new SynthesizedEntryPoint(
                     program,
                     returnType,
-                    keyValuePair.Value.ToImmutableAndFree(),
+                    statements.ToImmutableAndFree(),
                     _declarations[0].syntaxTree.GetCompilationUnitRoot()
                 );
 
                 membersBuilder.Add(entryPoint);
             }
 
-            foreach (var method in methods) {
-                var methodSymbol = SourceOrdinaryMethodSymbol.CreateMethodSymbol(program, method, diagnostics);
-                membersBuilder.Add(methodSymbol);
+            if (!attributedMethods) {
+                var emptyEntryPoint = new SynthesizedEntryPoint(
+                    program,
+                    returnType,
+                    localFunctionStatements.ToImmutableAndFree(),
+                    _declarations[0].syntaxTree.GetCompilationUnitRoot()
+                );
+
+                membersBuilder.Add(emptyEntryPoint);
             }
 
             program.FinishProgram(membersBuilder.ToImmutableAndFree());

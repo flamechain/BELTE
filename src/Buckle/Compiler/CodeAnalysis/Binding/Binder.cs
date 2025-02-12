@@ -5324,6 +5324,7 @@ symIsHidden:;
             SyntaxKind.ExpressionStatement => BindExpressionStatement((ExpressionStatementSyntax)node, diagnostics),
             SyntaxKind.LocalDeclarationStatement => BindLocalDeclarationStatement((LocalDeclarationStatementSyntax)node, diagnostics),
             SyntaxKind.EmptyStatement => BindEmptyStatement((EmptyStatementSyntax)node, diagnostics),
+            SyntaxKind.LocalFunctionStatement => BindLocalFunctionStatement((LocalFunctionStatementSyntax)node, diagnostics),
             /*
             case SyntaxKind.IfStatement:
                 return BindIfStatement((IfStatementSyntax)syntax);
@@ -5339,8 +5340,6 @@ symIsHidden:;
                 return BindBreakStatement((BreakStatementSyntax)syntax);
             case SyntaxKind.ContinueStatement:
                 return BindContinueStatement((ContinueStatementSyntax)syntax);
-            case SyntaxKind.LocalFunctionStatement:
-                return new BoundBlockStatement([]);
             */
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
