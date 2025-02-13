@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
+using Buckle.CodeAnalysis.FlowAnalysis;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -5343,6 +5344,35 @@ symIsHidden:;
             */
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
+    }
+
+    private BoundStatement BindLocalFunctionStatement(
+        LocalFunctionStatementSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        var localSymbol = LookupLocalFunction(node.identifier);
+        var hasErrors = localSymbol.scopeBinder.ValidateDeclarationNameConflictsInScope(localSymbol, diagnostics);
+
+        BoundBlockStatement body = null;
+
+        if (node.body is not null) {
+            body = RunAnalysis(BindBlockStatement(node.body, diagnostics), diagnostics);
+        } else if (!hasErrors) {
+            // TODO is this a reachable error
+            hasErrors = true;
+            // diagnostics.Add(ErrorCode.ERR_LocalFunctionMissingBody, localSymbol.GetFirstLocation(), localSymbol);
+        }
+
+        localSymbol.GetDeclarationDiagnostics(diagnostics);
+
+        return new BoundLocalFunctionStatement(node, localSymbol, body, hasErrors);
+
+        BoundBlockStatement RunAnalysis(BoundBlockStatement block, BelteDiagnosticQueue blockDiagnostics) {
+            if (block is not null) {
+                // TODO do we need to do any control flow analysis here
+            }
+
+            return block;
+        }
     }
 
     private BoundLocalDeclarationStatement BindLocalDeclarationStatement(
