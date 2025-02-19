@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
@@ -79,11 +78,6 @@ internal static partial class SyntaxFactory {
             Token(token.kind, token.fullWidth, token.text, value, token.GetLeadingTrivia(), token.GetTrailingTrivia())
         );
     }
-
-    /// <summary>
-    /// Creates a <see cref="EmptyExpressionSyntax" />.
-    /// </summary>
-    internal static EmptyExpressionSyntax Empty() => EmptyExpression();
 
     /// <summary>
     /// Creates an empty syntax list.

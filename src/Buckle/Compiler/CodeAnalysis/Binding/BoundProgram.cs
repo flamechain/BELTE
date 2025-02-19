@@ -1,44 +1,41 @@
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Binding;
 
-/// <summary>
-/// Bound program.
-/// </summary>
 internal sealed class BoundProgram {
-    /// <param name="previous">Previous <see cref="BoundProgram" /> (if applicable).</param>
     internal BoundProgram(
-        BoundProgram previous,
-        BelteDiagnosticQueue diagnostics,
-        Dictionary<string, MethodSymbol> wellKnownMethods,
         ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies,
         ImmutableArray<NamedTypeSymbol> types,
-        ImmutableArray<NamedTypeSymbol> usedLibraryTypes) {
-        this.previous = previous;
-        this.diagnostics = diagnostics;
-        this.wellKnownMethods = wellKnownMethods;
+        MethodSymbol entryPoint,
+        BoundProgram previous = null) {
         this.methodBodies = methodBodies;
         this.types = types;
-        this.usedLibraryTypes = usedLibraryTypes;
+        this.entryPoint = entryPoint;
+        this.previous = previous;
     }
-
-    /// <summary>
-    /// Previous <see cref="BoundProgram" /> (if applicable).
-    /// </summary>
-    internal BoundProgram previous { get; }
-
-    internal BelteDiagnosticQueue diagnostics { get; }
-
-    internal MethodSymbol entryPoint => wellKnownMethods[WellKnownMethodNames.EntryPoint];
-
-    internal Dictionary<string, MethodSymbol> wellKnownMethods { get; }
 
     internal ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies { get; }
 
     internal ImmutableArray<NamedTypeSymbol> types { get; }
 
-    internal ImmutableArray<NamedTypeSymbol> usedLibraryTypes { get; }
+    internal MethodSymbol entryPoint { get; }
+
+    internal BoundProgram previous { get; }
+
+    internal bool TryGetMethodBodyIncludingParents(MethodSymbol method, out BoundBlockStatement body) {
+        var current = this;
+
+        while (current is not null) {
+            if (current.methodBodies.TryGetValue(method, out var value)) {
+                body = value;
+                return true;
+            }
+
+            current = current.previous;
+        }
+
+        body = null;
+        return false;
+    }
 }

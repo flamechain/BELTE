@@ -32,5 +32,7 @@ internal static class WellKnownMemberNames {
     internal const string GreaterThanOperatorName = "op_GreaterThan";
     internal const string LessThanOrEqualOperatorName = "op_LessThanOrEqual";
     internal const string GreaterThanOrEqualOperatorName = "op_GreaterThanOrEqual";
+    internal const string EntryPointMethodName = "Main";
+    internal const string TopLevelStatementsEntryPointTypeName = "<Program>$";
     internal new const string ToString = "ToString";
 }

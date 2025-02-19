@@ -1,110 +1,251 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Text;
+using System.Runtime.CompilerServices;
 using Buckle.CodeAnalysis.Binding;
-using Buckle.CodeAnalysis.Syntax;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, ISymbolWithTemplates {
-    protected readonly DeclarationModifiers _declarationModifiers;
-    protected List<Symbol> _lazyMembers;
-    protected Dictionary<string, ImmutableArray<Symbol>> _lazyMembersDictionary;
+internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolWithTemplates {
+    private protected bool _hasNoBaseCycles;
 
-    internal NamedTypeSymbol(
-        ImmutableArray<ParameterSymbol> templateParameters,
-        ImmutableArray<BoundExpression> templateConstraints,
-        ImmutableArray<Symbol> symbols,
-        TypeDeclarationSyntax declaration,
-        DeclarationModifiers modifiers,
-        Accessibility accessibility)
-        : base(declaration?.identifier?.text, accessibility) {
-        members = symbols;
-        this.declaration = declaration;
-        this.templateParameters = templateParameters;
-        this.templateConstraints = templateConstraints;
-        _declarationModifiers = modifiers;
+    public abstract override string name { get; }
 
-        foreach (var member in members)
-            member.SetContainingType(this);
+    public override string metadataName
+        => mangleName ? MetadataHelpers.ComposeSuffixedMetadataName(name, templateParameters) : name;
+
+    public override SymbolKind kind => SymbolKind.NamedType;
+
+    public abstract ImmutableArray<TemplateParameterSymbol> templateParameters { get; }
+
+    public abstract ImmutableArray<BoundExpression> templateConstraints { get; }
+
+    public abstract ImmutableArray<TypeOrConstant> templateArguments { get; }
+
+    public virtual TemplateMap templateSubstitution { get; } = null;
+
+    public abstract int arity { get; }
+
+    public override bool isObjectType => originalDefinition.specialType.IsObjectType();
+
+    public override bool isPrimitiveType => originalDefinition.specialType.IsPrimitiveType();
+
+    public bool isTemplateType {
+        get {
+            for (var current = this; !ReferenceEquals(current, null); current = current.containingType) {
+                if (current.templateArguments.Length != 0)
+                    return true;
+            }
+
+            return false;
+        }
     }
 
-    public override SymbolKind kind => SymbolKind.Type;
+    internal abstract bool mangleName { get; }
 
-    public override bool isStatic => (_declarationModifiers & DeclarationModifiers.Static) != 0;
+    internal abstract IEnumerable<string> memberNames { get; }
 
-    public override bool isAbstract => (_declarationModifiers & DeclarationModifiers.Abstract) != 0;
+    internal abstract NamedTypeSymbol constructedFrom { get; }
 
-    public override bool isSealed => (_declarationModifiers & DeclarationModifiers.Sealed) != 0;
+    internal abstract override Accessibility declaredAccessibility { get; }
 
-    public override bool isVirtual => false;
+    internal ImmutableArray<MethodSymbol> constructors => GetConstructors();
 
-    public override bool isOverride => false;
+    internal virtual bool isUnboundTemplateType => false;
 
-    public ImmutableArray<MethodSymbol> constructors => GetConstructors();
+    internal new virtual NamedTypeSymbol originalDefinition => this;
 
-    public ImmutableArray<ParameterSymbol> templateParameters { get; set; }
+    private protected sealed override TypeSymbol _originalTypeSymbolDefinition => originalDefinition;
 
-    public ImmutableArray<BoundExpression> templateConstraints { get; set; }
+    internal abstract override ImmutableArray<Symbol> GetMembers();
 
-    internal ImmutableArray<Symbol> members { get; private set; }
+    internal abstract override ImmutableArray<Symbol> GetMembers(string name);
 
-    internal override int arity => templateParameters.Length;
+    internal abstract override ImmutableArray<NamedTypeSymbol> GetTypeMembers();
 
-    internal bool isLowLevel => (_declarationModifiers & DeclarationModifiers.LowLevel) != 0;
+    internal abstract override ImmutableArray<NamedTypeSymbol> GetTypeMembers(ReadOnlyMemory<char> name);
 
-    internal TypeDeclarationSyntax declaration { get; }
+    internal abstract NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved);
 
-    public ImmutableArray<Symbol> GetMembers(string name) {
-        if (_lazyMembersDictionary is null || _lazyMembers is null)
-            ConstructLazyMembersDictionary();
+    internal virtual bool isSimpleProgram => false;
 
-        return _lazyMembersDictionary.TryGetValue(name, out var result) ? result : ImmutableArray<Symbol>.Empty;
+    internal bool knownToHaveNoDeclaredBaseCycles => _hasNoBaseCycles;
+
+    internal virtual NamedTypeSymbol AsMember(NamedTypeSymbol newOwner) {
+        return newOwner.isDefinition
+            ? this
+            : new SubstitutedNestedTypeSymbol((SubstitutedNamedTypeSymbol)newOwner, this);
     }
 
-    public ImmutableArray<ISymbol> GetMembers() {
-        if (_lazyMembers is null)
-            ConstructLazyMembers();
-
-        return _lazyMembers.ToImmutableArray<ISymbol>();
+    internal ImmutableArray<TypeOrConstant> GetTemplateParametersAsTemplateArguments() {
+        return TemplateMap.TemplateParametersAsTypeOrConstants(templateParameters);
     }
 
-    /// <summary>
-    /// Gets a string representation of the type signature without template parameter names.
-    /// </summary>
-    public string Signature() {
-        var signature = new StringBuilder($"{name}<");
-        var isFirst = true;
+    internal NamedTypeSymbol ConstructIfGeneric(ImmutableArray<TypeOrConstant> templateArguments) {
+        return templateParameters.IsEmpty ? this : Construct(templateArguments, unbound: false);
+    }
 
-        foreach (var parameter in templateParameters) {
-            if (isFirst)
-                isFirst = false;
-            else
-                signature.Append(", ");
+    internal void SetKnownToHaveNoDeclaredBaseCycles() {
+        _hasNoBaseCycles = true;
+    }
 
-            signature.Append(parameter.type);
+    internal new TemplateParameterSymbol FindEnclosingTemplateParameter(string name) {
+        var allTemplateParameters = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
+        GetAllTypeParameters(allTemplateParameters);
+
+        TemplateParameterSymbol result = null;
+
+        foreach (var enclosingTemplateParameter in allTemplateParameters) {
+            if (name == enclosingTemplateParameter.name) {
+                result = enclosingTemplateParameter;
+                break;
+            }
         }
 
-        signature.Append('>');
-
-        return signature.ToString();
+        allTemplateParameters.Free();
+        return result;
     }
 
-    internal void UpdateInternals(
-        ImmutableArray<ParameterSymbol> templateParameters,
-        ImmutableArray<BoundExpression> templateConstraints,
-        ImmutableArray<Symbol> members) {
-        this.templateParameters = templateParameters;
-        this.templateConstraints = templateConstraints;
-        this.members = members;
+    internal void GetAllTypeParameters(ArrayBuilder<TemplateParameterSymbol> result) {
+        containingType?.GetAllTypeParameters(result);
+        result.AddRange(templateParameters);
+    }
 
-        foreach (var member in this.members)
-            member.SetContainingType(this);
+    internal static readonly Func<TypeOrConstant, bool> TypeOrConstantIsNullFunction = type
+        => type.isType && type.type.type is null;
 
-        _lazyMembers = null;
+    internal NamedTypeSymbol Construct(ImmutableArray<TypeOrConstant> templateArguments, bool unbound = false) {
+        if (!ReferenceEquals(this, constructedFrom))
+            throw new InvalidOperationException("Cannot create constructed from constructed");
+
+        if (arity == 0)
+            throw new InvalidOperationException("Cannot create constructed from non-template");
+
+        if (templateArguments.IsDefault)
+            throw new ArgumentNullException(nameof(templateArguments));
+
+        if (templateArguments.Any(TypeOrConstantIsNullFunction))
+            throw new ArgumentException("Type argument cannot be null", nameof(templateArguments));
+
+        if (templateArguments.Length != arity)
+            throw new ArgumentException("Wrong number of template arguments", nameof(templateArguments));
+
+        if (ConstructedNamedTypeSymbol.TemplateParametersMatchTemplateArguments(templateParameters, templateArguments))
+            return this;
+
+        return ConstructCore(templateArguments, unbound);
+    }
+
+    private protected virtual NamedTypeSymbol ConstructCore(
+        ImmutableArray<TypeOrConstant> templateArguments,
+        bool unbound) {
+        return new ConstructedNamedTypeSymbol(this, templateArguments, unbound);
+    }
+
+    internal NamedTypeSymbol AsUnboundTemplateType() {
+        if (!isTemplateType)
+            throw new InvalidOperationException();
+
+        var original = originalDefinition;
+        var n = original.arity;
+        var originalContainingType = original.containingType;
+
+        var constructedFrom = (originalContainingType is null)
+            ? original
+            : original.AsMember(
+                originalContainingType.isTemplateType
+                    ? originalContainingType.AsUnboundTemplateType()
+                    : originalContainingType
+                );
+
+        if (n == 0)
+            return constructedFrom;
+
+        var templateArguments = UnboundArgumentErrorTypeSymbol.CreateTemplateArguments(
+            constructedFrom.templateParameters,
+            n,
+            null /* TODO error */
+        );
+
+        return constructedFrom.Construct(templateArguments, true);
+    }
+
+    internal int ComputeHashCode() {
+        if (WasConstructedForAnnotations(this))
+            return originalDefinition.GetHashCode();
+
+        var code = originalDefinition.GetHashCode();
+        code = Hash.Combine(containingType, code);
+
+        if ((object)constructedFrom != this) {
+            foreach (var arg in templateArguments)
+                code = Hash.Combine(arg, code);
+        }
+
+        if (code == 0)
+            code++;
+
+        return code;
+
+        static bool WasConstructedForAnnotations(NamedTypeSymbol type) {
+            do {
+                var typeArguments = type.templateArguments;
+                var typeParameters = type.originalDefinition.templateParameters;
+
+                for (var i = 0; i < typeArguments.Length; i++) {
+                    if (!typeParameters[i].Equals(
+                             typeArguments[i].type.type.originalDefinition,
+                             TypeCompareKind.ConsiderEverything)) {
+                        return false;
+                    }
+                }
+
+                type = type.containingType;
+            } while (type is not null && !type.isDefinition);
+
+            return true;
+        }
+    }
+
+    internal override bool Equals(TypeSymbol other, TypeCompareKind compareKind) {
+        if ((object)other == this)
+            return true;
+
+        if (other is null)
+            return false;
+
+        var otherAsType = other as NamedTypeSymbol;
+
+        if (other is null) return false;
+
+        var thisOriginalDefinition = originalDefinition;
+        var otherOriginalDefinition = other.originalDefinition;
+
+        var thisIsOriginalDefinition = (object)this == thisOriginalDefinition;
+        var otherIsOriginalDefinition = (object)other == otherOriginalDefinition;
+
+        if (thisIsOriginalDefinition && otherIsOriginalDefinition)
+            return false;
+
+        if ((thisIsOriginalDefinition || otherIsOriginalDefinition) &&
+            (compareKind & (TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreNullability)) == 0) {
+            return false;
+        }
+
+        if (!Equals(thisOriginalDefinition, otherOriginalDefinition, compareKind))
+            return false;
+
+        return EqualsComplicatedCases(otherAsType, compareKind);
+    }
+
+    public override int GetHashCode() {
+        if (specialType == SpecialType.Object)
+            return (int)SpecialType.Object;
+
+        return RuntimeHelpers.GetHashCode(originalDefinition);
     }
 
     private ImmutableArray<MethodSymbol> GetConstructors() {
@@ -116,22 +257,46 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, IS
         var constructors = ArrayBuilder<MethodSymbol>.GetInstance();
 
         foreach (var candidate in candidates) {
-            if (candidate is MethodSymbol method && candidate.containingType == this)
+            if (candidate is MethodSymbol method)
                 constructors.Add(method);
         }
 
         return constructors.ToImmutableAndFree();
     }
 
-    protected virtual void ConstructLazyMembers() {
-        _lazyMembers = members.ToList();
+    private bool EqualsComplicatedCases(NamedTypeSymbol other, TypeCompareKind compareKind) {
+        if (containingType is not null &&
+            !containingType.Equals(other.containingType, compareKind)) {
+            return false;
+        }
+
+        var thisIsNotConstructed = ReferenceEquals(constructedFrom, this);
+        var otherIsNotConstructed = ReferenceEquals(other.constructedFrom, other);
+
+        if (thisIsNotConstructed && otherIsNotConstructed)
+            return true;
+
+        if (isUnboundTemplateType != other.isUnboundTemplateType)
+            return false;
+
+        if ((thisIsNotConstructed || otherIsNotConstructed) &&
+            (compareKind & (TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreNullability)) == 0) {
+            return false;
+        }
+
+        var thisTemplateArguments = templateArguments;
+        var otherTemplateArguments = other.templateArguments;
+        var count = thisTemplateArguments.Length;
+
+        for (var i = 0; i < count; i++) {
+            var templateArgument = thisTemplateArguments[i];
+            var otherTemplateArgument = otherTemplateArguments[i];
+            if (!templateArgument.Equals(otherTemplateArgument, compareKind))
+                return false;
+        }
+
+        return true;
     }
 
-    private void ConstructLazyMembersDictionary() {
-        if (_lazyMembers is null)
-            ConstructLazyMembers();
-
-        _lazyMembersDictionary = _lazyMembers.ToImmutableArray()
-            .ToDictionary(m => m.name, StringOrdinalComparer.Instance);
-    }
+    ImmutableArray<IMethodSymbol> INamedTypeSymbol.constructors => constructors.Cast<MethodSymbol, IMethodSymbol>();
 }

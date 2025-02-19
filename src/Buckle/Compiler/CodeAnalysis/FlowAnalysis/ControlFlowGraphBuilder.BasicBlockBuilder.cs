@@ -16,22 +16,22 @@ internal sealed partial class ControlFlowGraphBuilder {
         internal List<BasicBlock> Build(BoundBlockStatement block) {
             foreach (var statement in block.statements) {
                 switch (statement.kind) {
-                    case BoundNodeKind.LabelStatement:
+                    case BoundKind.LabelStatement:
                         StartBlock();
                         _statements.Add(statement);
                         break;
-                    case BoundNodeKind.GotoStatement:
-                    case BoundNodeKind.ConditionalGotoStatement:
-                    case BoundNodeKind.ReturnStatement:
-                    case BoundNodeKind.ExpressionStatement
+                    case BoundKind.GotoStatement:
+                    case BoundKind.ConditionalGotoStatement:
+                    case BoundKind.ReturnStatement:
+                    case BoundKind.ExpressionStatement
                         when (statement as BoundExpressionStatement).expression is BoundThrowExpression:
                         _statements.Add(statement);
                         StartBlock();
                         break;
-                    case BoundNodeKind.NopStatement:
-                    case BoundNodeKind.ExpressionStatement:
-                    case BoundNodeKind.LocalDeclarationStatement:
-                    case BoundNodeKind.TryStatement:
+                    case BoundKind.NopStatement:
+                    case BoundKind.ExpressionStatement:
+                    case BoundKind.LocalDeclarationStatement:
+                    case BoundKind.TryStatement:
                         _statements.Add(statement);
                         break;
                     default:

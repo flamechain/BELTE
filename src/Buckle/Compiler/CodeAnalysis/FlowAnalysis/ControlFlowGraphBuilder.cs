@@ -2,8 +2,8 @@ using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.FlowAnalysis;
 
@@ -11,10 +11,9 @@ namespace Buckle.CodeAnalysis.FlowAnalysis;
 /// Builds a <see cref="ControlFlowGraph" /> from BasicBlocks and BasicBlockBranches.
 /// </summary>
 internal sealed partial class ControlFlowGraphBuilder {
-    private readonly Dictionary<BoundStatement, BasicBlock> _blockFromStatement =
-        new Dictionary<BoundStatement, BasicBlock>();
-    private readonly Dictionary<BoundLabel, BasicBlock> _blockFromLabel = new Dictionary<BoundLabel, BasicBlock>();
-    private readonly List<ControlFlowBranch> _branches = new List<ControlFlowBranch>();
+    private readonly Dictionary<BoundStatement, BasicBlock> _blockFromStatement = [];
+    private readonly Dictionary<LabelSymbol, BasicBlock> _blockFromLabel = [];
+    private readonly List<ControlFlowBranch> _branches = [];
     private readonly BasicBlock _start = new BasicBlock(true);
     private readonly BasicBlock _end = new BasicBlock(false);
 
@@ -43,14 +42,14 @@ internal sealed partial class ControlFlowGraphBuilder {
                 var isLastStatement = statement == current.statements.Last();
 
                 switch (statement.kind) {
-                    case BoundNodeKind.GotoStatement:
+                    case BoundKind.GotoStatement:
                         var gs = (BoundGotoStatement)statement;
                         var toBlock = _blockFromLabel[gs.label];
 
                         Connect(current, toBlock);
 
                         break;
-                    case BoundNodeKind.ConditionalGotoStatement:
+                    case BoundKind.ConditionalGotoStatement:
                         var cgs = (BoundConditionalGotoStatement)statement;
                         var thenBlock = _blockFromLabel[cgs.label];
                         var elseBlock = next;
@@ -62,16 +61,16 @@ internal sealed partial class ControlFlowGraphBuilder {
                         Connect(current, elseBlock, elseCondition);
 
                         break;
-                    case BoundNodeKind.ReturnStatement:
-                    case BoundNodeKind.ExpressionStatement
+                    case BoundKind.ReturnStatement:
+                    case BoundKind.ExpressionStatement
                         when (statement as BoundExpressionStatement).expression is BoundThrowExpression:
                         Connect(current, _end);
                         break;
-                    case BoundNodeKind.NopStatement:
-                    case BoundNodeKind.ExpressionStatement:
-                    case BoundNodeKind.LocalDeclarationStatement:
-                    case BoundNodeKind.TryStatement:
-                    case BoundNodeKind.LabelStatement:
+                    case BoundKind.NopStatement:
+                    case BoundKind.ExpressionStatement:
+                    case BoundKind.LocalDeclarationStatement:
+                    case BoundKind.TryStatement:
+                    case BoundKind.LabelStatement:
                         if (isLastStatement)
                             Connect(current, next);
 
@@ -116,26 +115,29 @@ internal sealed partial class ControlFlowGraphBuilder {
     }
 
     private BoundExpression Negate(BoundExpression condition) {
-        if (BoundConstant.IsNull(condition.constantValue))
+        var syntax = condition.syntax;
+
+        if (ConstantValue.IsNull(condition.constantValue))
             return condition;
 
-        if (condition is BoundLiteralExpression literal) {
-            var value = (bool)literal.value;
+        var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
 
-            return new BoundLiteralExpression(!value);
+        if (condition is BoundLiteralExpression literal) {
+            var value = (bool)literal.constantValue.value;
+            return new BoundLiteralExpression(syntax, new ConstantValue(value), boolType);
         }
 
-        var op = BoundUnaryOperator.Bind(SyntaxKind.ExclamationToken, new BoundType(TypeSymbol.Bool));
+        var opKind = OverloadResolution.UnOpEasyOut.OpKind(UnaryOperatorKind.LogicalNegation, boolType);
 
-        return new BoundUnaryExpression(op, condition);
+        return new BoundUnaryOperator(syntax, condition, opKind, null, boolType);
     }
 
     private void Connect(BasicBlock from, BasicBlock to, BoundExpression condition = null) {
-        if (BoundConstant.IsNull(condition?.constantValue))
+        if (ConstantValue.IsNull(condition?.constantValue))
             return;
 
         if (condition is BoundLiteralExpression l) {
-            var value = (bool)l.value;
+            var value = (bool)l.constantValue.value;
 
             if (value)
                 condition = null;

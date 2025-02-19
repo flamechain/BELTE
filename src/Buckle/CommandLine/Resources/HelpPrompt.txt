@@ -5,7 +5,6 @@ Options:
   --version                   Display compiler version information.
   --dumpmachine               Display the compiler's target system.
   --noout                     Disable any output the compiler would have produced.
-  --explain[BU|RE|CL]<code>   Extended information for a specific error.
 
   -r|--repl                   Invoke the Repl.
   -i                          Compile and run (default).

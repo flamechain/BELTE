@@ -1,9 +1,11 @@
+using System.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Text;
 
 /// <summary>
 /// A specific location in a source file.
 /// </summary>
+[DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
 public sealed class TextLocation {
     /// <summary>
     /// Creates a <see cref="TextLocation" />.
@@ -60,4 +62,8 @@ public sealed class TextLocation {
     /// Index of the last character relative to the line (not entire <see cref="SourceText" />).
     /// </summary>
     public int endCharacter => span.end - text.GetLine(startLine).start;
+
+    private string GetDebuggerDisplay() {
+        return GetType().Name + "(" + fileName + "@" + (startLine + 1) + ":" + (startCharacter + 1) + ")";
+    }
 }

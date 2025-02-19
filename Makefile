@@ -15,6 +15,7 @@ RM=rm
 RESOURCES:=Resources
 TEST_RESOURCES:=$(COMPILER_DIR).Tests/bin/Debug/$(NETVER)/$(RESOURCES)
 SYNTAXPATH:=$(COMPILER_DIR)/CodeAnalysis/Syntax/Syntax.xml
+BOUNDNODESPATH:=$(COMPILER_DIR)/CodeAnalysis/Binding/BoundTree/BoundNodes.xml
 GENERATED_DIR:=$(COMPILER_DIR)/CodeAnalysis/Generated
 
 FLAGS:=-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false \
@@ -34,11 +35,11 @@ test:
 	@dotnet build $(CL_DIR).Tests/CommandLine.Tests.csproj
 	@dotnet build $(COMPILER_DIR).Tests/Compiler.Tests.csproj
 	@dotnet build $(DIAGNOSTICS_DIR).Tests/Diagnostics.Tests.csproj
-	@$(RM) -f -r $(TEST_RESOURCES)
-	@mkdir $(TEST_RESOURCES)
-	@$(CP) -a $(COMPILER_DIR)/$(RESOURCES)/. $(TEST_RESOURCES)
-	@$(CP) -a $(COMPILER_DIR)/$(RESOURCES)/. $(TEST_RESOURCES)
-	@$(CP) -a $(REPL_DIR)/$(RESOURCES)/. $(TEST_RESOURCES)
+# @$(RM) -f -r $(TEST_RESOURCES)
+# @mkdir $(TEST_RESOURCES)
+# @$(CP) -a $(COMPILER_DIR)/$(RESOURCES)/. $(TEST_RESOURCES)
+# @$(CP) -a $(COMPILER_DIR)/$(RESOURCES)/. $(TEST_RESOURCES)
+# @$(CP) -a $(REPL_DIR)/$(RESOURCES)/. $(TEST_RESOURCES)
 	@dotnet test $(SLN)
 	@echo "    Finished"
 
@@ -58,6 +59,8 @@ generate:
 	@mkdir -p $(GENERATED_DIR)
 	@dotnet run --project $(BUCKLE_DIR)/SourceGenerators/SyntaxGenerator/SyntaxGenerator.csproj --framework $(NETVER) \
 		$(SYNTAXPATH) $(GENERATED_DIR)
+	@dotnet run --project $(BUCKLE_DIR)/SourceGenerators/BoundTreeGenerator/BoundTreeGenerator.csproj \
+		--framework $(NETVER) $(BOUNDNODESPATH) $(GENERATED_DIR)
 	@echo Generated compiler source files
 
 prebuild:

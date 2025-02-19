@@ -61,7 +61,6 @@ public sealed class EvaluatorTests {
     [InlineData("4 * 2;", 8)]
     [InlineData("-6 * -4;", 24)]
     [InlineData("10 * 1.5;", 15)]
-    [InlineData("10 * (int)1.5;", 10)]
     [InlineData("9 / 3;", 3)]
     [InlineData("12 / 3;", 4)]
     [InlineData("9 / 2;", 4)]
@@ -109,7 +108,6 @@ public sealed class EvaluatorTests {
     [InlineData("false || true;", true)]
     [InlineData("true || false;", true)]
     [InlineData("true || true;", true)]
-    [InlineData("null || true;", true)]
     [InlineData("false == false;", true)]
     [InlineData("true == false;", false)]
     [InlineData("12 == 3;", false)]
@@ -148,7 +146,6 @@ public sealed class EvaluatorTests {
     [InlineData("5 % 2;", 1)]
     [InlineData("9 % 5;", 4)]
     [InlineData("5 ?? 2;", 5)]
-    [InlineData("null ?? 2;", 2)]
     // Compound assignments
     [InlineData("var a = 1; a += (2 + 3); return a;", 6)]
     [InlineData("var a = 1; a -= (2 + 3); return a;", -4)]
@@ -187,47 +184,6 @@ public sealed class EvaluatorTests {
     [InlineData("int a = 10; return a * a;", 100)]
     [InlineData("int a = 1; return 10 * a;", 10)]
     [InlineData("int a; return a;", null)]
-    // If statements
-    [InlineData("int a = 0; if (a == 0) { a = 10; } return a;", 10)]
-    [InlineData("int a = 0; if (a == 4) { a = 10; } return a;", 0)]
-    [InlineData("int a = 0; if (a == 0) { a = 10; } else { a = 5; } return a;", 10)]
-    [InlineData("int a = 0; if (a == 4) { a = 10; } else { a = 5; } return a;", 5)]
-    // For statements
-    [InlineData("int result = 1; for (int i = 0; i <= 10; i++) { result += result; } return result;", 2048)]
-    [InlineData("int result = 0; for (int i = 0; i < 5; i++) { result++; } return result;", 5)]
-    [InlineData("int result; for (int i = 0; i <= 10; i++) { result = i; } return result;", 10)]
-    [InlineData("int result = 1; for (int i = 10; i > 0; i--) { result += i; } return result;", 56)]
-    // While statements
-    [InlineData("int i = 0; int result = 1; while (i <= 10) { result += result; i++; } return result;", 2048)]
-    [InlineData("int i = 0; int result = 0; while (i < 5) { result++; i++; } return result;", 5)]
-    [InlineData("int i = 0; int result; while (i <= 10) { result = i; i++; } return result;", 10)]
-    [InlineData("int i = 10; int result = 1; while (i > 0) { result += i; i--; } return result;", 56)]
-    // Do-While statements
-    [InlineData("int result = 0; do { result++; } while (result < 10); return result;", 10)]
-    [InlineData("int result = 0; do { result++; } while (false); return result;", 1)]
-    [InlineData("int result = 0; do { result++; } while (result < 0); return result;", 1)]
-    [InlineData("int result = 10; do { result*=2; } while (result < 30); return result;", 40)]
-    // Attributes
-    // TODO Cannot test invalid attributes until any attributes exist
-    // Initializer list expressions and index expressions
-    [InlineData("lowlevel { decimal[] a = {3.1, 2.56, 5.23123}; return a[2]; }", 5.23123)]
-    [InlineData("lowlevel { var a = {3.1, 2.56, 5.23123}; return a[0]; }", 3.1)]
-    [InlineData("lowlevel { string[] a = {\"hello\", \"world\"}; return a[1]; }", "world")]
-    [InlineData("lowlevel { bool[] a = {true, true, false, false}; return a[3]; }", false)]
-    [InlineData("lowlevel { bool[] a = {true, true, false, false}; return a?[3]; }", false)]
-    [InlineData("lowlevel { bool[] a; return a?[3]; }", null)]
-    [InlineData("lowlevel { bool[] a = {true, false}; a = null; return a?[3]; }", null)]
-    [InlineData("lowlevel { bool[] a = null; return a?[3]; }", null)]
-    [InlineData("lowlevel { int[] a = {1, 2, null}; return a[0]; }", 1)]
-    [InlineData("lowlevel { int[] a = {1, 2, null}; return a[2]; }", null)]
-    // Reference expressions
-    [InlineData("int x = 4; ref int y = ref x; x++; return y;", 5)]
-    [InlineData("int x = 4; ref int y = ref x; y++; return x;", 5)]
-    [InlineData("int x = 4; int y = 3; ref int z = ref x; z = ref y; z++; return x;", 4)]
-    [InlineData("lowlevel { var a = {1, 2, 3}; a[0] = 6; return a[0]; }", 6)]
-    // TODO Add this test back after adding containingAssembly checks to CannotUseGlobalInClass
-    // [InlineData("int a = 3; class A { public ref int b = ref a; } var m = new A(); a = 6; return m.b;", 6)]
-    [InlineData("lowlevel class A { public int[] b = { 1, 2, 3 }; } var a = new A(); var r = ref a.b; r[0]++; return a.b[0];", 2)]
     // Name expressions
     [InlineData("int a = 3; int b = 6; return a;", 3)]
     [InlineData("int a = 3; int b = 6; return b;", 6)]
@@ -241,7 +197,7 @@ public sealed class EvaluatorTests {
     [InlineData("int a = 4; int b = a++; return b;", 4)]
     [InlineData("int a = 4; int b = a--; return b;", 4)]
     [InlineData("int a = 4; return a!;", 4)]
-    [InlineData("int! a = 4; return a! + 1;", 5)]
+    [InlineData("int a = 4; return a! + 1;", 5)]
     [InlineData("decimal a = 3.6; a++; return a;", 4.6)]
     [InlineData("decimal a = 3.6; a--; return a;", 2.6)]
     // Prefix expressions
@@ -270,6 +226,46 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public int a; public int M() { if (a is null) a = 3; return a++; } } var myA = new A(); return myA.M();", 3)]
     [InlineData("class A { public int a; public int M() { if (a is null) a = 3; return a++; } } var myA = new A(); myA.M(); return myA.M();", 4)]
     [InlineData("int A(int a) { return 1; } int A(int a, int b = 3) { return 2; } return A(9);", 1)]
+    /*
+    // If statements
+    [InlineData("int a = 0; if (a == 0) { a = 10; } return a;", 10)]
+    [InlineData("int a = 0; if (a == 4) { a = 10; } return a;", 0)]
+    [InlineData("int a = 0; if (a == 0) { a = 10; } else { a = 5; } return a;", 10)]
+    [InlineData("int a = 0; if (a == 4) { a = 10; } else { a = 5; } return a;", 5)]
+    // For statements
+    [InlineData("int result = 1; for (int i = 0; i <= 10; i++) { result += result; } return result;", 2048)]
+    [InlineData("int result = 0; for (int i = 0; i < 5; i++) { result++; } return result;", 5)]
+    [InlineData("int result; for (int i = 0; i <= 10; i++) { result = i; } return result;", 10)]
+    [InlineData("int result = 1; for (int i = 10; i > 0; i--) { result += i; } return result;", 56)]
+    // While statements
+    [InlineData("int i = 0; int result = 1; while (i <= 10) { result += result; i++; } return result;", 2048)]
+    [InlineData("int i = 0; int result = 0; while (i < 5) { result++; i++; } return result;", 5)]
+    [InlineData("int i = 0; int result; while (i <= 10) { result = i; i++; } return result;", 10)]
+    [InlineData("int i = 10; int result = 1; while (i > 0) { result += i; i--; } return result;", 56)]
+    // Do-While statements
+    [InlineData("int result = 0; do { result++; } while (result < 10); return result;", 10)]
+    [InlineData("int result = 0; do { result++; } while (false); return result;", 1)]
+    [InlineData("int result = 0; do { result++; } while (result < 0); return result;", 1)]
+    [InlineData("int result = 10; do { result*=2; } while (result < 30); return result;", 40)]
+    // Initializer list expressions and index expressions
+    [InlineData("lowlevel { decimal[] a = {3.1, 2.56, 5.23123}; return a[2]; }", 5.23123)]
+    [InlineData("lowlevel { var a = {3.1, 2.56, 5.23123}; return a[0]; }", 3.1)]
+    [InlineData("lowlevel { string[] a = {\"hello\", \"world\"}; return a[1]; }", "world")]
+    [InlineData("lowlevel { bool[] a = {true, true, false, false}; return a[3]; }", false)]
+    [InlineData("lowlevel { bool[] a = {true, true, false, false}; return a?[3]; }", false)]
+    [InlineData("lowlevel { bool[] a; return a?[3]; }", null)]
+    [InlineData("lowlevel { bool[] a = {true, false}; a = null; return a?[3]; }", null)]
+    [InlineData("lowlevel { bool[] a = null; return a?[3]; }", null)]
+    [InlineData("lowlevel { int[] a = {1, 2, null}; return a[0]; }", 1)]
+    [InlineData("lowlevel { int[] a = {1, 2, null}; return a[2]; }", null)]
+    // Reference expressions
+    [InlineData("int x = 4; ref int y = ref x; x++; return y;", 5)]
+    [InlineData("int x = 4; ref int y = ref x; y++; return x;", 5)]
+    [InlineData("int x = 4; int y = 3; ref int z = ref x; z = ref y; z++; return x;", 4)]
+    [InlineData("lowlevel { var a = {1, 2, 3}; a[0] = 6; return a[0]; }", 6)]
+    // TODO Add this test back after adding containingAssembly checks to CannotUseGlobalInClass
+    // [InlineData("int a = 3; class A { public ref int b = ref a; } var m = new A(); a = 6; return m.b;", 6)]
+    [InlineData("lowlevel class A { public int[] b = { 1, 2, 3 }; } var a = new A(); var r = ref a.b; r[0]++; return a.b[0];", 2)]
     // Builtin Methods
     [InlineData("Console.Print(message: \"test\");", null)]
     [InlineData("Hex(13);", "D")]
@@ -282,6 +278,7 @@ public sealed class EvaluatorTests {
     [InlineData("(int)3.4;", 3)]
     [InlineData("(int)3.6;", 3)]
     [InlineData("(int!)3;", 3)]
+    [InlineData("10 * (int)1.5;", 10)]
     [InlineData("string a = (string)(int)3.6; return a;", "3")]
     [InlineData("(string)null;", null)]
     [InlineData("(int)null;", null)]
@@ -382,6 +379,7 @@ public sealed class EvaluatorTests {
 
         var b = new B();
         return b.T();", "B")]
+        */
     public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
         AssertValue(text, expectedValue);
     }

@@ -1,4 +1,3 @@
-
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -22,6 +21,10 @@ public static class CompilerHelpers {
             if (libraryName.StartsWith("Compiler.Resources"))
                 continue;
 
+            // TODO Remove this, temp
+            if (libraryName != "Compiler.Object.blt")
+                continue;
+
             using var stream = assembly.GetManifestResourceStream(libraryName);
             using var reader = new StreamReader(stream);
             var text = reader.ReadToEnd().TrimEnd();
@@ -30,15 +33,6 @@ public static class CompilerHelpers {
             syntaxTrees.Add(syntaxTree);
         }
 
-        var newOptions = new CompilationOptions(
-            options.buildMode,
-            options.projectType,
-            options.arguments,
-            options.isScript,
-            options.enableOutput,
-            true
-        );
-
-        return Compilation.Create(newOptions, syntaxTrees.ToArray());
+        return Compilation.Create("StandardLibrary", options, syntaxTrees.ToArray());
     }
 }

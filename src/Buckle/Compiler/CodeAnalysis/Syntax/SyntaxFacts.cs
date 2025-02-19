@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
@@ -179,6 +180,8 @@ internal static class SyntaxFacts {
             "as" => SyntaxKind.AsKeyword,
             "where" => SyntaxKind.WhereKeyword,
             "throw" => SyntaxKind.ThrowKeyword,
+            "primitive" => SyntaxKind.PrimitiveKeyword,
+            "notnull" => SyntaxKind.NotnullKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -284,6 +287,8 @@ internal static class SyntaxFacts {
             SyntaxKind.AsKeyword => "as",
             SyntaxKind.WhereKeyword => "where",
             SyntaxKind.ThrowKeyword => "throw",
+            SyntaxKind.PrimitiveKeyword => "primitive",
+            SyntaxKind.NotnullKeyword => "notnull",
             _ => null,
         };
     }
@@ -309,7 +314,32 @@ internal static class SyntaxFacts {
                 => SyntaxKind.GreaterThanGreaterThanGreaterThanToken,
             SyntaxKind.PercentEqualsToken => SyntaxKind.PercentToken,
             SyntaxKind.QuestionQuestionEqualsToken => SyntaxKind.QuestionQuestionToken,
-            _ => throw new BelteInternalException($"GetBinaryOperatorOfAssignmentOperator: unexpected syntax '{type}'"),
+            _ => throw ExceptionUtilities.UnexpectedValue(type)
+        };
+    }
+
+    /// <summary>
+    /// Gets compound assignment operator type of binary operator type (e.g. + -> +=).
+    /// </summary>
+    /// <param name="type"><see cref="SyntaxKind" />.</param>
+    /// <returns>Compound assignment operator type.</returns>
+    internal static SyntaxKind GetAssignmentOperatorOfBinaryOperator(SyntaxKind type) {
+        return type switch {
+            SyntaxKind.PlusToken => SyntaxKind.PlusEqualsToken,
+            SyntaxKind.MinusToken => SyntaxKind.MinusEqualsToken,
+            SyntaxKind.AsteriskToken => SyntaxKind.AsteriskEqualsToken,
+            SyntaxKind.SlashToken => SyntaxKind.SlashEqualsToken,
+            SyntaxKind.AmpersandToken => SyntaxKind.AmpersandEqualsToken,
+            SyntaxKind.PipeToken => SyntaxKind.PipeEqualsToken,
+            SyntaxKind.CaretToken => SyntaxKind.CaretEqualsToken,
+            SyntaxKind.AsteriskAsteriskToken => SyntaxKind.AsteriskAsteriskEqualsToken,
+            SyntaxKind.LessThanLessThanToken => SyntaxKind.LessThanLessThanEqualsToken,
+            SyntaxKind.GreaterThanGreaterThanToken => SyntaxKind.GreaterThanGreaterThanEqualsToken,
+            SyntaxKind.GreaterThanGreaterThanGreaterThanToken
+                => SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken,
+            SyntaxKind.PercentToken => SyntaxKind.PercentEqualsToken,
+            SyntaxKind.QuestionQuestionToken => SyntaxKind.QuestionQuestionEqualsToken,
+            _ => throw ExceptionUtilities.UnexpectedValue(type)
         };
     }
 
@@ -348,20 +378,20 @@ internal static class SyntaxFacts {
     }
 
     /// <summary>
-    /// Gets the associations operator name of an operator token.
+    /// Gets the associations operator name of an operator declaration using the operator token and parameter count.
     /// </summary>
-    /// <param name="type"><see cref="SyntaxKind" />.</param>
-    /// <returns>The association operator of the token, or null if the token is not an overloadable operator.</returns>
-    internal static string GetOperatorMemberName(SyntaxKind type, int arity) {
-        return type switch {
+    internal static string GetOperatorMemberName(OperatorDeclarationSyntax syntax) {
+        var parameterCount = syntax.parameterList.parameters.Count;
+
+        return syntax.operatorToken.kind switch {
             SyntaxKind.AsteriskAsteriskToken => WellKnownMemberNames.PowerOperatorName,
             SyntaxKind.AsteriskToken => WellKnownMemberNames.MultiplyOperatorName,
             SyntaxKind.SlashToken => WellKnownMemberNames.DivideOperatorName,
             SyntaxKind.PercentToken => WellKnownMemberNames.ModulusOperatorName,
-            SyntaxKind.PlusToken when arity == 1 => WellKnownMemberNames.UnaryPlusOperatorName,
-            SyntaxKind.PlusToken when arity != 1 => WellKnownMemberNames.AdditionOperatorName,
-            SyntaxKind.MinusToken when arity == 1 => WellKnownMemberNames.UnaryNegationOperatorName,
-            SyntaxKind.MinusToken when arity != 1 => WellKnownMemberNames.SubtractionOperatorName,
+            SyntaxKind.PlusToken when parameterCount == 1 => WellKnownMemberNames.UnaryPlusOperatorName,
+            SyntaxKind.PlusToken when parameterCount != 1 => WellKnownMemberNames.AdditionOperatorName,
+            SyntaxKind.MinusToken when parameterCount == 1 => WellKnownMemberNames.UnaryNegationOperatorName,
+            SyntaxKind.MinusToken when parameterCount != 1 => WellKnownMemberNames.SubtractionOperatorName,
             SyntaxKind.LessThanLessThanToken => WellKnownMemberNames.LeftShiftOperatorName,
             SyntaxKind.GreaterThanGreaterThanToken => WellKnownMemberNames.RightShiftOperatorName,
             SyntaxKind.GreaterThanGreaterThanGreaterThanToken => WellKnownMemberNames.UnsignedRightShiftOperatorName,
@@ -372,10 +402,10 @@ internal static class SyntaxFacts {
             SyntaxKind.MinusMinusToken => WellKnownMemberNames.DecrementOperatorName,
             SyntaxKind.ExclamationToken => WellKnownMemberNames.LogicalNotOperatorName,
             SyntaxKind.TildeToken => WellKnownMemberNames.BitwiseNotOperatorName,
-            SyntaxKind.OpenBracketToken when arity != 3 => WellKnownMemberNames.IndexOperatorName,
-            SyntaxKind.OpenBracketToken when arity == 3 => WellKnownMemberNames.IndexAssignName,
-            SyntaxKind.QuestionOpenBracketToken when arity != 3 => WellKnownMemberNames.IndexOperatorName,
-            SyntaxKind.QuestionOpenBracketToken when arity == 3 => WellKnownMemberNames.IndexAssignName,
+            SyntaxKind.OpenBracketToken when parameterCount != 3 => WellKnownMemberNames.IndexOperatorName,
+            SyntaxKind.OpenBracketToken when parameterCount == 3 => WellKnownMemberNames.IndexAssignName,
+            SyntaxKind.QuestionOpenBracketToken when parameterCount != 3 => WellKnownMemberNames.IndexOperatorName,
+            SyntaxKind.QuestionOpenBracketToken when parameterCount == 3 => WellKnownMemberNames.IndexAssignName,
             SyntaxKind.EqualsEqualsToken => WellKnownMemberNames.EqualityOperatorName,
             SyntaxKind.ExclamationEqualsToken => WellKnownMemberNames.InequalityOperatorName,
             SyntaxKind.LessThanToken => WellKnownMemberNames.LessThanOperatorName,
