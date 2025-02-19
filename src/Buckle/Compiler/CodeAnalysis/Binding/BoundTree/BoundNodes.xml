@@ -263,4 +263,8 @@
     <Field Name="condition" Type="BoundExpression"/>
     <Field Name="body" Type="BoundStatement"/>
   </Node>
+  <Node Name="BoundLocalFunctionStatement" Base="BoundStatement">
+    <Field Name="symbol" Type="LocalFunctionSymbol"/>
+    <Field Name="body" Type="BoundBlockStatement"/>
+  </Node>
 </Tree>

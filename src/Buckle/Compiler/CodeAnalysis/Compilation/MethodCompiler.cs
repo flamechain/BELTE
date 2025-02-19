@@ -225,10 +225,23 @@ internal sealed class MethodCompiler {
             return;
         }
 
-        var loweredBody = Lowerer.Lower(method, body, currentDiagnostics);
+        var loweredBody = LowerBody(method, body, state, currentDiagnostics);
 
         _diagnostics.PushRangeAndFree(currentDiagnostics);
         _methodBodies.Add(method, loweredBody);
+    }
+
+    private static BoundBlockStatement LowerBody(
+        MethodSymbol method,
+        BoundBlockStatement body,
+        TypeCompilationState state,
+        BelteDiagnosticQueue currentDiagnostics) {
+        var loweredBody = Lowerer.Lower(method, body, currentDiagnostics);
+
+        // TODO closure resolution of local functions
+        LocalFunctionRewriter.Rewrite(loweredBody, state.type, method, state, currentDiagnostics);
+
+        return loweredBody;
     }
 
     private static BoundBlockStatement BindMethodBody(
